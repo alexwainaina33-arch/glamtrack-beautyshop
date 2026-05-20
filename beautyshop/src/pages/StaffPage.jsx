@@ -1,0 +1,558 @@
+import { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
+import pb, { C } from '../lib/pb'
+import { fmtKES, fmtDate } from '../lib/utils'
+import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { Plus, X, Edit, TrendingUp, Award, Scissors } from 'lucide-react'
+import toast from 'react-hot-toast'
+
+const ROLES = ['stylist','nail_tech','skin_therapist','lash_tech','receptionist','manager','cashier']
+const ROLE_EMOJI = { stylist: '💇', nail_tech: '💅', skin_therapist: '✨', lash_tech: '👁️', receptionist: '📞', manager: '👑', cashier: '💰' }
+const COMMISSION_TYPES = [
+  { value: 'none', label: 'No Commission' },
+  { value: 'percent_of_sale', label: '% of Sale Revenue' },
+  { value: 'percent_of_profit', label: '% of Gross Profit' },
+  { value: 'flat_per_service', label: 'Flat KES per Service' },
+]
+const CAT_EMOJI = { hair: '💇', nails: '💅', skin: '✨', body: '💆', lashes: '👁️', makeup: '💄', other: '🌸' }
+
+const calcCommission = (staff, sales) => {
+  if (!staff.commission_type || staff.commission_type === 'none') return 0
+  const revenue = sales.reduce((s, x) => s + (x.total_kes || 0), 0)
+  const profit = sales.reduce((s, x) => s + (x.gross_profit_kes || 0), 0)
+  const val = staff.commission_value || 0
+  if (staff.commission_type === 'percent_of_sale') return revenue * (val / 100)
+  if (staff.commission_type === 'percent_of_profit') return profit * (val / 100)
+  if (staff.commission_type === 'flat_per_service') return sales.length * val
+  return 0
+}
+
+export default function StaffPage() {
+  const { shop } = useAuth()
+  const [tab, setTab] = useState(0) // 0=Staff, 1=Services, 2=Payouts
+  const [staff, setStaff] = useState([])
+  const [services, setServices] = useState([])
+  const [payouts, setPayouts] = useState([])
+  const [allSales, setAllSales] = useState([])
+  const [admins, setAdmins] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showStaffModal, setShowStaffModal] = useState(false)
+  const [showServiceModal, setShowServiceModal] = useState(false)
+  const [showPayoutModal, setShowPayoutModal] = useState(false)
+  const [editStaffId, setEditStaffId] = useState(null)
+  const [editServiceId, setEditServiceId] = useState(null)
+  const [payoutStaff, setPayoutStaff] = useState(null)
+
+  const thisMonth = { from: format(startOfMonth(new Date()), 'yyyy-MM-dd'), to: format(endOfMonth(new Date()), 'yyyy-MM-dd') }
+
+  const emptyStaffForm = { name: '', phone: '', role: 'stylist', commission_type: 'none', commission_value: 0, admin_id: '', hire_date: '', notes: '', is_active: true }
+  const emptySvcForm = { name: '', category: 'hair', duration_minutes: 60, price_kes: 0, description: '', color: '#c8456a', is_active: true }
+  const [staffForm, setStaffForm] = useState(emptyStaffForm)
+  const [svcForm, setSvcForm] = useState(emptySvcForm)
+  const [payoutForm, setPayoutForm] = useState({ period_from: thisMonth.from, period_to: thisMonth.to, commission_kes: 0, payment_method: 'cash', notes: '' })
+
+  useEffect(() => { if (shop) loadAll() }, [shop])
+
+  const loadAll = async () => {
+    setLoading(true)
+    try {
+      const [stf, svcs, pays, sales, adms] = await Promise.all([
+        pb.collection(C.STAFF).getList(1, 200, { filter: `shop_id="${shop.id}"`, sort: 'name' }).then(r => r.items),
+        pb.collection(C.SERVICES).getList(1, 200, { filter: `shop_id="${shop.id}"`, sort: 'category,name' }).then(r => r.items),
+        pb.collection(C.COMMISSION_PAYOUTS).getList(1, 200, { filter: `shop_id="${shop.id}"`, expand: 'staff_id', sort: '-created' }).then(r => r.items),
+        pb.collection(C.SALES).getList(1, 500, { filter: `shop_id="${shop.id}" && status="completed"`, expand: 'served_by' }).then(r => r.items),
+        pb.collection(C.ADMINS).getList(1, 100).then(r => r.items),
+      ])
+      setStaff(stf)
+      setServices(svcs)
+      setPayouts(pays)
+      setAllSales(sales)
+      setAdmins(adms)
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
+
+  // Get sales for a staff member this month (matched via admin_id → served_by)
+  const getSalesForStaff = (staffMember, from = thisMonth.from, to = thisMonth.to) => {
+    if (!staffMember.admin_id) return []
+    return allSales.filter(s => {
+      if (s.served_by !== staffMember.admin_id) return false
+      const m = s.receipt_no?.match(/-(\d{6})-/)
+      if (!m) return true
+      const c = m[1]
+      const d = `20${c.slice(0,2)}-${c.slice(2,4)}-${c.slice(4,6)}`
+      return d >= from && d <= to
+    })
+  }
+
+  // Staff modal
+  const openAddStaff = () => { setEditStaffId(null); setStaffForm(emptyStaffForm); setShowStaffModal(true) }
+  const openEditStaff = (s) => {
+    setEditStaffId(s.id)
+    setStaffForm({ name: s.name, phone: s.phone || '', role: s.role || 'stylist', commission_type: s.commission_type || 'none', commission_value: s.commission_value || 0, admin_id: s.admin_id || '', hire_date: s.hire_date?.split('T')[0] || '', notes: s.notes || '', is_active: s.is_active !== false })
+    setShowStaffModal(true)
+  }
+  const saveStaff = async () => {
+    if (!staffForm.name.trim()) return toast.error('Name required')
+    try {
+      const payload = { ...staffForm, shop_id: shop.id }
+      if (editStaffId) await pb.collection(C.STAFF).update(editStaffId, payload)
+      else await pb.collection(C.STAFF).create(payload)
+      toast.success(editStaffId ? 'Staff updated!' : 'Staff member added! 👩')
+      setShowStaffModal(false); loadAll()
+    } catch (e) { toast.error('Failed: ' + e.message) }
+  }
+  const toggleStaffActive = async (s) => {
+    await pb.collection(C.STAFF).update(s.id, { is_active: !s.is_active })
+    toast.success(s.is_active ? 'Staff deactivated' : 'Staff activated')
+    loadAll()
+  }
+
+  // Service modal
+  const openAddService = () => { setEditServiceId(null); setSvcForm(emptySvcForm); setShowServiceModal(true) }
+  const openEditService = (s) => {
+    setEditServiceId(s.id)
+    setSvcForm({ name: s.name, category: s.category || 'hair', duration_minutes: s.duration_minutes || 60, price_kes: s.price_kes || 0, description: s.description || '', color: s.color || '#c8456a', is_active: s.is_active !== false })
+    setShowServiceModal(true)
+  }
+  const saveService = async () => {
+    if (!svcForm.name.trim()) return toast.error('Service name required')
+    if (!svcForm.price_kes) return toast.error('Price required')
+    try {
+      const payload = { ...svcForm, shop_id: shop.id }
+      if (editServiceId) await pb.collection(C.SERVICES).update(editServiceId, payload)
+      else await pb.collection(C.SERVICES).create(payload)
+      toast.success(editServiceId ? 'Service updated!' : 'Service added! 💅')
+      setShowServiceModal(false); loadAll()
+    } catch (e) { toast.error('Failed: ' + e.message) }
+  }
+  const toggleServiceActive = async (s) => {
+    await pb.collection(C.SERVICES).update(s.id, { is_active: !s.is_active })
+    loadAll()
+  }
+
+  // Payout modal
+  const openPayout = (staffMember) => {
+    const sales = getSalesForStaff(staffMember)
+    const commission = calcCommission(staffMember, sales)
+    setPayoutStaff(staffMember)
+    setPayoutForm({ period_from: thisMonth.from, period_to: thisMonth.to, commission_kes: Math.round(commission), payment_method: 'cash', notes: '' })
+    setShowPayoutModal(true)
+  }
+  const savePayout = async () => {
+    if (!payoutStaff) return
+    try {
+      const sales = getSalesForStaff(payoutStaff, payoutForm.period_from, payoutForm.period_to)
+      await pb.collection(C.COMMISSION_PAYOUTS).create({
+        shop_id: shop.id,
+        staff_id: payoutStaff.id,
+        ...payoutForm,
+        total_sales_kes: sales.reduce((s, x) => s + x.total_kes, 0),
+        total_profit_kes: sales.reduce((s, x) => s + (x.gross_profit_kes || 0), 0),
+        status: 'paid',
+        paid_date: format(new Date(), 'yyyy-MM-dd'),
+        created_by: pb.authStore.model?.id,
+      })
+      toast.success(`Commission of ${fmtKES(payoutForm.commission_kes)} paid to ${payoutStaff.name} ✅`)
+      setShowPayoutModal(false); loadAll()
+    } catch (e) { toast.error('Failed: ' + e.message) }
+  }
+
+  const totalMonthlyCommission = staff.reduce((sum, s) => sum + calcCommission(s, getSalesForStaff(s)), 0)
+  const totalMonthlyRevenue = allSales.filter(s => {
+    const m = s.receipt_no?.match(/-(\d{6})-/)
+    if (!m) return false
+    const c = m[1]; const d = `20${c.slice(0,2)}-${c.slice(2,4)}-${c.slice(4,6)}`
+    return d >= thisMonth.from && d <= thisMonth.to
+  }).reduce((s, x) => s + x.total_kes, 0)
+
+  return (
+    <div>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div className="page-title">Staff & Commissions 👩‍💼</div>
+          <div className="page-subtitle">{staff.filter(s => s.is_active).length} active staff · {services.filter(s => s.is_active).length} services · {format(new Date(), 'MMMM yyyy')}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {tab === 0 && <button className="btn-primary" onClick={openAddStaff}><Plus size={16} /> Add Staff</button>}
+          {tab === 1 && <button className="btn-primary" onClick={openAddService}><Plus size={16} /> Add Service</button>}
+        </div>
+      </div>
+
+      {/* KPI row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
+        {[
+          { label: 'Active Staff', value: staff.filter(s => s.is_active).length, color: '#c8456a', icon: '👩‍💼' },
+          { label: 'Services Offered', value: services.filter(s => s.is_active).length, color: '#3b82f6', icon: '💅' },
+          { label: 'This Month Revenue', value: fmtKES(totalMonthlyRevenue), color: '#059669', icon: '💰' },
+          { label: 'Commissions Due', value: fmtKES(totalMonthlyCommission), color: '#d97706', icon: '🏆' },
+        ].map((s, i) => (
+          <div key={i} className="stat-card" style={{ cursor: 'default' }}>
+            <div style={{ fontSize: 24 }}>{s.icon}</div>
+            <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, fontWeight: 700, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 12, color: '#9b6070', marginTop: 2 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
+        {['👩‍💼 Staff', '💅 Services', '💸 Commission Payouts'].map((t, i) => (
+          <button key={i} onClick={() => setTab(i)} style={{ padding: '9px 18px', borderRadius: 10, border: tab !== i ? '1px solid #f0e4e8' : 'none', background: tab === i ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: tab === i ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', boxShadow: tab === i ? '0 4px 14px #c8456a44' : '0 1px 4px #0001', fontFamily: 'Nunito,sans-serif' }}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}><div className="spinner" /></div>
+      ) : (
+        <>
+          {/* ═══ TAB 0: STAFF ═══ */}
+          {tab === 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+              {staff.length === 0 && (
+                <div className="card" style={{ textAlign: 'center', padding: 48, gridColumn: '1/-1' }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>👩‍💼</div>
+                  <p style={{ color: '#9b6070' }}>No staff yet. Add your first team member!</p>
+                  <button className="btn-primary" style={{ marginTop: 12 }} onClick={openAddStaff}><Plus size={16} /> Add Staff</button>
+                </div>
+              )}
+              {staff.map(s => {
+                const monthSales = getSalesForStaff(s)
+                const revenue = monthSales.reduce((sum, x) => sum + x.total_kes, 0)
+                const profit = monthSales.reduce((sum, x) => sum + (x.gross_profit_kes || 0), 0)
+                const commission = calcCommission(s, monthSales)
+                const paidThisMonth = payouts.filter(p => p.staff_id === s.id && p.period_from >= thisMonth.from && p.status === 'paid').reduce((sum, p) => sum + p.commission_kes, 0)
+                const outstanding = Math.max(0, commission - paidThisMonth)
+
+                return (
+                  <div key={s.id} className="card" style={{ opacity: s.is_active ? 1 : 0.6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#c8456a,#8b2550)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 20, flexShrink: 0 }}>
+                          {s.name[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a1f' }}>{s.name}</div>
+                          <div style={{ fontSize: 12, color: '#9b6070' }}>{ROLE_EMOJI[s.role] || '👤'} {s.role?.replace(/_/g,' ') || 'Staff'}</div>
+                          {s.phone && <div style={{ fontSize: 11, color: '#b09090' }}>{s.phone}</div>}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => openEditStaff(s)} style={{ padding: '5px 10px', borderRadius: 8, border: 'none', background: '#f5edf0', color: '#8b2550', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                        <button onClick={() => toggleStaffActive(s)} style={{ padding: '5px 10px', borderRadius: 8, border: 'none', background: s.is_active ? '#fee2e2' : '#f0fdf4', color: s.is_active ? '#dc2626' : '#059669', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                          {s.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Commission info */}
+                    <div style={{ background: '#fef5f7', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9b6070', marginBottom: 6 }}>Commission Rule</div>
+                      {s.commission_type === 'none' ? (
+                        <div style={{ fontSize: 13, color: '#9b6070' }}>No commission set</div>
+                      ) : (
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#c8456a' }}>
+                          {s.commission_type === 'percent_of_sale' && `${s.commission_value}% of sale revenue`}
+                          {s.commission_type === 'percent_of_profit' && `${s.commission_value}% of gross profit`}
+                          {s.commission_type === 'flat_per_service' && `KES ${s.commission_value} per service`}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* This month stats */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+                      {[
+                        { label: 'Sales', value: monthSales.length, color: '#3b82f6' },
+                        { label: 'Revenue', value: fmtKES(revenue), color: '#059669' },
+                        { label: 'Profit Gen.', value: fmtKES(profit), color: '#8b5cf6' },
+                        { label: 'Commission', value: fmtKES(commission), color: '#d97706' },
+                      ].map((k, i) => (
+                        <div key={i} style={{ background: '#fafafa', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: k.color }}>{k.value}</div>
+                          <div style={{ fontSize: 10, color: '#9b6070' }}>{k.label}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Outstanding commission */}
+                    {outstanding > 0 && (
+                      <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 12px', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>⚠️ Commission Due</span>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: '#d97706' }}>{fmtKES(outstanding)}</span>
+                      </div>
+                    )}
+
+                    {s.commission_type !== 'none' && outstanding > 0 && (
+                      <button onClick={() => openPayout(s)} style={{ width: '100%', padding: '9px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#d97706,#92400e)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                        💸 Record Commission Payout
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* ═══ TAB 1: SERVICES ═══ */}
+          {tab === 1 && (
+            <div>
+              {services.length === 0 ? (
+                <div className="card" style={{ textAlign: 'center', padding: 48 }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>💅</div>
+                  <p style={{ color: '#9b6070' }}>No services yet. Add your beauty service menu!</p>
+                  <button className="btn-primary" style={{ marginTop: 12 }} onClick={openAddService}><Plus size={16} /> Add First Service</button>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+                  {services.map(s => (
+                    <div key={s.id} className="card" style={{ opacity: s.is_active ? 1 : 0.5, position: 'relative' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 40, height: 40, borderRadius: 10, background: s.color || '#c8456a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                            {CAT_EMOJI[s.category] || '💅'}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1f' }}>{s.name}</div>
+                            <div style={{ fontSize: 11, color: '#9b6070', textTransform: 'capitalize' }}>{s.category}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => openEditService(s)} style={{ padding: '4px 8px', borderRadius: 6, border: 'none', background: '#f5edf0', color: '#8b2550', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                          <button onClick={() => toggleServiceActive(s)} style={{ padding: '4px 8px', borderRadius: 6, border: 'none', background: s.is_active ? '#fee2e2' : '#f0fdf4', color: s.is_active ? '#dc2626' : '#059669', cursor: 'pointer', fontSize: 11 }}>
+                            {s.is_active ? 'Hide' : 'Show'}
+                          </button>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#9b6070', fontSize: 13 }}>
+                          ⏱️ {s.duration_minutes} min
+                        </div>
+                        <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#c8456a' }}>{fmtKES(s.price_kes)}</div>
+                      </div>
+                      {s.description && <div style={{ fontSize: 12, color: '#9b6070', marginTop: 8, fontStyle: 'italic' }}>{s.description}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══ TAB 2: PAYOUTS ═══ */}
+          {tab === 2 && (
+            <div className="card" style={{ padding: 0 }}>
+              <div style={{ padding: '14px 20px', borderBottom: '1px solid #f5edf0' }}>
+                <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 16, color: '#3d1020', margin: 0 }}>Commission Payout History</h3>
+              </div>
+              {payouts.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 48, color: '#9b6070' }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>💸</div>
+                  <div>No payouts recorded yet.</div>
+                </div>
+              ) : (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Staff</th><th>Period</th><th>Sales</th><th>Commission</th><th>Method</th><th>Date Paid</th><th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payouts.map(p => (
+                        <tr key={p.id}>
+                          <td style={{ fontWeight: 600 }}>{p.expand?.staff_id?.name || '—'}</td>
+                          <td style={{ fontSize: 12, color: '#9b6070' }}>{p.period_from} → {p.period_to}</td>
+                          <td>{fmtKES(p.total_sales_kes || 0)}</td>
+                          <td style={{ fontWeight: 700, color: '#d97706' }}>{fmtKES(p.commission_kes)}</td>
+                          <td style={{ fontSize: 12 }}>{p.payment_method === 'cash' ? '💵' : p.payment_method === 'mpesa' ? '📱' : '🏦'} {p.payment_method}</td>
+                          <td style={{ fontSize: 12, color: '#9b6070' }}>{p.paid_date || '—'}</td>
+                          <td><span style={{ background: '#f0fdf4', color: '#059669', padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>✅ Paid</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Add/Edit Staff Modal */}
+      {showStaffModal && (
+        <div style={{ position: 'fixed', inset: 0, background: '#00000055', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={e => e.target === e.currentTarget && setShowStaffModal(false)}>
+          <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px #0003' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f0e4e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, color: '#3d1020', margin: 0 }}>{editStaffId ? 'Edit Staff' : '👩‍💼 Add Staff Member'}</h2>
+              <button onClick={() => setShowStaffModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} color="#9b6070" /></button>
+            </div>
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="label">Full Name *</label>
+                  <input className="input" value={staffForm.name} onChange={e => setStaffForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Jane Wanjiku" />
+                </div>
+                <div>
+                  <label className="label">Phone</label>
+                  <input className="input" value={staffForm.phone} onChange={e => setStaffForm(f => ({ ...f, phone: e.target.value }))} placeholder="+254…" />
+                </div>
+              </div>
+              <div>
+                <label className="label">Role</label>
+                <select className="input" value={staffForm.role} onChange={e => setStaffForm(f => ({ ...f, role: e.target.value }))}>
+                  {ROLES.map(r => <option key={r} value={r}>{ROLE_EMOJI[r] || '👤'} {r.replace(/_/g,' ')}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Commission Type</label>
+                <select className="input" value={staffForm.commission_type} onChange={e => setStaffForm(f => ({ ...f, commission_type: e.target.value }))}>
+                  {COMMISSION_TYPES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+              {staffForm.commission_type !== 'none' && (
+                <div>
+                  <label className="label">
+                    {staffForm.commission_type === 'flat_per_service' ? 'Amount per Service (KES)' : 'Commission % value'}
+                  </label>
+                  <input className="input" type="number" min={0} max={staffForm.commission_type.includes('percent') ? 100 : undefined}
+                    value={staffForm.commission_value}
+                    onChange={e => setStaffForm(f => ({ ...f, commission_value: parseFloat(e.target.value) || 0 }))}
+                    placeholder={staffForm.commission_type.includes('percent') ? 'e.g. 10 for 10%' : 'e.g. 200'} />
+                </div>
+              )}
+              <div>
+                <label className="label">Link to System Account (optional)</label>
+                <select className="input" value={staffForm.admin_id} onChange={e => setStaffForm(f => ({ ...f, admin_id: e.target.value }))}>
+                  <option value="">— Not linked —</option>
+                  {admins.map(a => <option key={a.id} value={a.id}>{a.name} ({a.email})</option>)}
+                </select>
+                <div style={{ fontSize: 11, color: '#9b6070', marginTop: 4 }}>Links this staff profile to a login account for commission tracking from POS sales</div>
+              </div>
+              <div>
+                <label className="label">Hire Date</label>
+                <input className="input" type="date" value={staffForm.hire_date} onChange={e => setStaffForm(f => ({ ...f, hire_date: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Notes</label>
+                <textarea className="input" rows={2} value={staffForm.notes} onChange={e => setStaffForm(f => ({ ...f, notes: e.target.value }))} placeholder="Specialties, certifications, notes…" style={{ resize: 'vertical' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowStaffModal(false)}>Cancel</button>
+                <button className="btn-primary" style={{ flex: 2 }} onClick={saveStaff}>{editStaffId ? '💾 Save' : '👩‍💼 Add Staff'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Service Modal */}
+      {showServiceModal && (
+        <div style={{ position: 'fixed', inset: 0, background: '#00000055', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={e => e.target === e.currentTarget && setShowServiceModal(false)}>
+          <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 460, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px #0003' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f0e4e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, color: '#3d1020', margin: 0 }}>{editServiceId ? 'Edit Service' : '💅 Add Service'}</h2>
+              <button onClick={() => setShowServiceModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} color="#9b6070" /></button>
+            </div>
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label className="label">Service Name *</label>
+                <input className="input" value={svcForm.name} onChange={e => setSvcForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Hair Wash & Blowdry" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="label">Category</label>
+                  <select className="input" value={svcForm.category} onChange={e => setSvcForm(f => ({ ...f, category: e.target.value }))}>
+                    {['hair','nails','skin','body','lashes','makeup','other'].map(c => <option key={c} value={c}>{CAT_EMOJI[c]} {c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Duration (minutes) *</label>
+                  <select className="input" value={svcForm.duration_minutes} onChange={e => setSvcForm(f => ({ ...f, duration_minutes: parseInt(e.target.value) }))}>
+                    {[15,30,45,60,90,120,150,180,240].map(d => <option key={d} value={d}>{d} min</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="label">Price (KES) *</label>
+                <input className="input" type="number" min={0} value={svcForm.price_kes} onChange={e => setSvcForm(f => ({ ...f, price_kes: parseFloat(e.target.value) || 0 }))} placeholder="e.g. 1500" />
+              </div>
+              <div>
+                <label className="label">Description</label>
+                <textarea className="input" rows={2} value={svcForm.description} onChange={e => setSvcForm(f => ({ ...f, description: e.target.value }))} placeholder="Brief description of what's included…" style={{ resize: 'vertical' }} />
+              </div>
+              <div>
+                <label className="label">Colour Tag</label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {['#c8456a','#3b82f6','#059669','#d97706','#8b5cf6','#ec4899','#0ea5e9','#f97316'].map(c => (
+                    <button key={c} onClick={() => setSvcForm(f => ({ ...f, color: c }))}
+                      style={{ width: 32, height: 32, borderRadius: '50%', background: c, border: svcForm.color === c ? '3px solid #1a1a1f' : '2px solid transparent', cursor: 'pointer' }} />
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowServiceModal(false)}>Cancel</button>
+                <button className="btn-primary" style={{ flex: 2 }} onClick={saveService}>{editServiceId ? '💾 Save' : '💅 Add Service'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Commission Payout Modal */}
+      {showPayoutModal && payoutStaff && (
+        <div style={{ position: 'fixed', inset: 0, background: '#00000055', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={e => e.target === e.currentTarget && setShowPayoutModal(false)}>
+          <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 420, boxShadow: '0 20px 60px #0003' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f0e4e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, color: '#3d1020', margin: 0 }}>💸 Pay Commission</h2>
+              <button onClick={() => setShowPayoutModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} color="#9b6070" /></button>
+            </div>
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ background: '#fef5f7', borderRadius: 12, padding: '14px 16px', textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 4 }}>👩‍💼</div>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>{payoutStaff.name}</div>
+                <div style={{ fontSize: 12, color: '#9b6070' }}>{payoutStaff.role?.replace(/_/g,' ')}</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="label">Period From</label>
+                  <input className="input" type="date" value={payoutForm.period_from} onChange={e => setPayoutForm(f => ({ ...f, period_from: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Period To</label>
+                  <input className="input" type="date" value={payoutForm.period_to} onChange={e => setPayoutForm(f => ({ ...f, period_to: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="label">Commission Amount (KES) *</label>
+                <input className="input" type="number" min={0} value={payoutForm.commission_kes}
+                  onChange={e => setPayoutForm(f => ({ ...f, commission_kes: parseFloat(e.target.value) || 0 }))} />
+              </div>
+              <div>
+                <label className="label">Payment Method</label>
+                <select className="input" value={payoutForm.payment_method} onChange={e => setPayoutForm(f => ({ ...f, payment_method: e.target.value }))}>
+                  <option value="cash">💵 Cash</option>
+                  <option value="mpesa">📱 M-Pesa</option>
+                  <option value="bank">🏦 Bank Transfer</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Notes</label>
+                <input className="input" value={payoutForm.notes} onChange={e => setPayoutForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional note…" />
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowPayoutModal(false)}>Cancel</button>
+                <button onClick={savePayout} style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#d97706,#92400e)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                  ✅ Confirm Payout {fmtKES(payoutForm.commission_kes)}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
