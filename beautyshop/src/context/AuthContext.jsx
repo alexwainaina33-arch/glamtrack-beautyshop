@@ -4,9 +4,10 @@ import pb, { C } from '../lib/pb'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [admin, setAdmin] = useState(pb.authStore.model)
-  const [shop, setShop] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [admin, setAdmin]       = useState(pb.authStore.model)
+  const [shop, setShop]         = useState(null)
+  const [needsShop, setNeedsShop] = useState(false)   // true = show shop wizard
+  const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
     const unsub = pb.authStore.onChange((token, model) => {
@@ -15,6 +16,7 @@ export function AuthProvider({ children }) {
         loadShop(model.id)
       } else {
         setShop(null)
+        setNeedsShop(false)
       }
     })
     if (pb.authStore.isValid && pb.authStore.model) {
@@ -33,13 +35,14 @@ export function AuthProvider({ children }) {
       )
       if (res?.expand?.shop_id) {
         setShop(res.expand.shop_id)
+        setNeedsShop(false)
+      } else {
+        setNeedsShop(true)
       }
     } catch {
-      // owner with no shop_admins entry yet — grab first active shop
-      try {
-        const shops = await pb.collection(C.SHOPS).getList(1, 1, { filter: 'is_active = true', '$autoCancel': false, '$cancelKey': 'auth-shop-fallback' })
-        if (shops.items.length) setShop(shops.items[0])
-      } catch {}
+      // No shop_admins entry — new user needs to create their shop
+      setNeedsShop(true)
+      setShop(null)
     }
   }
 
@@ -54,12 +57,19 @@ export function AuthProvider({ children }) {
     pb.authStore.clear()
     setAdmin(null)
     setShop(null)
+    setNeedsShop(false)
   }
 
   const switchShop = (newShop) => setShop(newShop)
 
+  // Called after shop wizard completes
+  const completeShopSetup = (newShop) => {
+    setShop(newShop)
+    setNeedsShop(false)
+  }
+
   return (
-    <AuthContext.Provider value={{ admin, shop, loading, login, logout, switchShop }}>
+    <AuthContext.Provider value={{ admin, shop, needsShop, loading, login, logout, switchShop, completeShopSetup, loadShop }}>
       {children}
     </AuthContext.Provider>
   )

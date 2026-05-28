@@ -81,7 +81,7 @@ export default function SalesPage() {
   const sendWhatsAppReminder = (sale) => {
     const customer = sale.expand?.customer_id
     if (!customer?.phone) return toast.error('Customer has no phone number')
-    const msg = `Hello ${customer.name} 👋\n\nThis is a friendly reminder that you have an outstanding balance of *${fmtKES(sale.total_kes)}* at ${sale.shop_id ? 'our shop' : 'GlamTrack'}.\n\nReceipt: ${sale.receipt_no}\n\nKindly settle at your earliest convenience. Thank you! 💄`
+    const msg = `Hello ${customer.name} 👋\n\nThis is a friendly reminder that you have an outstanding balance of *${fmtKES(sale.total_kes)}* at ${sale.shop_id ? 'our shop' : 'our shop'}.\n\nReceipt: ${sale.receipt_no}\n\nKindly settle at your earliest convenience. Thank you! 🙏`
     window.open(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 

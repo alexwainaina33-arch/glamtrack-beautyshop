@@ -154,7 +154,7 @@ export default function AppointmentsPage() {
     const phone = appt.customer_phone?.replace(/[^0-9]/g, '')
     if (!phone) return toast.error('No phone number on this appointment')
     const dateFormatted = format(new Date(appt.appt_date), 'EEEE, dd MMMM yyyy')
-    const msg = `Hello ${appt.customer_name} 👋\n\nThis is a reminder for your appointment at *${shop.name}*:\n\n💅 Service: ${appt.service_name || 'Beauty Service'}\n📅 Date: ${dateFormatted}\n⏰ Time: ${appt.start_time}\n💰 Price: KES ${appt.price_kes?.toLocaleString() || 0}\n\nWe look forward to seeing you! ✨\n\n_GlamTrack Booking System_`
+    const msg = `Hello ${appt.customer_name} 👋\n\nThis is a reminder for your appointment at *${shop.name}*:\n\n💅 Service: ${appt.service_name ||'Service'}\n📅 Date: ${dateFormatted}\n⏰ Time: ${appt.start_time}\n💰 Price: KES ${appt.price_kes?.toLocaleString() || 0}\n\nWe look forward to seeing you! ✨\n\n_SalesTrack Booking System_`
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
     pb.collection(C.APPOINTMENTS).update(appt.id, { reminder_sent: true }).catch(() => {})
     toast.success('WhatsApp reminder sent! 📲')

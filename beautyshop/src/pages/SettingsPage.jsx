@@ -1,194 +1,447 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import toast from 'react-hot-toast'
-import { Save, Store, ShieldCheck, Users, Plus, Trash2, X } from 'lucide-react'
+import { Save, Store, ShieldCheck, Users, Plus, Trash2, X, Tag, Palette, Upload, Edit2, Check } from 'lucide-react'
 
-const TABS = ['Shop Settings', 'eTIMS / KRA', 'Staff & Access']
+const TABS = [
+  { label: 'Business',    icon: Store },
+  { label: 'Branding',    icon: Palette },
+  { label: 'Categories',  icon: Tag },
+  { label: 'eTIMS / KRA', icon: ShieldCheck },
+  { label: 'Staff',       icon: Users },
+]
+
+const BRAND_COLORS = [
+  '#c8456a','#2563eb','#059669','#7c3aed',
+  '#ea580c','#d97706','#0891b2','#dc2626','#475569',
+]
+
+const ROLES = ['owner','manager','cashier','viewer']
+const ROLE_DESC = { owner:'Full access', manager:'All except settings', cashier:'POS + sales only', viewer:'Read-only reports' }
 
 export default function SettingsPage() {
   const { shop, switchShop } = useAuth()
-  const [tab, setTab] = useState(0)
+  const logoRef = useRef(null)
+  const [tab, setTab]           = useState(0)
   const [shopForm, setShopForm] = useState({})
-  const [saving, setSaving] = useState(false)
-  const [staff, setStaff] = useState([])
-  const [showAddStaff, setShowAddStaff] = useState(false)
-  const [newStaff, setNewStaff] = useState({ name: '', email: '', password: '', role: 'cashier', phone: '' })
-  const [addingStaff, setAddingStaff] = useState(false)
+  const [saving, setSaving]     = useState(false)
+  const [staff, setStaff]       = useState([])
+  const [categories, setCategories] = useState([])
+  const [showAddStaff, setShowAddStaff]   = useState(false)
+  const [showAddCat, setShowAddCat]       = useState(false)
+  const [newCatName, setNewCatName]       = useState('')
+  const [editCatId, setEditCatId]         = useState(null)
+  const [editCatName, setEditCatName]     = useState('')
+  const [newStaff, setNewStaff]   = useState({ name:'', email:'', password:'', role:'cashier', phone:'' })
+  const [addingStaff, setAddingStaff]     = useState(false)
+  const [logoFile, setLogoFile]           = useState(null)
+  const [logoPreview, setLogoPreview]     = useState(null)
+  const [dragOver, setDragOver]           = useState(false)
+  const [customColor, setCustomColor]     = useState('#c8456a')
+
+  const logoUrl = shop?.logo
+    ? `${pb.baseURL}/api/files/${C.SHOPS}/${shop.id}/${shop.logo}?thumb=200x200`
+    : null
 
   useEffect(() => {
     if (shop) {
-      setShopForm({ name: shop.name || '', phone: shop.phone || '', address: shop.address || '', email: shop.email || '', currency: shop.currency || 'KES', tax_rate: shop.tax_rate || 0, etims_pin: shop.etims_pin || '', etims_serial: shop.etims_serial || '' })
+      setShopForm({
+        name: shop.name || '',
+        phone: shop.phone || '',
+        address: shop.address || '',
+        email: shop.email || '',
+        website: shop.website || '',
+        instagram: shop.instagram || '',
+        currency: shop.currency || 'KES',
+        tax_rate: shop.tax_rate || 0,
+        business_type: shop.business_type || '',
+        etims_pin: shop.etims_pin || '',
+        etims_serial: shop.etims_serial || '',
+        brand_color: shop.brand_color || '#c8456a',
+        receipt_footer: shop.receipt_footer || '',
+        receipt_header: shop.receipt_header || '',
+        receipt_show_logo: shop.receipt_show_logo ?? true,
+        receipt_show_tax: shop.receipt_show_tax ?? true,
+        whatsapp_welcome_msg: shop.whatsapp_welcome_msg || '',
+      })
+      setCustomColor(shop.brand_color || '#c8456a')
       loadStaff()
+      loadCategories()
     }
   }, [shop])
 
   const loadStaff = async () => {
     try {
-      const res = await pb.collection(C.SHOP_ADMINS).getFullList({ filter: `shop_id="${shop.id}"`, expand: 'admin_id' })
+      const res = await pb.collection(C.SHOP_ADMINS).getFullList({ filter:`shop_id="${shop.id}"`, expand:'admin_id' })
       setStaff(res)
     } catch {}
   }
 
+  const loadCategories = async () => {
+    try {
+      const res = await pb.collection(C.CATEGORIES).getFullList({ filter:`shop_id="${shop.id}"`, sort:'sort_order,name' })
+      setCategories(res)
+    } catch {}
+  }
+
+  const handleLogoFile = (file) => {
+    if (!file) return
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) { toast.error('JPG, PNG or WebP only'); return }
+    if (file.size > 5*1024*1024) { toast.error('Max 5MB'); return }
+    setLogoFile(file)
+    const r = new FileReader()
+    r.onload = e => setLogoPreview(e.target.result)
+    r.readAsDataURL(file)
+  }
+
   const saveShop = async (e) => {
-    e.preventDefault()
+    e?.preventDefault()
     setSaving(true)
     try {
-      const updated = await pb.collection(C.SHOPS).update(shop.id, shopForm)
+      const fd = new FormData()
+      Object.entries(shopForm).forEach(([k,v]) => fd.append(k, String(v)))
+      if (logoFile) fd.append('logo', logoFile)
+      const updated = await pb.collection(C.SHOPS).update(shop.id, fd)
       switchShop(updated)
-      toast.success('Settings saved!')
+      setLogoFile(null)
+      setLogoPreview(null)
+      toast.success('Settings saved! ✅')
     } catch (err) { toast.error(err?.message || 'Save failed') }
     finally { setSaving(false) }
+  }
+
+  const addCategory = async () => {
+    const name = newCatName.trim()
+    if (!name) return
+    try {
+      await pb.collection(C.CATEGORIES).create({ shop_id: shop.id, name, sort_order: categories.length })
+      toast.success('Category added!')
+      setNewCatName('')
+      setShowAddCat(false)
+      loadCategories()
+    } catch { toast.error('Failed to add category') }
+  }
+
+  const updateCategory = async (id) => {
+    const name = editCatName.trim()
+    if (!name) return
+    try {
+      await pb.collection(C.CATEGORIES).update(id, { name })
+      toast.success('Updated!')
+      setEditCatId(null)
+      loadCategories()
+    } catch { toast.error('Failed') }
+  }
+
+  const deleteCategory = async (id) => {
+    if (!confirm('Delete this category? Products in it will become uncategorised.')) return
+    try { await pb.collection(C.CATEGORIES).delete(id); toast.success('Deleted'); loadCategories() }
+    catch { toast.error('Failed') }
   }
 
   const handleAddStaff = async (e) => {
     e.preventDefault()
     setAddingStaff(true)
     try {
-      // Create account in bs_admins — fully independent
       const admin = await pb.collection(C.ADMINS).create({
-        name: newStaff.name,
-        email: newStaff.email,
-        password: newStaff.password,
-        passwordConfirm: newStaff.password,
-        phone: newStaff.phone,
-        role: newStaff.role,
-        is_active: true,
+        name: newStaff.name, email: newStaff.email,
+        password: newStaff.password, passwordConfirm: newStaff.password,
+        phone: newStaff.phone, role: newStaff.role, is_active: true,
       })
-      // Link to this shop
-      await pb.collection(C.SHOP_ADMINS).create({
-        shop_id: shop.id,
-        admin_id: admin.id,
-        role: newStaff.role
-      })
+      await pb.collection(C.SHOP_ADMINS).create({ shop_id: shop.id, admin_id: admin.id, role: newStaff.role })
       toast.success('Staff member added!')
       setShowAddStaff(false)
-      setNewStaff({ name: '', email: '', password: '', role: 'cashier', phone: '' })
+      setNewStaff({ name:'', email:'', password:'', role:'cashier', phone:'' })
       loadStaff()
     } catch (err) { toast.error(err?.data?.message || err?.message || 'Failed') }
     finally { setAddingStaff(false) }
   }
 
   const removeStaff = async (id) => {
-    if (!confirm('Remove this staff member from the shop?')) return
+    if (!confirm('Remove this staff member?')) return
     try { await pb.collection(C.SHOP_ADMINS).delete(id); toast.success('Removed'); loadStaff() }
     catch { toast.error('Failed') }
   }
 
-  const ROLES = ['owner', 'manager', 'cashier', 'viewer']
-  const ROLE_DESC = { owner: 'Full access', manager: 'All except settings', cashier: 'POS + sales only', viewer: 'Read-only reports' }
+  const brandColor = shopForm.brand_color || '#c8456a'
 
   return (
     <div>
       <div className="page-header">
         <div className="page-title">Settings ⚙️</div>
-        <div className="page-subtitle">Configure your {shop?.name} shop</div>
+        <div className="page-subtitle">Manage every detail of {shop?.name}</div>
       </div>
 
       {/* Tab nav */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: '#fce8ed', borderRadius: 12, padding: 4, width: 'fit-content' }}>
+      <div style={{ display:'flex', gap:3, marginBottom:24, background:'#fce8ed', borderRadius:12, padding:4, width:'fit-content', flexWrap:'wrap' }}>
         {TABS.map((t, i) => (
-          <button key={i} onClick={() => setTab(i)} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tab === i ? 'linear-gradient(135deg,#c8456a,#8b2550)' : 'transparent', color: tab === i ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center', gap: 6 }}>
-            {[<Store size={14}/>, <ShieldCheck size={14}/>, <Users size={14}/>][i]} {t}
+          <button key={i} onClick={()=>setTab(i)} style={{ padding:'8px 18px', borderRadius:8, border:'none', background: tab===i ? 'linear-gradient(135deg,#c8456a,#8b2550)' : 'transparent', color: tab===i ? '#fff' : '#8b2550', fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'Nunito,sans-serif', display:'flex', alignItems:'center', gap:5 }}>
+            <t.icon size={13}/> {t.label}
           </button>
         ))}
       </div>
 
+      {/* ── TAB 0: BUSINESS INFO ── */}
       {tab === 0 && (
-        <div className="card" style={{ maxWidth: 640 }}>
-          <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, color: '#3d1020', margin: '0 0 24px' }}>Shop Information</h2>
-          <form onSubmit={saveShop} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <div style={{ gridColumn: '1/-1' }}>
-                <label className="label">Shop Name *</label>
-                <input className="input" required value={shopForm.name || ''} onChange={e => setShopForm(f => ({ ...f, name: e.target.value }))} />
+        <div className="card" style={{ maxWidth:680 }}>
+          <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:'0 0 24px' }}>Business Information</h2>
+          <form onSubmit={saveShop} style={{ display:'flex', flexDirection:'column', gap:16 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+              <div style={{ gridColumn:'1/-1' }}>
+                <label className="label">Business Name *</label>
+                <input className="input" required value={shopForm.name||''} onChange={e=>setShopForm(f=>({...f,name:e.target.value}))} />
+              </div>
+              <div>
+                <label className="label">Business Type</label>
+                <input className="input" value={shopForm.business_type||''} onChange={e=>setShopForm(f=>({...f,business_type:e.target.value}))} placeholder="e.g. Salon & Spa" />
               </div>
               <div>
                 <label className="label">Phone</label>
-                <input className="input" value={shopForm.phone || ''} onChange={e => setShopForm(f => ({ ...f, phone: e.target.value }))} placeholder="+254 7xx xxx xxx" />
+                <input className="input" value={shopForm.phone||''} onChange={e=>setShopForm(f=>({...f,phone:e.target.value}))} placeholder="+254 7xx xxx xxx" />
               </div>
               <div>
                 <label className="label">Email</label>
-                <input className="input" type="email" value={shopForm.email || ''} onChange={e => setShopForm(f => ({ ...f, email: e.target.value }))} />
+                <input className="input" type="email" value={shopForm.email||''} onChange={e=>setShopForm(f=>({...f,email:e.target.value}))} />
               </div>
-              <div style={{ gridColumn: '1/-1' }}>
-                <label className="label">Address</label>
-                <textarea className="input" rows={2} value={shopForm.address || ''} onChange={e => setShopForm(f => ({ ...f, address: e.target.value }))} style={{ resize: 'vertical' }} placeholder="Physical address for receipts" />
+              <div>
+                <label className="label">Website</label>
+                <input className="input" value={shopForm.website||''} onChange={e=>setShopForm(f=>({...f,website:e.target.value}))} placeholder="https://yourbusiness.com" />
+              </div>
+              <div style={{ gridColumn:'1/-1' }}>
+                <label className="label">Physical Address</label>
+                <textarea className="input" rows={2} value={shopForm.address||''} onChange={e=>setShopForm(f=>({...f,address:e.target.value}))} style={{ resize:'vertical' }} placeholder="Address for receipts" />
+              </div>
+              <div>
+                <label className="label">Instagram Handle</label>
+                <input className="input" value={shopForm.instagram||''} onChange={e=>setShopForm(f=>({...f,instagram:e.target.value}))} placeholder="@yourbusiness" />
               </div>
               <div>
                 <label className="label">Currency</label>
-                <select className="input" value={shopForm.currency || 'KES'} onChange={e => setShopForm(f => ({ ...f, currency: e.target.value }))}>
+                <select className="input" value={shopForm.currency||'KES'} onChange={e=>setShopForm(f=>({...f,currency:e.target.value}))}>
                   <option value="KES">KES — Kenyan Shilling</option>
                   <option value="USD">USD — US Dollar</option>
                   <option value="GBP">GBP — British Pound</option>
+                  <option value="EUR">EUR — Euro</option>
+                  <option value="UGX">UGX — Ugandan Shilling</option>
+                  <option value="TZS">TZS — Tanzanian Shilling</option>
+                  <option value="RWF">RWF — Rwandan Franc</option>
                 </select>
               </div>
               <div>
                 <label className="label">VAT Rate (%)</label>
-                <input className="input" type="number" min={0} max={100} step={0.5} value={shopForm.tax_rate || 0} onChange={e => setShopForm(f => ({ ...f, tax_rate: e.target.value }))} placeholder="16 for standard VAT" />
+                <input className="input" type="number" min={0} max={100} step={0.5} value={shopForm.tax_rate||0} onChange={e=>setShopForm(f=>({...f,tax_rate:e.target.value}))} placeholder="16 for standard VAT" />
               </div>
             </div>
-            <div style={{ paddingTop: 8, borderTop: '1px solid #f5edf0' }}>
-              <button type="submit" className="btn-primary" disabled={saving}><Save size={16} />{saving ? 'Saving…' : 'Save Shop Settings'}</button>
+            <div style={{ paddingTop:8, borderTop:'1px solid #f5edf0' }}>
+              <button type="submit" className="btn-primary" disabled={saving}><Save size={15}/>{saving?'Saving…':'Save Business Settings'}</button>
             </div>
           </form>
         </div>
       )}
 
+      {/* ── TAB 1: BRANDING ── */}
       {tab === 1 && (
-        <div className="card" style={{ maxWidth: 640 }}>
-          <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, color: '#3d1020', margin: '0 0 8px' }}>eTIMS / KRA Integration</h2>
-          <p style={{ fontSize: 14, color: '#9b6070', marginBottom: 24 }}>Kenya Revenue Authority Electronic Tax Invoice Management System. All sales are automatically submitted to KRA when configured.</p>
-
-          <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
-            <div style={{ fontWeight: 700, color: '#92400e', fontSize: 13 }}>⚠️ eTIMS Integration Status</div>
-            <div style={{ fontSize: 13, color: '#78350f', marginTop: 4 }}>
-              {shopForm.etims_pin ? '✅ PIN configured. Complete serial setup to go live.' : 'Not yet configured. Enter your KRA PIN and eTIMS device serial to activate.'}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, maxWidth:780 }}>
+          {/* Logo */}
+          <div className="card">
+            <h3 style={{ fontFamily:'Playfair Display,serif', fontSize:17, color:'#3d1020', margin:'0 0 16px' }}>Business Logo</h3>
+            <p style={{ fontSize:13, color:'#9b6070', marginBottom:16 }}>
+              Appears on all receipts, invoices, reports and the sidebar. Keep it square for best results.
+            </p>
+            {/* Current logo */}
+            {(logoPreview || logoUrl) && (
+              <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14, padding:'12px', background:'#fdf5f7', borderRadius:12, border:'1px solid #f0e4e8' }}>
+                <img src={logoPreview || logoUrl} alt="logo" style={{ width:60, height:60, objectFit:'contain', borderRadius:8, background:'#fff', padding:4, border:'1px solid #f0e4e8' }} />
+                <div>
+                  <div style={{ fontSize:13, fontWeight:700, color:'#3d1020' }}>{shop?.name}</div>
+                  <div style={{ fontSize:11, color:'#9b6070' }}>{logoFile ? 'New logo ready to save' : 'Current logo'}</div>
+                </div>
+                {logoPreview && (
+                  <button onClick={()=>{setLogoFile(null);setLogoPreview(null)}} style={{ marginLeft:'auto', background:'none', border:'none', color:'#dc2626', cursor:'pointer' }}><X size={16}/></button>
+                )}
+              </div>
+            )}
+            {/* Upload area */}
+            <div onDragOver={e=>{e.preventDefault();setDragOver(true)}} onDragLeave={()=>setDragOver(false)} onDrop={e=>{e.preventDefault();setDragOver(false);handleLogoFile(e.dataTransfer.files[0])}} onClick={()=>logoRef.current?.click()} style={{ border:`2px dashed ${dragOver?'#c8456a':'#f0e4e8'}`, borderRadius:12, padding:'20px', textAlign:'center', cursor:'pointer', background: dragOver?'#fce8ed':'#fdf5f7', transition:'all 0.2s' }}>
+              <Upload size={28} color={dragOver?'#c8456a':'#d4a0b0'} style={{ margin:'0 auto 8px' }} />
+              <div style={{ fontSize:13, color:'#9b6070', fontWeight:600 }}>Drop logo or click to upload</div>
+              <div style={{ fontSize:11, color:'#c8b0b8', marginTop:3 }}>JPG · PNG · WebP · Max 5MB</div>
             </div>
+            <input ref={logoRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display:'none' }} onChange={e=>handleLogoFile(e.target.files[0])} />
+            {logoFile && (
+              <button onClick={saveShop} disabled={saving} className="btn-primary" style={{ marginTop:12, width:'100%' }}>
+                <Save size={14}/>{saving?'Saving…':'Save Logo'}
+              </button>
+            )}
           </div>
 
-          <form onSubmit={saveShop} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Brand color & receipt */}
+          <div className="card">
+            <h3 style={{ fontFamily:'Playfair Display,serif', fontSize:17, color:'#3d1020', margin:'0 0 16px' }}>Brand & Receipt</h3>
+            <form onSubmit={saveShop} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              <div>
+                <label className="label">Brand Color</label>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:8 }}>
+                  {BRAND_COLORS.map(c => (
+                    <button key={c} type="button" onClick={()=>setShopForm(f=>({...f,brand_color:c}))}
+                      style={{ width:30, height:30, borderRadius:'50%', border:'3px solid', borderColor: brandColor===c?'#3d1020':'transparent', background:c, cursor:'pointer', boxShadow: brandColor===c?'0 0 0 2px rgba(61,16,32,0.3)':'none', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      {brandColor===c && <Check size={12} color="#fff"/>}
+                    </button>
+                  ))}
+                  {/* Custom color */}
+                  <input type="color" value={customColor} onChange={e=>{setCustomColor(e.target.value);setShopForm(f=>({...f,brand_color:e.target.value}))}}
+                    style={{ width:30, height:30, borderRadius:'50%', border:'2px solid #f0e4e8', cursor:'pointer', padding:1 }} title="Custom color" />
+                </div>
+                {/* Receipt preview */}
+                <div style={{ background:brandColor, borderRadius:10, padding:'12px 14px', display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+                  {(logoPreview||logoUrl)
+                    ? <img src={logoPreview||logoUrl} alt="logo" style={{ width:28, height:28, objectFit:'contain', borderRadius:5, background:'rgba(255,255,255,0.9)', padding:2 }} />
+                    : <div style={{ width:28, height:28, borderRadius:5, background:'rgba(255,255,255,0.25)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12 }}>🏪</div>
+                  }
+                  <div>
+                    <div style={{ color:'#fff', fontWeight:700, fontSize:13 }}>{shop?.name}</div>
+                    <div style={{ color:'rgba(255,255,255,0.65)', fontSize:10 }}>Receipt header preview</div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="label">Receipt Header Tagline</label>
+                <input className="input" value={shopForm.receipt_header||''} onChange={e=>setShopForm(f=>({...f,receipt_header:e.target.value}))} placeholder="e.g. Your beauty, our passion ✨" />
+              </div>
+              <div>
+                <label className="label">Receipt Footer Message</label>
+                <input className="input" value={shopForm.receipt_footer||''} onChange={e=>setShopForm(f=>({...f,receipt_footer:e.target.value}))} placeholder={`Thank you for visiting ${shop?.name}! 🙏`} />
+              </div>
+              <div>
+                <label className="label">WhatsApp Welcome Message</label>
+                <textarea className="input" rows={2} style={{ resize:'vertical' }} value={shopForm.whatsapp_welcome_msg||''} onChange={e=>setShopForm(f=>({...f,whatsapp_welcome_msg:e.target.value}))} placeholder="Hi {name}! Welcome to our shop 🎉" />
+                <div style={{ fontSize:11, color:'#9b6070', marginTop:3 }}>Use {'{name}'} to insert customer name</div>
+              </div>
+              <div style={{ display:'flex', gap:16 }}>
+                <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'#6b4050' }}>
+                  <input type="checkbox" checked={shopForm.receipt_show_logo??true} onChange={e=>setShopForm(f=>({...f,receipt_show_logo:e.target.checked}))} />
+                  Show logo on receipts
+                </label>
+                <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'#6b4050' }}>
+                  <input type="checkbox" checked={shopForm.receipt_show_tax??true} onChange={e=>setShopForm(f=>({...f,receipt_show_tax:e.target.checked}))} />
+                  Show tax breakdown
+                </label>
+              </div>
+              <button type="submit" className="btn-primary" disabled={saving}><Save size={14}/>{saving?'Saving…':'Save Branding'}</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 2: CATEGORIES ── */}
+      {tab === 2 && (
+        <div style={{ maxWidth:600 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+            <div>
+              <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:0 }}>Product Categories</h2>
+              <p style={{ fontSize:13, color:'#9b6070', margin:'4px 0 0' }}>Organise your products and services into categories</p>
+            </div>
+            <button className="btn-primary" onClick={()=>setShowAddCat(true)}><Plus size={15}/> Add Category</button>
+          </div>
+
+          {showAddCat && (
+            <div style={{ background:'#fdf5f7', border:'1.5px solid #f0e4e8', borderRadius:12, padding:'14px 16px', marginBottom:16, display:'flex', gap:8, alignItems:'center' }}>
+              <input className="input" autoFocus value={newCatName} onChange={e=>setNewCatName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addCategory()} placeholder="Category name e.g. Hair, Nails, Skincare…" style={{ flex:1 }} />
+              <button onClick={addCategory} className="btn-primary" style={{ padding:'8px 16px' }}><Check size={14}/> Add</button>
+              <button onClick={()=>{setShowAddCat(false);setNewCatName('')}} className="btn-ghost" style={{ padding:'8px 10px' }}><X size={14}/></button>
+            </div>
+          )}
+
+          <div className="card" style={{ padding:0 }}>
+            {categories.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'40px 20px', color:'#9b6070' }}>
+                <Tag size={32} style={{ margin:'0 auto 12px', opacity:0.4 }} />
+                <div style={{ fontSize:14, fontWeight:600 }}>No categories yet</div>
+                <div style={{ fontSize:12, marginTop:4 }}>Add categories to organise your products</div>
+              </div>
+            ) : (
+              <div>
+                {categories.map((cat, idx) => (
+                  <div key={cat.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 20px', borderBottom: idx < categories.length-1 ? '1px solid #f5edf0' : 'none' }}>
+                    <div style={{ width:34, height:34, borderRadius:10, background:'linear-gradient(135deg,#fce8ed,#f5c0cc)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>
+                      {cat.icon || '🏷️'}
+                    </div>
+                    {editCatId === cat.id ? (
+                      <input className="input" autoFocus value={editCatName} onChange={e=>setEditCatName(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter') updateCategory(cat.id); if(e.key==='Escape') setEditCatId(null) }} style={{ flex:1, padding:'6px 10px', fontSize:13 }} />
+                    ) : (
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:14, fontWeight:600, color:'#1a1a1f' }}>{cat.name}</div>
+                        <div style={{ fontSize:11, color:'#9b6070' }}>Sort order: {cat.sort_order ?? idx}</div>
+                      </div>
+                    )}
+                    <div style={{ display:'flex', gap:4 }}>
+                      {editCatId === cat.id ? (
+                        <>
+                          <button onClick={()=>updateCategory(cat.id)} className="btn-ghost" style={{ padding:'5px 10px', color:'#059669', fontSize:12, fontWeight:700 }}>Save</button>
+                          <button onClick={()=>setEditCatId(null)} className="btn-ghost" style={{ padding:'5px 8px' }}><X size={13}/></button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={()=>{setEditCatId(cat.id);setEditCatName(cat.name)}} className="btn-ghost" style={{ padding:'5px 8px' }}><Edit2 size={14}/></button>
+                          <button onClick={()=>deleteCategory(cat.id)} className="btn-ghost" style={{ padding:'5px 8px', color:'#dc2626' }}><Trash2 size={14}/></button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 3: eTIMS ── */}
+      {tab === 3 && (
+        <div className="card" style={{ maxWidth:640 }}>
+          <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:'0 0 8px' }}>eTIMS / KRA Integration</h2>
+          <p style={{ fontSize:13, color:'#9b6070', marginBottom:20 }}>Kenya Revenue Authority Electronic Tax Invoice Management System.</p>
+          <div style={{ background:'#fefce8', border:'1px solid #fde68a', borderRadius:12, padding:'13px 15px', marginBottom:18 }}>
+            <div style={{ fontWeight:700, color:'#92400e', fontSize:13 }}>⚠️ eTIMS Status</div>
+            <div style={{ fontSize:13, color:'#78350f', marginTop:3 }}>
+              {shopForm.etims_pin ? '✅ PIN configured. Add serial to go live.' : 'Not configured. Enter KRA PIN and serial to activate.'}
+            </div>
+          </div>
+          <form onSubmit={saveShop} style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div>
               <label className="label">KRA PIN</label>
-              <input className="input" value={shopForm.etims_pin || ''} onChange={e => setShopForm(f => ({ ...f, etims_pin: e.target.value }))} placeholder="e.g. P000000000A" maxLength={11} style={{ textTransform: 'uppercase', fontFamily: 'monospace' }} />
+              <input className="input" value={shopForm.etims_pin||''} onChange={e=>setShopForm(f=>({...f,etims_pin:e.target.value}))} placeholder="e.g. P000000000A" maxLength={11} style={{ textTransform:'uppercase', fontFamily:'monospace' }} />
             </div>
             <div>
               <label className="label">eTIMS Device Serial</label>
-              <input className="input" value={shopForm.etims_serial || ''} onChange={e => setShopForm(f => ({ ...f, etims_serial: e.target.value }))} placeholder="Device serial from KRA portal" style={{ fontFamily: 'monospace' }} />
+              <input className="input" value={shopForm.etims_serial||''} onChange={e=>setShopForm(f=>({...f,etims_serial:e.target.value}))} placeholder="Device serial from KRA portal" style={{ fontFamily:'monospace' }} />
             </div>
-
-            <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 12, padding: '14px 16px', fontSize: 13, color: '#0369a1' }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>eTIMS API Endpoint</div>
-              <div style={{ fontFamily: 'monospace', fontSize: 12 }}>Production: https://etims.kra.go.ke/etims-api/</div>
-              <div style={{ fontFamily: 'monospace', fontSize: 12 }}>Sandbox: https://etims-sbx.kra.go.ke/etims-api/</div>
-              <div style={{ marginTop: 8, fontSize: 12 }}>Replace the <code>submitEtims()</code> stub in <code>POSPage.jsx</code> with actual API calls once you have your credentials.</div>
+            <div style={{ background:'#f0f9ff', border:'1px solid #bae6fd', borderRadius:10, padding:'12px 14px', fontSize:12, color:'#0369a1' }}>
+              <div style={{ fontWeight:700, marginBottom:4 }}>API Endpoints</div>
+              <div style={{ fontFamily:'monospace', fontSize:11 }}>Production: https://etims.kra.go.ke/etims-api/</div>
+              <div style={{ fontFamily:'monospace', fontSize:11 }}>Sandbox: https://etims-sbx.kra.go.ke/etims-api/</div>
             </div>
-
-            <div>
-              <button type="submit" className="btn-primary" disabled={saving}><Save size={16} />{saving ? 'Saving…' : 'Save eTIMS Settings'}</button>
-            </div>
+            <button type="submit" className="btn-primary" disabled={saving}><Save size={14}/>{saving?'Saving…':'Save eTIMS Settings'}</button>
           </form>
         </div>
       )}
 
-      {tab === 2 && (
+      {/* ── TAB 4: STAFF ── */}
+      {tab === 4 && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, color: '#3d1020', margin: 0 }}>Staff & Access Control</h2>
-            <button className="btn-primary" onClick={() => setShowAddStaff(true)}><Plus size={16} /> Add Staff Member</button>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+            <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:0 }}>Staff & Access Control</h2>
+            <button className="btn-primary" onClick={()=>setShowAddStaff(true)}><Plus size={15}/> Add Staff</button>
           </div>
-
-          {/* Role legend */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:18 }}>
             {ROLES.map(role => (
-              <div key={role} style={{ background: '#fff', border: '1.5px solid #f0e4e8', borderRadius: 12, padding: '12px 16px' }}>
-                <div style={{ fontWeight: 700, textTransform: 'capitalize', color: '#3d1020', marginBottom: 4 }}>{role}</div>
-                <div style={{ fontSize: 12, color: '#9b6070' }}>{ROLE_DESC[role]}</div>
+              <div key={role} style={{ background:'#fff', border:'1.5px solid #f0e4e8', borderRadius:12, padding:'12px 14px' }}>
+                <div style={{ fontWeight:700, textTransform:'capitalize', color:'#3d1020', marginBottom:3, fontSize:13 }}>{role}</div>
+                <div style={{ fontSize:11, color:'#9b6070' }}>{ROLE_DESC[role]}</div>
               </div>
             ))}
           </div>
-
-          <div className="card" style={{ padding: 0 }}>
+          <div className="card" style={{ padding:0 }}>
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
@@ -196,58 +449,54 @@ export default function SettingsPage() {
                   {staff.map(s => (
                     <tr key={s.id}>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#c8456a,#6b1e38)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700 }}>
-                            {s.expand?.admin_id?.name?.[0]?.toUpperCase() || '?'}
+                        <div style={{ display:'flex', alignItems:'center', gap:9 }}>
+                          <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg,#c8456a,#6b1e38)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:13 }}>
+                            {s.expand?.admin_id?.name?.[0]?.toUpperCase()||'?'}
                           </div>
-                          <div style={{ fontWeight: 600 }}>{s.expand?.admin_id?.name || 'Unknown'}</div>
+                          <div style={{ fontWeight:600, fontSize:13 }}>{s.expand?.admin_id?.name||'Unknown'}</div>
                         </div>
                       </td>
-                      <td style={{ fontSize: 13, color: '#9b6070' }}>{s.expand?.admin_id?.email}</td>
-                      <td>
-                        <span style={{ background: '#fce8ed', color: '#8b2550', padding: '3px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, textTransform: 'capitalize' }}>{s.role}</span>
-                      </td>
-                      <td><span style={{ background: '#f0fdf4', color: '#059669', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>Active</span></td>
-                      <td>
-                        <button className="btn-ghost" style={{ padding: '5px 10px', color: '#dc2626' }} onClick={() => removeStaff(s.id)}><Trash2 size={14} /></button>
-                      </td>
+                      <td style={{ fontSize:12, color:'#9b6070' }}>{s.expand?.admin_id?.email}</td>
+                      <td><span style={{ background:'#fce8ed', color:'#8b2550', padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:700, textTransform:'capitalize' }}>{s.role}</span></td>
+                      <td><span style={{ background:'#f0fdf4', color:'#059669', padding:'3px 9px', borderRadius:20, fontSize:11, fontWeight:700 }}>Active</span></td>
+                      <td><button className="btn-ghost" style={{ padding:'4px 8px', color:'#dc2626' }} onClick={()=>removeStaff(s.id)}><Trash2 size={13}/></button></td>
                     </tr>
                   ))}
-                  {staff.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', padding: '32px 0', color: '#9b6070' }}>No staff assigned</td></tr>}
+                  {staff.length===0 && <tr><td colSpan={5} style={{ textAlign:'center', padding:'28px 0', color:'#9b6070', fontSize:13 }}>No staff assigned yet</td></tr>}
                 </tbody>
               </table>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Add Staff Modal */}
-          {showAddStaff && (
-            <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowAddStaff(false)}>
-              <div className="modal" style={{ maxWidth: 460 }}>
-                <div className="modal-header">
-                  <span className="modal-title">Add Staff Member</span>
-                  <button onClick={() => setShowAddStaff(false)} className="btn-ghost" style={{ padding: 8 }}><X size={18} /></button>
-                </div>
-                <div className="modal-body">
-                  <form onSubmit={handleAddStaff} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <div><label className="label">Full Name *</label><input className="input" required value={newStaff.name} onChange={e => setNewStaff(f => ({ ...f, name: e.target.value }))} /></div>
-                    <div><label className="label">Email *</label><input className="input" type="email" required value={newStaff.email} onChange={e => setNewStaff(f => ({ ...f, email: e.target.value }))} /></div>
-                    <div><label className="label">Phone</label><input className="input" value={newStaff.phone} onChange={e => setNewStaff(f => ({ ...f, phone: e.target.value }))} /></div>
-                    <div><label className="label">Password *</label><input className="input" type="password" required minLength={8} value={newStaff.password} onChange={e => setNewStaff(f => ({ ...f, password: e.target.value }))} /></div>
-                    <div>
-                      <label className="label">Role</label>
-                      <select className="input" value={newStaff.role} onChange={e => setNewStaff(f => ({ ...f, role: e.target.value }))}>
-                        {ROLES.map(r => <option key={r} value={r}>{r} — {ROLE_DESC[r]}</option>)}
-                      </select>
-                    </div>
-                    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                      <button type="button" className="btn-secondary" onClick={() => setShowAddStaff(false)}>Cancel</button>
-                      <button type="submit" className="btn-primary" disabled={addingStaff}>{addingStaff ? 'Creating…' : '✅ Add Staff'}</button>
-                    </div>
-                  </form>
-                </div>
-              </div>
+      {/* Add Staff Modal */}
+      {showAddStaff && (
+        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowAddStaff(false)}>
+          <div className="modal" style={{ maxWidth:440 }}>
+            <div className="modal-header">
+              <span className="modal-title">Add Staff Member</span>
+              <button onClick={()=>setShowAddStaff(false)} className="btn-ghost" style={{ padding:6 }}><X size={16}/></button>
             </div>
-          )}
+            <div className="modal-body">
+              <form onSubmit={handleAddStaff} style={{ display:'flex', flexDirection:'column', gap:13 }}>
+                <div><label className="label">Full Name *</label><input className="input" required value={newStaff.name} onChange={e=>setNewStaff(f=>({...f,name:e.target.value}))}/></div>
+                <div><label className="label">Email *</label><input className="input" type="email" required value={newStaff.email} onChange={e=>setNewStaff(f=>({...f,email:e.target.value}))}/></div>
+                <div><label className="label">Phone</label><input className="input" value={newStaff.phone} onChange={e=>setNewStaff(f=>({...f,phone:e.target.value}))}/></div>
+                <div><label className="label">Password *</label><input className="input" type="password" required minLength={8} value={newStaff.password} onChange={e=>setNewStaff(f=>({...f,password:e.target.value}))}/></div>
+                <div>
+                  <label className="label">Role</label>
+                  <select className="input" value={newStaff.role} onChange={e=>setNewStaff(f=>({...f,role:e.target.value}))}>
+                    {ROLES.map(r=><option key={r} value={r}>{r} — {ROLE_DESC[r]}</option>)}
+                  </select>
+                </div>
+                <div style={{ display:'flex', gap:8, justifyContent:'flex-end', paddingTop:4 }}>
+                  <button type="button" className="btn-secondary" onClick={()=>setShowAddStaff(false)}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={addingStaff}>{addingStaff?'Creating…':'✅ Add Staff'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
       )}
     </div>

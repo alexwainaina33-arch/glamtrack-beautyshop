@@ -184,7 +184,7 @@ function LabelPreview({ product, qrCode, size, shop }) {
       boxSizing: 'border-box',
     }}>
       <div style={{ fontSize: 8, fontWeight: 700, color: '#3d1020', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {shop?.name || 'GLAMTRACK'}
+        {shop?.name || 'SALESTRACK'}
       </div>
       <div style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.2, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
         {product.name}

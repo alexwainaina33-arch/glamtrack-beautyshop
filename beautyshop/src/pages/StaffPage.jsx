@@ -301,7 +301,7 @@ export default function StaffPage() {
               {services.length === 0 ? (
                 <div className="card" style={{ textAlign: 'center', padding: 48 }}>
                   <div style={{ fontSize: 48, marginBottom: 12 }}>💅</div>
-                  <p style={{ color: '#9b6070' }}>No services yet. Add your beauty service menu!</p>
+                  <p style={{ color: '#9b6070' }}>No services yet. Add your service menu!</p>
                   <button className="btn-primary" style={{ marginTop: 12 }} onClick={openAddService}><Plus size={16} /> Add First Service</button>
                 </div>
               ) : (
