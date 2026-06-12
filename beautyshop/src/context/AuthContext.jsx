@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
   const loadShop = async (adminId) => {
     try {
       const res = await pb.collection(C.SHOP_ADMINS).getFirstListItem(
-        `admin_id.id = "${adminId}"`,
+        `admin_id = "${adminId}"`,
         { expand: 'shop_id', '$autoCancel': false, '$cancelKey': 'auth-shop' }
       )
       if (res?.expand?.shop_id) {
