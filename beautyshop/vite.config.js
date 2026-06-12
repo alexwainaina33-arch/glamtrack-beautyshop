@@ -1,7 +1,61 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  plugins: [react()],
-  server: { port: 5174 }
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'icons/*.png'],
+      manifest: {
+        name: 'GlamTrack — Salon POS',
+        short_name: 'GlamTrack',
+        description: 'POS, Inventory, Appointments & more for your salon',
+        theme_color: '#8b2550',
+        background_color: '#fdf5f7',
+        display: 'standalone',
+        orientation: 'portrait',
+        start_url: '/app/dashboard',
+        scope: '/',
+        icons: [
+          {
+            src: '/icons/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any maskable'
+          },
+          {
+            src: '/icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fieldtrack-kenya\.fly\.dev\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'pocketbase-api',
+              networkTimeoutSeconds: 5,
+              cacheableResponse: { statuses: [0, 200] }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'google-fonts' }
+          }
+        ]
+      },
+      devOptions: {
+        enabled: true
+      }
+    })
+  ],
+  server: { port: 5174, host: true }
 })

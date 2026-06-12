@@ -22,6 +22,7 @@ import AppointmentsPage from './pages/AppointmentsPage'
 import StaffPage from './pages/StaffPage'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
 import NotFoundPage from './pages/NotFoundPage'
+import InstallBanner from './components/InstallBanner'
 
 function LandingRedirect() {
   window.location.replace('/landing.html')
@@ -91,6 +92,7 @@ export default function App() {
             success:{ iconTheme:{ primary:'#c8456a', secondary:'#fff' } }
           }}
         />
+        <InstallBanner />
       </AuthProvider>
     </BrowserRouter>
   )
