@@ -10,7 +10,7 @@ export default function InstallBanner() {
     if (window.matchMedia('(display-mode: standalone)').matches) return
 
     // Check if dismissed before
-    if (localStorage.getItem('pwa-banner-dismissed')) return
+    if (localStorage.getItem('pwa-installed')) return
 
     const handler = (e) => {
       e.preventDefault()
@@ -28,13 +28,15 @@ export default function InstallBanner() {
     if (!prompt) return
     prompt.prompt()
     const { outcome } = await prompt.userChoice
-    if (outcome === 'accepted') setInstalled(true)
+    if (outcome === 'accepted') {
+      localStorage.setItem('pwa-installed', '1')
+      setInstalled(true)
+    }
     setShow(false)
   }
 
   const handleDismiss = () => {
-    localStorage.setItem('pwa-banner-dismissed', '1')
-    setShow(false)
+    setShow(false) // session only — no localStorage, shows again on next refresh
   }
 
   if (!show || installed) return null
