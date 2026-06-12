@@ -6,6 +6,7 @@ import { fmtKES, generateReceiptNo } from '../lib/utils'
 import { calcPointsEarned, calcMaxRedeemable } from '../lib/loyalty'
 import { Search, ScanLine, Plus, Minus, Trash2, CreditCard, Smartphone, Banknote, ShoppingBag, X, User, Tag, PauseCircle, PlayCircle, UserPlus, Split } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { queueSale, getPendingSales, markSynced, cacheProducts, cacheCategories, getCachedProducts, getCachedCategories } from '../lib/offlineQueue'
 import ReceiptModal from '../components/ReceiptModal'
 
 export default function POSPage() {
@@ -34,13 +35,43 @@ export default function POSPage() {
   const [newCust, setNewCust]            = useState({ name: '', phone: '' })
   const [savingCust, setSavingCust]      = useState(false)
   const [bestSellerId, setBestSellerId]  = useState(null)
+  const [isOnline, setIsOnline]          = useState(navigator.onLine)
+  const [pendingCount, setPendingCount]  = useState(0)
+  const [syncing, setSyncing]            = useState(false)
 
   useEffect(() => {
-  if (shop && !authLoading) {
-    const t = setTimeout(() => loadData(), 50)
-    return () => clearTimeout(t)
-  }
-}, [shop, authLoading])
+    if (shop && !authLoading) {
+      const t = setTimeout(() => loadData(), 50)
+      return () => clearTimeout(t)
+    }
+  }, [shop, authLoading])
+
+  useEffect(() => {
+    const goOnline = async () => {
+      setIsOnline(true)
+      // Re-read pending count first so banner shows correctly
+      const pending = await getPendingSales()
+      setPendingCount(pending.length)
+      if (pending.length > 0) {
+        toast.success('Back online! Syncing sales…', { icon: '🌐' })
+        syncPendingSales()
+      } else {
+        toast.success('Back online!', { icon: '🌐' })
+      }
+    }
+    const goOffline = () => {
+      setIsOnline(false)
+      toast('You are offline. Sales will be saved locally.', { icon: '📴', duration: 5000 })
+    }
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    // Check for pending sales on load
+    getPendingSales().then(p => setPendingCount(p.length))
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [])
 
   useEffect(() => {
     let timer
@@ -64,6 +95,9 @@ export default function POSPage() {
         pb.collection(C.CATEGORIES).getFullList({ filter: `shop_id="${shop.id}"`, sort: 'sort_order', '$autoCancel': false, '$cancelKey': 'pos-cats' })
       ])
       setProducts(prods); setCategories(cats)
+      // Cache locally for offline use
+      cacheProducts(prods).catch(() => {})
+      cacheCategories(cats).catch(() => {})
 
       // Best seller of the day
       try {
@@ -76,7 +110,70 @@ export default function POSPage() {
         const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0]
         setBestSellerId(top ? top[0] : null)
       } catch { setBestSellerId(null) }
-    } catch { toast.error('Failed to load products') }
+    } catch {
+      // Offline fallback — load from local cache
+      if (shop) {
+        const [cachedProds, cachedCats] = await Promise.all([
+          getCachedProducts(shop.id),
+          getCachedCategories(shop.id),
+        ])
+        if (cachedProds.length > 0) {
+          setProducts(cachedProds)
+          setCategories(cachedCats)
+          toast('Loaded from local cache', { icon: '📦', duration: 3000 })
+        } else {
+          toast.error('No cached data — connect to internet first')
+        }
+      }
+    }
+  }
+
+  const syncPendingSales = async () => {
+    if (syncing) return
+    setSyncing(true)
+    try {
+      const pending = await getPendingSales()
+      if (pending.length === 0) { setSyncing(false); return }
+      let synced = 0
+      for (const s of pending) {
+        try {
+          const salePayload = {
+            shop_id:          s.shop_id,
+            receipt_no:       s.receipt_no,
+            customer_id:      s.customer_id || null,
+            subtotal_kes:     s.subtotal_kes,
+            discount_kes:     s.discount_kes || 0,
+            tax_amount_kes:   s.tax_amount_kes || 0,
+            total_kes:        s.total_kes,
+            payment_method:   s.payment_method,
+            payment_status:   s.payment_status,
+            status:           s.status,
+            total_cost_kes:   s.total_cost_kes || 0,
+            gross_profit_kes: s.gross_profit_kes || 0,
+            served_by:        s.served_by || null,
+            etims_status:     'pending',
+          }
+          const sale = await pb.collection(C.SALES).create(salePayload)
+          const items = s.items || []
+          await Promise.all(items.map((item, idx) =>
+            pb.collection(C.SALE_ITEMS).create({
+              sale_id: sale.id, product_id: item.id, product_name: item.name,
+              qty: item.qty, unit_price_kes: item.unit_price, unit_cost_kes: item.cost_price_kes || 0,
+              total_kes: item.unit_price * item.qty,
+            }, { '$autoCancel': false, '$cancelKey': `sync-item-${s.id}-${idx}` })
+          ))
+          await markSynced(s.id)
+          synced++
+        } catch (err) {
+          console.error('Sync failed for sale', s.id, err?.message)
+        }
+      }
+      const remaining = await getPendingSales()
+      setPendingCount(remaining.length)
+      if (synced > 0) toast.success(`Synced ${synced} offline sale${synced > 1 ? 's' : ''}! ✅`)
+      loadData()
+    } catch (err) { console.error('Sync error:', err) }
+    finally { setSyncing(false) }
   }
 
   const handleBarcodeScan = (barcode) => {
@@ -198,6 +295,32 @@ export default function POSPage() {
   const processSale = async () => {
     if (!cart.length) return toast.error('Cart is empty')
     if (paymentMethod === 'cash' && cashTendered && Number(cashTendered) < total) return toast.error('Insufficient cash')
+
+    // OFFLINE MODE — queue locally
+    if (!isOnline) {
+      const receiptNo = generateReceiptNo(shop.slug)
+      await queueSale({
+        shop_id: shop.id, receipt_no: receiptNo,
+        customer_id: customer?.id || null,
+        subtotal_kes: subtotal, discount_kes: discountAmt + loyaltyDiscount,
+        tax_amount_kes: tax, total_kes: total,
+        payment_method: paymentMethod, payment_status: 'paid',
+        status: 'completed',
+        total_cost_kes: totalCost, gross_profit_kes: grossProfit,
+        served_by: admin?.id,
+        items: cart,
+        customer,
+      })
+      // Small delay to let Dexie finish writing before reading count
+      await new Promise(r => setTimeout(r, 100))
+      const pending = await getPendingSales()
+      const newCount = pending.length
+      setPendingCount(newCount)
+      clearCart()
+      toast.success(`Sale saved offline! Will sync when online. (${newCount} pending)`, { icon: '📴', duration: 5000 })
+      return
+    }
+
     setProcessing(true)
     try {
       const receiptNo = generateReceiptNo(shop.slug)
@@ -243,6 +366,21 @@ export default function POSPage() {
 
   return (
     <div>
+      {/* Offline / Sync banner */}
+      {!isOnline && (
+        <div style={{ background: '#f59e0b', color: '#fff', padding: '8px 16px', borderRadius: 10, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 13 }}>
+          📴 Offline mode — sales are saved locally and will sync automatically when you reconnect
+          {pendingCount > 0 && <span style={{ background: '#fff', color: '#b45309', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 800 }}>{pendingCount} pending</span>}
+        </div>
+      )}
+      {isOnline && pendingCount > 0 && (
+        <div style={{ background: '#eff6ff', color: '#1d4ed8', padding: '8px 16px', borderRadius: 10, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13 }}>
+          <span>🌐 Online · {pendingCount} offline sale{pendingCount > 1 ? 's' : ''} pending sync</span>
+          <button onClick={syncPendingSales} disabled={syncing} style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+            {syncing ? 'Syncing…' : 'Sync Now'}
+          </button>
+        </div>
+      )}
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div><div className="page-title">Point of Sale 🛒</div><div className="page-subtitle">Scan, tap, sell · Barcode scanner always ready</div></div>
         <div style={{ display: 'flex', gap: 8 }}>
