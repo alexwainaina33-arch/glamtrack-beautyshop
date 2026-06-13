@@ -21,6 +21,7 @@ import SettingsPage from './pages/SettingsPage'
 import AppointmentsPage from './pages/AppointmentsPage'
 import StaffPage from './pages/StaffPage'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
+import BookingPage from './pages/BookingPage'
 import NotFoundPage from './pages/NotFoundPage'
 import InstallBanner from './components/InstallBanner'
 
@@ -73,6 +74,9 @@ function AppRoutes() {
         <Route path="appointments" element={<AppointmentsPage />} />
         <Route path="staff"        element={<StaffPage />} />
       </Route>
+
+      {/* Public booking page — no auth */}
+      <Route path="/book/:slug" element={<BookingPage />} />
 
       {/* 404 */}
       <Route path="*" element={<NotFoundPage />} />
