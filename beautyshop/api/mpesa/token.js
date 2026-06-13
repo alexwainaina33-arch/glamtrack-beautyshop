@@ -1,5 +1,4 @@
-// api/mpesa/token.js
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const key    = process.env.DARAJA_CONSUMER_KEY
   const secret = process.env.DARAJA_CONSUMER_SECRET
   const creds  = Buffer.from(`${key}:${secret}`).toString('base64')
