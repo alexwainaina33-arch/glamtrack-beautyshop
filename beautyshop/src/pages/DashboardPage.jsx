@@ -15,6 +15,52 @@ const parseDateFromReceipt = (receipt_no) => {
   return new Date(2000 + parseInt(c.slice(0,2)), parseInt(c.slice(2,4))-1, parseInt(c.slice(4,6)))
 }
 
+// ─── EMAIL VERIFICATION BANNER ───────────────────────────────────
+function EmailVerificationBanner() {
+  const [dismissed, setDismissed] = useState(false)
+  const [sending, setSending] = useState(false)
+  const model = pb.authStore.model
+  if (dismissed || model?.verified) return null
+  const resend = async () => {
+    setSending(true)
+    try {
+      await pb.collection(C.ADMINS).requestVerification(model.email)
+      toast.success('Verification email sent! Check your inbox.')
+    } catch { toast.error('Could not send email — try again shortly') }
+    finally { setSending(false) }
+  }
+  return (
+    <div style={{
+      background: '#fffbeb', border: '1px solid #fde68a',
+      borderRadius: 12, padding: '12px 16px', marginBottom: 20,
+      display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+    }}>
+      <span style={{ fontSize: 18 }}>📧</span>
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>Verify your email address</div>
+        <div style={{ fontSize: 12, color: '#b45309', marginTop: 2 }}>
+          Enables password recovery. Check <strong>{model?.email}</strong> for the link.
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <button onClick={resend} disabled={sending} style={{
+          padding: '6px 14px', borderRadius: 8, border: 'none',
+          background: '#f59e0b', color: '#fff', fontWeight: 700,
+          fontSize: 12, cursor: sending ? 'not-allowed' : 'pointer',
+          fontFamily: 'Nunito,sans-serif', opacity: sending ? 0.7 : 1,
+        }}>
+          {sending ? 'Sending…' : 'Resend email'}
+        </button>
+        <button onClick={() => setDismissed(true)} style={{
+          padding: '6px 10px', borderRadius: 8, border: '1px solid #fde68a',
+          background: 'transparent', color: '#92400e', fontWeight: 700,
+          fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif',
+        }}>✕</button>
+      </div>
+    </div>
+  )
+}
+
 // ─── SHOP SETUP WIZARD ───────────────────────────────────────────
 function ShopSetupWizard() {
   const { admin, completeShopSetup } = useAuth()
@@ -222,12 +268,24 @@ function OnboardingChecklist({ shop, onDismiss }) {
         pb.collection(C.STAFF).getList(1, 1, { filter: `shop_id="${shop.id}"`, '$autoCancel': false, '$cancelKey': 'ob-staff' }),
         pb.collection(C.SALES).getList(1, 1, { filter: `shop_id="${shop.id}"`, '$autoCancel': false, '$cancelKey': 'ob-sales' }),
       ])
-      setChecks({
+      const next = {
         shop: true,
         category: cats.totalItems > 0,
         product: prods.totalItems > 0,
         staff: staff.totalItems > 0,
         sale: sales.totalItems > 0,
+      }
+      // Fire toast when a step is newly completed
+      setChecks(prev => {
+        const keys = ['category','product','staff','sale']
+        keys.forEach(k => {
+          if (!prev[k] && next[k]) {
+            const labels = { category: 'Category added', product: 'First product live', staff: 'Staff member added', sale: 'First sale made' }
+            const doneCount = Object.values(next).filter(Boolean).length
+            toast.success(`🎉 ${labels[k]}! ${doneCount}/5 setup steps complete.`, { duration: 4000 })
+          }
+        })
+        return next
       })
     } catch {}
     finally { setLoadingChecks(false) }
@@ -478,6 +536,9 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
+
+      {/* Email verification banner */}
+      <EmailVerificationBanner />
 
       {/* Onboarding checklist */}
       {showChecklist && shop && (

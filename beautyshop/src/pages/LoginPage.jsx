@@ -293,6 +293,28 @@ function CelebrationScreen({ bizName, adminName, onDone }) {
         ))}
       </div>
 
+      {/* WhatsApp virality button */}
+      <button
+        onClick={() => {
+          const msg = `🎉 My shop *${bizName}* is now live on SalesTrack!\n\nI can now manage sales, inventory & staff right from my phone 📱\n\nTry it free for 14 days 👉 https://glamtrack-beautyshop.vercel.app`
+          try { navigator.clipboard.writeText(msg) } catch {}
+          const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`
+          const a = document.createElement('a'); a.href = wa; a.target = '_blank'; a.rel = 'noopener noreferrer'
+          document.body.appendChild(a); a.click(); document.body.removeChild(a)
+        }}
+        style={{
+          width: '100%', marginBottom: 10,
+          padding: '12px', borderRadius: 12, border: 'none',
+          background: 'rgba(37,211,102,0.15)', color: '#25D366',
+          fontWeight: 700, fontSize: 13, cursor: 'pointer',
+          fontFamily: 'Nunito,sans-serif',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+          border: '1.5px solid rgba(37,211,102,0.25)',
+        }}
+      >
+        📲 Share on WhatsApp Status
+      </button>
+
       <button onClick={onDone} style={{
         ...btnPrimaryStyle,
         width: '100%',
@@ -549,11 +571,18 @@ export default function LoginPage() {
       fd.append('receipt_footer', receiptFooter || `Thank you for visiting ${bizName}! 🙏`)
       fd.append('receipt_show_logo', 'true')
       fd.append('receipt_show_tax', 'true')
+      // Auto-generate this shop's unique outbound referral code
+      const initials = bizName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'SHOP'
+      const rand = Math.random().toString(36).slice(2, 6).toUpperCase()
+      fd.append('referral_code', `${initials}${rand}`)
       // Subscription fields — 14-day free trial
       fd.append('subscription_status', 'trial')
       const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
       fd.append('trial_ends_at', trialEnd.toISOString().replace('T', ' ').replace('Z', '.000Z'))
       if (referralCode.trim()) fd.append('referral_code_used', referralCode.trim().toUpperCase())
+      // Track signup attribution — reads UTM param if present, falls back to 'organic'
+      const utmSource = new URLSearchParams(window.location.search).get('utm_source') || 'organic'
+      fd.append('signup_source', utmSource)
       if (logoFile) fd.append('logo', logoFile)
 
       const newShop = await pb.collection(C.SHOPS).create(fd)
@@ -730,6 +759,9 @@ export default function LoginPage() {
           }}>
             <Sparkles size={15} /> Try Demo Account
           </button>
+          <p style={{ textAlign: 'center', color: '#f7c5d033', fontSize: 10, margin: '6px 0 0', letterSpacing: '0.02em' }}>
+            demo@salestrack.co.ke · demo123456
+          </p>
 
           <p style={{ textAlign: 'center', color: '#f7c5d044', fontSize: 11, marginTop: 16, marginBottom: 0 }}>
             New here?{' '}
