@@ -2,13 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, Check, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+import MpesaModal from '../components/MpesaModal'
 
 // ─── PAYSTACK CONFIG ──────────────────────────────────────────────
 // To go LIVE: swap TEST_PUBLIC_KEY for your live key below
-const TEST_PUBLIC_KEY  = 'pk_test_523b218b82f8a13cab86ed2ae719de25ecb9e913'
-const LIVE_PUBLIC_KEY  = 'pk_live_45e42fea03a2eb76f541a47b3d189cfbaacf4f7c'
-const USE_LIVE         = false   // ← flip to true when going live
-const PAYSTACK_KEY     = USE_LIVE ? LIVE_PUBLIC_KEY : TEST_PUBLIC_KEY
+// Keys moved to Vercel env vars — never hardcode here
+// Set VITE_PAYSTACK_KEY in Vercel dashboard (test or live key)
+const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_KEY || ''
 // ─────────────────────────────────────────────────────────────────
 
 const PLANS = {
@@ -83,7 +83,8 @@ function fmt(n) {
 export default function PricingPage() {
   const navigate = useNavigate()
   const [period, setPeriod]   = useState('monthly')
-  const [loading, setLoading] = useState(null)
+  const [loading, setLoading]       = useState(null)
+  const [mpesaPlan, setMpesaPlan]   = useState(null)
   const plans = PLANS[period]
 
   const openPaystack = (plan, userEmail) => {
@@ -119,22 +120,27 @@ export default function PricingPage() {
   }
 
   const handleSelect = (plan) => {
+    setMpesaPlan(plan)
+  }
+
+  const handleMpesaSuccess = ({ ref, plan }) => {
+    localStorage.setItem('st_plan',      plan.name)
+    localStorage.setItem('st_period',    plan.period)
+    localStorage.setItem('st_ref',       ref)
+    localStorage.setItem('st_activated', 'true')
+    setMpesaPlan(null)
+    navigate('/payment-success')
+  }
+
+  const handlePaystack = (plan) => {
     const userEmail = localStorage.getItem('st_pending_email') || ''
     setLoading(plan.id)
-
     const existing = document.querySelector('script[src="https://js.paystack.co/v1/inline.js"]')
-    if (existing && window.PaystackPop) {
-      openPaystack(plan, userEmail)
-      return
-    }
-
+    if (existing && window.PaystackPop) { openPaystack(plan, userEmail); return }
     const script = document.createElement('script')
     script.src = 'https://js.paystack.co/v1/inline.js'
     script.onload = () => openPaystack(plan, userEmail)
-    script.onerror = () => {
-      setLoading(null)
-      toast.error('Could not load payment gateway. Check your internet connection.')
-    }
+    script.onerror = () => { setLoading(null); toast.error('Could not load payment gateway.') }
     document.head.appendChild(script)
   }
 
@@ -257,7 +263,7 @@ export default function PricingPage() {
                 ))}
               </div>
 
-              {/* CTA */}
+              {/* CTA — M-Pesa primary */}
               <button
                 onClick={() => handleSelect(plan)}
                 disabled={loading === plan.id}
@@ -284,6 +290,23 @@ export default function PricingPage() {
             </div>
           ))}
         </div>
+
+        {/* Paystack fallback */}
+        <div style={{ textAlign: 'center', marginBottom: 12 }}>
+          <span style={{ color: '#f7c5d033', fontSize: 12 }}>Prefer to pay by card? </span>
+          {mpesaPlan
+            ? <button onClick={() => { setMpesaPlan(null); handlePaystack(mpesaPlan) }} style={{ background: 'none', border: 'none', color: '#f7c5d055', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Pay with card instead</button>
+            : null
+          }
+        </div>
+
+        {mpesaPlan && (
+          <MpesaModal
+            plan={mpesaPlan}
+            onClose={() => setMpesaPlan(null)}
+            onSuccess={handleMpesaSuccess}
+          />
+        )}
 
         <p style={{ textAlign: 'center', color: '#f7c5d033', fontSize: 12 }}>
           All plans include SSL security · Daily backups · 99.9% uptime SLA · M-Pesa & card payments
