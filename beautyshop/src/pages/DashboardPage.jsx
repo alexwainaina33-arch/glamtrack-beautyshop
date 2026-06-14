@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { generateInsight, buildShareCardData, loadShopBaseline, recordInsightShown, loadSalesAssistant } from '../lib/insightsEngine'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDate, fmtDateTime, pctChange } from '../lib/utils'
@@ -553,6 +554,258 @@ function TomorrowsBanner({ shop, onViewAppointments }) {
   )
 }
 
+// ─── AI INSIGHT WIDGET ───────────────────────────────────────────
+function AIInsightWidget({ stats, hourData, shop, period, memory, onRecord }) {
+  const [insight, setInsight] = useState(null)
+  const [visible, setVisible] = useState(true)
+
+  useEffect(() => {
+    if (!stats || !shop) return
+    const result = generateInsight({ stats, hourData, shop, period, memory })
+    setInsight(result)
+    if (result && onRecord) onRecord(result)
+  }, [stats, hourData, shop, period, memory])
+
+  if (!insight || !visible) return null
+
+  const colors = {
+    positive: { bg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '#86efac', title: '#065f46', body: '#047857', badge: '#059669', badgeTxt: '#fff' },
+    warning:  { bg: 'linear-gradient(135deg,#fff7ed,#ffedd5)', border: '#fdba74', title: '#9a3412', body: '#c2410c', badge: '#ea580c', badgeTxt: '#fff' },
+    tip:      { bg: 'linear-gradient(135deg,#fdf5f7,#fff9fb)', border: '#f0e4e8', title: '#8b2550', body: '#6b4050', badge: '#c8456a', badgeTxt: '#fff' },
+  }
+  const c = colors[insight.type] || colors.tip
+
+  return (
+    <div style={{
+      background: c.bg, border: `1.5px solid ${c.border}`,
+      borderRadius: 14, padding: '14px 18px', marginBottom: 20,
+      display: 'flex', alignItems: 'flex-start', gap: 14,
+    }}>
+      <div style={{ fontSize: 26, flexShrink: 0, marginTop: 2 }}>{insight.emoji}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: c.title }}>{insight.title}</span>
+          <span style={{ fontSize: 10, background: c.badge, color: c.badgeTxt, padding: '2px 8px', borderRadius: 20, fontWeight: 700, flexShrink: 0 }}>
+            Smart Insight
+          </span>
+        </div>
+        <div style={{ fontSize: 12, color: c.body, lineHeight: 1.6 }}>{insight.body}</div>
+      </div>
+      <button onClick={() => setVisible(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.body, padding: '0 0 0 4px', flexShrink: 0, fontSize: 14, opacity: 0.6 }}>✕</button>
+    </div>
+  )
+}
+
+// ─── SALES ASSISTANT WIDGET ──────────────────────────────────────
+function SalesAssistantWidget({ shop, assistantData }) {
+  if (!assistantData || !assistantData.lapsedCustomers?.length) return null
+  const { lapsedCustomers } = assistantData
+
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg,#fdf5f7,#fff)',
+      border: '1.5px solid #f0e4e8',
+      borderRadius: 14, padding: '14px 18px', marginBottom: 20,
+    }}>
+      <div style={{ fontSize: 13, fontWeight: 800, color: '#8b2550', marginBottom: 10 }}>
+        🤝 Sales Assistant — {lapsedCustomers.length} customer{lapsedCustomers.length !== 1 ? 's' : ''} haven't visited in 14+ days
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {lapsedCustomers.map(c => (
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fff', borderRadius: 10, border: '1px solid #f5edf0' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1f' }}>{c.name}</div>
+              <div style={{ fontSize: 11, color: '#9b6070' }}>
+                KES {(c.totalSpent || 0).toLocaleString('en-KE')} lifetime · {c.daysSince != null ? `${c.daysSince} days since last visit` : 'no visit recorded'}
+              </div>
+            </div>
+            {c.phone && (
+              <button
+                onClick={() => {
+                  const msg = `Hi ${c.name}! 👋 We miss you at ${shop?.name}. It's been a while since your last visit — come in this week and enjoy a special welcome-back offer just for you! 💄✨\n\n_${shop?.name} · Powered by SalesTrack_`
+                  window.open(`https://wa.me/${c.phone.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer')
+                }}
+                style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+              >
+                📲 Re-engage
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── DAILY SHARE CARD ────────────────────────────────────────────
+function roundRectFill(ctx, x, y, w, h, r) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  ctx.lineTo(x + r, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+  ctx.lineTo(x, y + r)
+  ctx.quadraticCurveTo(x, y, x + r, y)
+  ctx.closePath()
+  ctx.fill()
+}
+
+function DailyShareCard({ stats, shop, period }) {
+  const canvasRef = useRef(null)
+  const [sharing, setSharing] = useState(false)
+  const [preview, setPreview] = useState(false)
+
+  const drawCard = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !stats) return null
+    const ctx = canvas.getContext('2d')
+    const W = 800, H = 800
+    canvas.width = W; canvas.height = H
+
+    const cardData = buildShareCardData({ stats, shop, period })
+    const fmt = (n) => `${cardData.currency} ${Math.round(n).toLocaleString('en-KE')}`
+
+    const bg = ctx.createLinearGradient(0, 0, W, H)
+    bg.addColorStop(0, '#3d1020')
+    bg.addColorStop(0.5, '#8b2550')
+    bg.addColorStop(1, '#c8456a')
+    ctx.fillStyle = bg
+    ctx.fillRect(0, 0, W, H)
+
+    ctx.globalAlpha = 0.08
+    ctx.fillStyle = '#fff'
+    ctx.beginPath(); ctx.arc(W - 80, 80, 180, 0, Math.PI * 2); ctx.fill()
+    ctx.beginPath(); ctx.arc(80, H - 80, 140, 0, Math.PI * 2); ctx.fill()
+    ctx.globalAlpha = 1
+
+    ctx.fillStyle = 'rgba(255,255,255,0.6)'
+    ctx.font = '500 26px Nunito, Arial, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(cardData.date, W / 2, 70)
+
+    ctx.fillStyle = '#fff'
+    ctx.font = 'bold 52px Nunito, Arial, sans-serif'
+    ctx.fillText(cardData.shopName, W / 2, 140)
+
+    const badgeW = 200, badgeH = 40, badgeX = W / 2 - badgeW / 2, badgeY = 160
+    ctx.fillStyle = 'rgba(255,255,255,0.15)'
+    roundRectFill(ctx, badgeX, badgeY, badgeW, badgeH, 20)
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'
+    ctx.font = '600 20px Nunito, Arial, sans-serif'
+    ctx.fillText(cardData.periodLabel, W / 2, badgeY + 27)
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'
+    ctx.lineWidth = 1
+    ctx.beginPath(); ctx.moveTo(60, 230); ctx.lineTo(W - 60, 230); ctx.stroke()
+
+    ctx.fillStyle = 'rgba(255,255,255,0.6)'
+    ctx.font = '500 22px Nunito, Arial, sans-serif'
+    ctx.fillText('REVENUE', W / 2, 290)
+    ctx.fillStyle = '#fff'
+    ctx.font = 'bold 80px Nunito, Arial, sans-serif'
+    ctx.fillText(fmt(cardData.revenue), W / 2, 380)
+
+    const cols = [
+      { label: 'GROSS PROFIT', value: fmt(cardData.grossProfit), color: '#86efac' },
+      { label: 'NET PROFIT',   value: fmt(cardData.netProfit),   color: cardData.netPositive ? '#6ee7b7' : '#fca5a5' },
+      { label: 'TRANSACTIONS', value: String(cardData.transactions), color: '#93c5fd' },
+    ]
+    const colW = W / 3
+    cols.forEach((col, i) => {
+      const cx = colW * i + colW / 2
+      ctx.fillStyle = 'rgba(255,255,255,0.5)'
+      ctx.font = '500 17px Nunito, Arial, sans-serif'
+      ctx.fillText(col.label, cx, 460)
+      ctx.fillStyle = col.color
+      ctx.font = 'bold 34px Nunito, Arial, sans-serif'
+      ctx.fillText(col.value, cx, 510)
+    })
+
+    ctx.fillStyle = 'rgba(255,255,255,0.12)'
+    roundRectFill(ctx, W / 2 - 140, 545, 280, 56, 28)
+    ctx.fillStyle = '#fde68a'
+    ctx.font = 'bold 28px Nunito, Arial, sans-serif'
+    ctx.fillText(`📈 ${cardData.margin}% Gross Margin`, W / 2, 582)
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'
+    ctx.beginPath(); ctx.moveTo(60, 630); ctx.lineTo(W - 60, 630); ctx.stroke()
+
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
+    ctx.font = '500 20px Nunito, Arial, sans-serif'
+    ctx.fillText('Powered by SalesTrack · Run your business from your phone', W / 2, 680)
+    ctx.fillStyle = 'rgba(255,255,255,0.2)'
+    ctx.font = 'bold 18px Nunito, Arial, sans-serif'
+    ctx.fillText('salestrack.co.ke', W / 2, 720)
+
+    return canvas
+  }, [stats, shop, period])
+
+  const handleShare = async () => {
+    setSharing(true)
+    try {
+      const canvas = drawCard()
+      if (!canvas) { toast.error('No data to share yet'); setSharing(false); return }
+      canvas.toBlob(async (blob) => {
+        try {
+          const file = new File([blob], 'daily-summary.png', { type: 'image/png' })
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: `${shop?.name} — Daily Summary` })
+          } else {
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url; a.download = `${(shop?.name || 'summary').replace(/\s+/g,'-')}-${new Date().toISOString().slice(0,10)}.png`
+            a.click(); URL.revokeObjectURL(url)
+            toast.success('Image downloaded — share it to WhatsApp Status! 📲', { duration: 5000 })
+          }
+        } catch (err) {
+          if (err?.name !== 'AbortError') toast.error('Could not share — image downloaded instead')
+        } finally { setSharing(false) }
+      }, 'image/png')
+    } catch { setSharing(false) }
+  }
+
+  const handlePreview = () => {
+    setPreview(true)
+    setTimeout(drawCard, 50)
+  }
+
+  if (!stats) return null
+
+  return (
+    <>
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+      <div style={{
+        background: 'linear-gradient(135deg,#3d1020,#8b2550)',
+        borderRadius: 14, padding: '14px 18px', marginBottom: 20,
+        display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+      }}>
+        <div style={{ fontSize: 26 }}>📊</div>
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>Daily Summary Card</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 2 }}>Branded image — share to WhatsApp Status in one tap</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+          <button onClick={handlePreview} style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,0.3)', background: 'transparent', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>👁 Preview</button>
+          <button onClick={handleShare} disabled={sharing} style={{ padding: '7px 16px', borderRadius: 10, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 12, cursor: sharing ? 'not-allowed' : 'pointer', fontFamily: 'Nunito,sans-serif', opacity: sharing ? 0.7 : 1 }}>{sharing ? 'Preparing…' : '📲 Share to WhatsApp'}</button>
+        </div>
+      </div>
+
+      {preview && (
+        <div onClick={() => setPreview(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: 400, width: '100%' }}>
+            <canvas ref={canvasRef} style={{ width: '100%', height: 'auto', borderRadius: 16, display: 'block' }} />
+            <button onClick={() => setPreview(false)} style={{ position: 'absolute', top: -12, right: -12, width: 32, height: 32, borderRadius: '50%', border: 'none', background: '#fff', color: '#3d1020', fontWeight: 900, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            <button onClick={() => { setPreview(false); handleShare() }} style={{ display: 'block', width: '100%', marginTop: 12, padding: '12px', borderRadius: 12, border: 'none', background: '#25D366', color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>📲 Share this to WhatsApp Status</button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 // ─── MAIN DASHBOARD ──────────────────────────────────────────────
 export default function DashboardPage() {
   const { shop, needsShop } = useAuth()
@@ -567,6 +820,8 @@ export default function DashboardPage() {
   const [showChecklist, setShowChecklist] = useState(true)
   const [avgDailyRevenue, setAvgDailyRevenue] = useState(null)
   const [hourData, setHourData]       = useState([])
+  const [insightMemory, setInsightMemory] = useState(null)
+  const [assistantData, setAssistantData] = useState(null)
 
   useEffect(() => { if (shop) loadAll() }, [shop, period])
 
@@ -674,6 +929,12 @@ export default function DashboardPage() {
           return { label, revenue: ds.reduce((a,s) => a+s.total_kes, 0), count: ds.length }
         }))
       }
+    // Load AI memory and sales assistant in parallel (non-blocking)
+    await Promise.all([
+      loadShopBaseline(shop.id).then(setInsightMemory).catch(() => {}),
+      loadSalesAssistant(shop.id, shop).then(setAssistantData).catch(() => {}),
+    ])
+
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
@@ -780,6 +1041,22 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
+
+          {/* Smart Insight Widget */}
+          <AIInsightWidget
+            stats={stats}
+            hourData={hourData}
+            shop={shop}
+            period={period}
+            memory={insightMemory}
+            onRecord={(insight) => recordInsightShown(shop.id, insight, stats)}
+          />
+
+          {/* Sales Assistant Widget */}
+          <SalesAssistantWidget shop={shop} assistantData={assistantData} />
+
+          {/* Daily Share Card */}
+          <DailyShareCard stats={stats} shop={shop} period={period} />
 
           {/* Charts row */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
