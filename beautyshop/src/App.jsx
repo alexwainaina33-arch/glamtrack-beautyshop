@@ -22,6 +22,8 @@ import AppointmentsPage from './pages/AppointmentsPage'
 import StaffPage from './pages/StaffPage'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
 import BookingPage from './pages/BookingPage'
+import ShopPage from './pages/ShopPage'
+import ReceiptPublicPage from './pages/ReceiptPublicPage'
 import NotFoundPage from './pages/NotFoundPage'
 import InstallBanner from './components/InstallBanner'
 
@@ -76,7 +78,13 @@ function AppRoutes() {
       </Route>
 
       {/* Public booking page — no auth */}
-      <Route path="/book/:slug" element={<BookingPage />} />
+      <Route path="/book/:slug"     element={<BookingPage />} />
+
+      {/* Public shop page — full catalogue */}
+      <Route path="/shop/:slug"     element={<ShopPage />} />
+
+      {/* Public digital receipt — accessed via share_token */}
+      <Route path="/receipt/:token" element={<ReceiptPublicPage />} />
 
       {/* 404 */}
       <Route path="*" element={<NotFoundPage />} />

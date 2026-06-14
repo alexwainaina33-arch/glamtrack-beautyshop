@@ -8,6 +8,7 @@ const TABS = [
   { label: 'Business',    icon: Store },
   { label: 'Branding',    icon: Palette },
   { label: 'Booking',     icon: Link },
+  { label: 'Marketing',   icon: ExternalLink },
   { label: 'Categories',  icon: Tag },
   { label: 'eTIMS / KRA', icon: ShieldCheck },
   { label: 'Staff',       icon: Users },
@@ -195,6 +196,7 @@ export default function SettingsPage() {
 
   const brandColor    = shopForm.brand_color || '#c8456a'
   const bookingUrl    = shop?.slug ? `${window.location.origin}/book/${shop.slug}` : ''
+  const shopPageUrl   = shop?.slug ? `${window.location.origin}/shop/${shop.slug}` : ''
   const qrUrl         = (url) => `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(url)}&size=400x400&margin=12`
 
   return (
@@ -370,16 +372,63 @@ export default function SettingsPage() {
       {tab === 2 && (
         <div style={{ maxWidth: 720 }}>
           <div style={{ marginBottom: 20 }}>
-            <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:'0 0 6px' }}>🔗 Booking Links & QR Codes</h2>
-            <p style={{ fontSize:13, color:'#9b6070', margin:0 }}>Share these links on WhatsApp, Instagram bio, printed flyers, or as QR codes at your counter. Each link opens your public booking page — no login required for customers.</p>
+            <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:'0 0 6px' }}>🔗 Your Links & QR Codes</h2>
+            <p style={{ fontSize:13, color:'#9b6070', margin:0 }}>Share these links on WhatsApp, Instagram bio, printed flyers, or as QR codes at your counter. No login required for customers.</p>
           </div>
 
-          {/* Main booking page */}
+          {/* Public Shop Page — PRIMARY LINK */}
+          <div className="card" style={{ marginBottom: 16, border: '2px solid #c8456a' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16, flexWrap:'wrap', gap:10 }}>
+              <div>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                  <div style={{ fontFamily:'Playfair Display,serif', fontSize:17, color:'#3d1020', fontWeight:700 }}>🏪 Your Shop Page</div>
+                  <span style={{ background:'#fce8ed', color:'#c8456a', fontSize:10, fontWeight:800, padding:'2px 8px', borderRadius:20, textTransform:'uppercase', letterSpacing:'0.05em' }}>Recommended</span>
+                </div>
+                <div style={{ fontSize:12, color:'#9b6070' }}>Your free mini-website — services, products, prices & booking, all in one. Share this everywhere.</div>
+              </div>
+              <a href={shopPageUrl} target="_blank" rel="noopener noreferrer"
+                style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12, color:'#c8456a', fontWeight:700, textDecoration:'none' }}>
+                Preview <ExternalLink size={12}/>
+              </a>
+            </div>
+
+            <div style={{ background:'#fdf5f7', border:'1.5px solid #f0e4e8', borderRadius:10, padding:'11px 14px', fontSize:13, color:'#3d1020', fontWeight:600, wordBreak:'break-all', marginBottom:14 }}>
+              {shopPageUrl}
+            </div>
+
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:20 }}>
+              <button onClick={() => copyLink('shoppage', shopPageUrl)}
+                style={{ padding:'9px 16px', borderRadius:10, border:'none', background: copiedKey==='shoppage'?'#059669':'#c8456a', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:6, transition:'background 0.2s' }}>
+                {copiedKey==='shoppage' ? <><Check size={14}/> Copied!</> : '📋 Copy Link'}
+              </button>
+              <a href={`https://wa.me/?text=${encodeURIComponent(`Check out ${shop?.name}! 💅\n\nServices, prices & online booking:\n👉 ${shopPageUrl}`)}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ padding:'9px 16px', borderRadius:10, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6 }}>
+                📲 Share on WhatsApp
+              </a>
+              <a href={qrUrl(shopPageUrl)} target="_blank" rel="noopener noreferrer"
+                style={{ padding:'9px 16px', borderRadius:10, border:'1.5px solid #f0e4e8', background:'#fff', color:'#3d1020', fontWeight:700, fontSize:13, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6 }}>
+                🖨️ Print QR Code
+              </a>
+            </div>
+
+            {shopPageUrl && (
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontSize:11, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.08em', color:'#9b6070', marginBottom:10 }}>QR Code — put this on your counter, business card or receipts</div>
+                <div style={{ display:'inline-block', background:'#fff', border:'2px solid #f0e4e8', borderRadius:14, padding:12 }}>
+                  <img src={qrUrl(shopPageUrl)} alt="Shop page QR code" style={{ width:160, height:160, display:'block' }} />
+                  <div style={{ fontSize:11, color:'#9b6070', marginTop:8, fontWeight:600 }}>{shop?.name}</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Booking-only page — secondary */}
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16, flexWrap:'wrap', gap:10 }}>
               <div>
-                <div style={{ fontFamily:'Playfair Display,serif', fontSize:17, color:'#3d1020', fontWeight:700, marginBottom:4 }}>Main Booking Page</div>
-                <div style={{ fontSize:12, color:'#9b6070' }}>Customers can browse all your services from this link</div>
+                <div style={{ fontFamily:'Playfair Display,serif', fontSize:17, color:'#3d1020', fontWeight:700, marginBottom:4 }}>📅 Booking-Only Page</div>
+                <div style={{ fontSize:12, color:'#9b6070' }}>Skips straight to the booking form — useful if a customer already knows what they want.</div>
               </div>
               <a href={bookingUrl} target="_blank" rel="noopener noreferrer"
                 style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12, color:'#c8456a', fontWeight:700, textDecoration:'none' }}>
@@ -387,13 +436,11 @@ export default function SettingsPage() {
               </a>
             </div>
 
-            {/* URL display */}
             <div style={{ background:'#fdf5f7', border:'1.5px solid #f0e4e8', borderRadius:10, padding:'11px 14px', fontSize:13, color:'#3d1020', fontWeight:600, wordBreak:'break-all', marginBottom:14 }}>
               {bookingUrl}
             </div>
 
-            {/* Action buttons */}
-            <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:20 }}>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
               <button onClick={() => copyLink('main', bookingUrl)}
                 style={{ padding:'9px 16px', borderRadius:10, border:'none', background: copiedKey==='main'?'#059669':'#c8456a', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:6, transition:'background 0.2s' }}>
                 {copiedKey==='main' ? <><Check size={14}/> Copied!</> : '📋 Copy Link'}
@@ -408,21 +455,6 @@ export default function SettingsPage() {
                 🖨️ Print QR Code
               </a>
             </div>
-
-            {/* Live QR preview */}
-            {bookingUrl && (
-              <div style={{ textAlign:'center' }}>
-                <div style={{ fontSize:11, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.08em', color:'#9b6070', marginBottom:10 }}>QR Code — screenshot to print or share</div>
-                <div style={{ display:'inline-block', background:'#fff', border:'2px solid #f0e4e8', borderRadius:14, padding:12 }}>
-                  <img
-                    src={qrUrl(bookingUrl)}
-                    alt="Booking QR code"
-                    style={{ width:160, height:160, display:'block' }}
-                  />
-                  <div style={{ fontSize:11, color:'#9b6070', marginTop:8, fontWeight:600 }}>{shop?.name}</div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Per-service links */}
@@ -489,8 +521,102 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ── TAB 3: CATEGORIES ── */}
+      {/* ── TAB 3: MARKETING TOOLS ── */}
       {tab === 3 && (
+        <div style={{ maxWidth: 720 }}>
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, color: '#3d1020', margin: '0 0 6px' }}>📣 Marketing Tools</h2>
+            <p style={{ fontSize: 13, color: '#9b6070', margin: 0 }}>Free tools to get more customers — no ads, no agency needed.</p>
+          </div>
+
+          {/* WhatsApp Auto-Reply Generator */}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 17, color: '#3d1020', fontWeight: 700, marginBottom: 6 }}>📲 WhatsApp Auto-Reply Script</div>
+            <p style={{ fontSize: 12, color: '#9b6070', margin: '0 0 16px' }}>
+              Copy this message → open WhatsApp Business → Settings → Away Message → paste. Every customer who messages you gets your prices, booking link, and hours automatically.
+            </p>
+            {(() => {
+              const shopUrl = shop?.slug ? `${window.location.origin}/shop/${shop.slug}` : `${window.location.origin}/book/${shop.slug}`
+              const topServices = services.slice(0, 5)
+              const script = [
+                `Hi! 👋 Welcome to *${shop?.name}*`,
+                ``,
+                topServices.length > 0 ? `✨ *Our Services:*\n${topServices.map(s => `• ${s.name} — KES ${s.price_kes?.toLocaleString()}`).join('\n')}` : '',
+                ``,
+                `📅 *Book your appointment online:*\n👉 ${shopUrl}`,
+                ``,
+                shop?.address ? `📍 ${shop.address}` : '',
+                shop?.phone   ? `📞 ${shop.phone}` : '',
+                ``,
+                `_We'll confirm your booking via WhatsApp!_`,
+              ].filter(l => l !== null).join('\n')
+
+              return (
+                <>
+                  <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 12, padding: '14px 16px', fontSize: 13, color: '#1a1a1f', whiteSpace: 'pre-wrap', lineHeight: 1.7, marginBottom: 14, fontFamily: 'monospace' }}>
+                    {script}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(script).then(() => toast.success('Script copied! Paste into WhatsApp Business Away Message 📲')).catch(() => toast.error('Could not copy')) }}
+                      style={{ padding: '9px 18px', borderRadius: 10, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+                      📋 Copy Script
+                    </button>
+                    <a href="https://www.whatsapp.com/download" target="_blank" rel="noopener noreferrer"
+                      style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #f0e4e8', background: '#fff', color: '#3d1020', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+                      📱 Get WhatsApp Business
+                    </a>
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+
+          {/* QR Business Card */}
+          <div className="card">
+            <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 17, color: '#3d1020', fontWeight: 700, marginBottom: 6 }}>🖨️ Printable QR Business Card</div>
+            <p style={{ fontSize: 12, color: '#9b6070', margin: '0 0 16px' }}>
+              Print this at any cyber café for KES 20. Place it at your counter, stick it on receipts, or hand it out. Customers scan to book instantly.
+            </p>
+            {(() => {
+              const shopUrl = shop?.slug ? `${window.location.origin}/shop/${shop.slug}` : `${window.location.origin}/book/${shop.slug}`
+              const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(shopUrl)}&size=400x400&margin=16`
+              return (
+                <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <div style={{ background: '#fff', border: '2px solid #f0e4e8', borderRadius: 16, padding: 16, textAlign: 'center', minWidth: 180 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#3d1020', marginBottom: 8 }}>{shop?.name}</div>
+                    <img src={qrSrc} alt="QR Code" style={{ width: 140, height: 140, display: 'block', margin: '0 auto 8px' }} />
+                    <div style={{ fontSize: 11, color: '#9b6070', fontWeight: 600 }}>Scan to book & see prices</div>
+                    {shop?.phone && <div style={{ fontSize: 11, color: '#6b4050', marginTop: 4 }}>📞 {shop.phone}</div>}
+                    {shop?.address && <div style={{ fontSize: 10, color: '#9b6070', marginTop: 2 }}>📍 {shop.address}</div>}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <div style={{ fontSize: 13, color: '#6b4050', lineHeight: 1.8, marginBottom: 14 }}>
+                      <div>✅ Works with any smartphone camera</div>
+                      <div>✅ Customers land on your booking page</div>
+                      <div>✅ Updates automatically when you add services</div>
+                      <div>✅ Print A6 size at any Nairobi cyber café — KES 20</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <a href={qrSrc} download={`${shop?.name}-qr-code.png`} target="_blank" rel="noopener noreferrer"
+                        style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#c8456a,#8b2550)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        ⬇️ Download QR Code
+                      </a>
+                      <button onClick={() => window.print()}
+                        style={{ padding: '9px 16px', borderRadius: 10, border: '1.5px solid #f0e4e8', background: '#fff', color: '#3d1020', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+                        🖨️ Print
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 4: CATEGORIES ── */}
+      {tab === 4 && (
         <div style={{ maxWidth:600 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
             <div>
@@ -547,8 +673,8 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ── TAB 4: eTIMS ── */}
-      {tab === 4 && (
+      {/* ── TAB 5: eTIMS ── */}
+      {tab === 5 && (
         <div className="card" style={{ maxWidth:640 }}>
           <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:'0 0 8px' }}>eTIMS / KRA Integration</h2>
           <p style={{ fontSize:13, color:'#9b6070', marginBottom:20 }}>Kenya Revenue Authority Electronic Tax Invoice Management System.</p>
@@ -577,8 +703,8 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ── TAB 5: STAFF ── */}
-      {tab === 5 && (
+      {/* ── TAB 6: STAFF ── */}
+      {tab === 6 && (
         <div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
             <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:0 }}>Staff & Access Control</h2>

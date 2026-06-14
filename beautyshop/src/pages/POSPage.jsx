@@ -268,7 +268,8 @@ export default function POSPage() {
         status: 'completed',
         total_cost_kes: totalCost, gross_profit_kes: grossProfit,
         served_by: admin?.id, etims_status: 'pending',
-        notes: `CREDIT — awaiting payment`
+        notes: `CREDIT — awaiting payment`,
+        share_token: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36)
       })
       await Promise.all(cart.map((item, idx) => pb.collection(C.SALE_ITEMS).create({
         sale_id: sale.id,
@@ -334,7 +335,8 @@ export default function POSPage() {
         change_given: change, status: 'completed',
         total_cost_kes: totalCost, gross_profit_kes: grossProfit,
         served_by: admin?.id, etims_status: 'pending',
-        notes: redeemPoints ? `Loyalty redeemed: ${fmtKES(loyaltyDiscount)}` : ''
+        notes: redeemPoints ? `Loyalty redeemed: ${fmtKES(loyaltyDiscount)}` : '',
+        share_token: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36)
       })
       await Promise.all(cart.map((item, idx) => pb.collection(C.SALE_ITEMS).create({
         sale_id: sale.id, product_id: item.id, product_name: item.name,

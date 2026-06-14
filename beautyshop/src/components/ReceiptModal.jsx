@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { useReactToPrint } from 'react-to-print'
 import { fmtKES, fmtDateTime } from '../lib/utils'
-import { X, Printer, Download } from 'lucide-react'
+import { X, Printer, Download, Send } from 'lucide-react'
 
 export default function ReceiptModal({ sale, shop, onClose }) {
   const receiptRef = useRef()
@@ -18,7 +18,7 @@ export default function ReceiptModal({ sale, shop, onClose }) {
           <button onClick={onClose} className="btn-ghost" style={{ padding: 8 }}><X size={18} /></button>
         </div>
         <div className="modal-body">
-          <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
             <button className="btn-primary" onClick={handlePrint} style={{ flex: 1, justifyContent: 'center' }}>
               <Printer size={16} /> Print Receipt
             </button>
@@ -26,6 +26,39 @@ export default function ReceiptModal({ sale, shop, onClose }) {
               New Sale
             </button>
           </div>
+
+          {/* Digital receipt link — share via WhatsApp */}
+          {sale.share_token && (
+            <button
+              onClick={() => {
+                const receiptUrl = `${window.location.origin}/receipt/${sale.share_token}?token=${sale.share_token}`
+                const custName = sale.customer?.name ? sale.customer.name.split(' ')[0] : 'there'
+                const msg = [
+                  `Hi ${custName}! 👋`,
+                  ``,
+                  `Thank you for shopping with *${shop?.name}*.`,
+                  ``,
+                  `🧾 Your digital receipt:`,
+                  receiptUrl,
+                  ``,
+                  `_${shop?.name} · Powered by SalesTrack_`,
+                ].join('\n')
+                const phone = sale.customer?.phone?.replace(/[^0-9]/g, '')
+                const waUrl = phone
+                  ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+                  : `https://wa.me/?text=${encodeURIComponent(msg)}`
+                window.open(waUrl, '_blank')
+              }}
+              style={{
+                width: '100%', marginBottom: 20, padding: '11px',
+                borderRadius: 12, border: 'none', background: '#25D366',
+                color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', gap: 8,
+              }}>
+              <Send size={14} /> Send Digital Receipt via WhatsApp
+            </button>
+          )}
 
           {/* eTIMS status */}
           <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13 }}>

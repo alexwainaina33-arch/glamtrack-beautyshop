@@ -1,13 +1,14 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
+import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, ShoppingCart, Package, ArchiveX, TrendingUp,
   Receipt, BarChart3, Users, Settings, LogOut, Truck, Zap,
   Tag, DollarSign, Calendar, UserCheck
 } from 'lucide-react'
 
-const NAV = [
+const NAV = (lapsedCount) => [
   { section: 'SELL', items: [
     { to: '/app/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/app/pos',          icon: ShoppingCart,    label: 'Point of Sale' },
@@ -27,7 +28,7 @@ const NAV = [
     { to: '/app/analytics', icon: Zap,        label: 'Smart Analytics' },
   ]},
   { section: 'PEOPLE', items: [
-    { to: '/app/customers', icon: Users,      label: 'Customers' },
+    { to: '/app/customers', icon: Users,      label: 'Customers', badge: lapsedCount > 0 ? lapsedCount : null },
     { to: '/app/staff',     icon: UserCheck,  label: 'Staff & Commissions' },
     { to: '/app/settings',  icon: Settings,   label: 'Settings' },
   ]},
@@ -36,6 +37,20 @@ const NAV = [
 export default function Layout() {
   const { admin, shop, logout } = useAuth()
   const navigate = useNavigate()
+  const [lapsedCount, setLapsedCount] = useState(0)
+
+  useEffect(() => {
+    if (!shop) return
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000)
+      .toISOString().replace('T', ' ').replace('Z', '.000Z')
+    pb.collection(C.CUSTOMERS).getList(1, 500, {
+      filter: `shop_id="${shop.id}" && updated < "${fourteenDaysAgo}"`,
+      '$autoCancel': false, '$cancelKey': 'layout-lapsed',
+    }).then(r => {
+      const count = r.items.filter(c => c.total_spent_kes > 0).length
+      setLapsedCount(count)
+    }).catch(() => {})
+  }, [shop])
 
   const logoUrl = shop?.logo
     ? `${pb.baseURL}/api/files/${C.SHOPS}/${shop.id}/${shop.logo}?thumb=200x200`
@@ -82,19 +97,24 @@ export default function Layout() {
 
         {/* Nav */}
         <nav style={{ flex:1, padding:'8px 0', overflowY:'auto' }}>
-          {NAV.map(({ section, items }) => (
+          {NAV(lapsedCount).map(({ section, items }) => (
             <div key={section}>
               <div style={{ fontSize:8, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.12em', color:'#f7c5d033', padding:'10px 18px 4px' }}>
                 {section}
               </div>
-              {items.map(({ to, icon: Icon, label }) => (
+              {items.map(({ to, icon: Icon, label, badge }) => (
                 <NavLink
                   key={to}
                   to={to}
                   className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
                 >
                   <Icon size={15} className="icon" />
-                  <span>{label}</span>
+                  <span style={{ flex: 1 }}>{label}</span>
+                  {badge && (
+                    <span style={{ background: '#dc2626', color: '#fff', borderRadius: '50%', fontSize: 9, fontWeight: 800, minWidth: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                      {badge}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </div>
