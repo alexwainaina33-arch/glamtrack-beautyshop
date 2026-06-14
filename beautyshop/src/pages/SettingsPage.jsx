@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import toast from 'react-hot-toast'
-import { Save, Store, ShieldCheck, Users, Plus, Trash2, X, Tag, Palette, Upload, Edit2, Check } from 'lucide-react'
+import { Save, Store, ShieldCheck, Users, Plus, Trash2, X, Tag, Palette, Upload, Edit2, Check, Link, ExternalLink } from 'lucide-react'
 
 const TABS = [
   { label: 'Business',    icon: Store },
   { label: 'Branding',    icon: Palette },
+  { label: 'Booking',     icon: Link },
   { label: 'Categories',  icon: Tag },
   { label: 'eTIMS / KRA', icon: ShieldCheck },
   { label: 'Staff',       icon: Users },
@@ -17,28 +18,36 @@ const BRAND_COLORS = [
   '#ea580c','#d97706','#0891b2','#dc2626','#475569',
 ]
 
-const ROLES = ['owner','manager','cashier','viewer']
+const ROLES    = ['owner','manager','cashier','viewer']
 const ROLE_DESC = { owner:'Full access', manager:'All except settings', cashier:'POS + sales only', viewer:'Read-only reports' }
+
+const CAT_EMOJI = { hair: '💇', nails: '💅', skin: '✨', body: '💆', lashes: '👁️', makeup: '💄', other: '🌸' }
 
 export default function SettingsPage() {
   const { shop, switchShop } = useAuth()
   const logoRef = useRef(null)
-  const [tab, setTab]           = useState(0)
-  const [shopForm, setShopForm] = useState({})
-  const [saving, setSaving]     = useState(false)
-  const [staff, setStaff]       = useState([])
+
+  const [tab,       setTab]       = useState(0)
+  const [shopForm,  setShopForm]  = useState({})
+  const [saving,    setSaving]    = useState(false)
+  const [staff,     setStaff]     = useState([])
   const [categories, setCategories] = useState([])
-  const [showAddStaff, setShowAddStaff]   = useState(false)
-  const [showAddCat, setShowAddCat]       = useState(false)
-  const [newCatName, setNewCatName]       = useState('')
-  const [editCatId, setEditCatId]         = useState(null)
-  const [editCatName, setEditCatName]     = useState('')
-  const [newStaff, setNewStaff]   = useState({ name:'', email:'', password:'', role:'cashier', phone:'' })
-  const [addingStaff, setAddingStaff]     = useState(false)
-  const [logoFile, setLogoFile]           = useState(null)
-  const [logoPreview, setLogoPreview]     = useState(null)
-  const [dragOver, setDragOver]           = useState(false)
-  const [customColor, setCustomColor]     = useState('#c8456a')
+  const [services,  setServices]  = useState([])
+
+  const [showAddStaff, setShowAddStaff] = useState(false)
+  const [showAddCat,   setShowAddCat]   = useState(false)
+  const [newCatName,   setNewCatName]   = useState('')
+  const [editCatId,    setEditCatId]    = useState(null)
+  const [editCatName,  setEditCatName]  = useState('')
+  const [newStaff,     setNewStaff]     = useState({ name:'', email:'', password:'', role:'cashier', phone:'' })
+  const [addingStaff,  setAddingStaff]  = useState(false)
+  const [logoFile,     setLogoFile]     = useState(null)
+  const [logoPreview,  setLogoPreview]  = useState(null)
+  const [dragOver,     setDragOver]     = useState(false)
+  const [customColor,  setCustomColor]  = useState('#c8456a')
+
+  // GOLDMINE — copy state for booking links
+  const [copiedKey, setCopiedKey] = useState(null)
 
   const logoUrl = shop?.logo
     ? `${pb.baseURL}/api/files/${C.SHOPS}/${shop.id}/${shop.logo}?thumb=200x200`
@@ -47,41 +56,52 @@ export default function SettingsPage() {
   useEffect(() => {
     if (shop) {
       setShopForm({
-        name: shop.name || '',
-        phone: shop.phone || '',
-        address: shop.address || '',
-        email: shop.email || '',
-        website: shop.website || '',
-        instagram: shop.instagram || '',
-        currency: shop.currency || 'KES',
-        tax_rate: shop.tax_rate || 0,
-        business_type: shop.business_type || '',
-        etims_pin: shop.etims_pin || '',
-        etims_serial: shop.etims_serial || '',
-        brand_color: shop.brand_color || '#c8456a',
-        receipt_footer: shop.receipt_footer || '',
-        receipt_header: shop.receipt_header || '',
-        receipt_show_logo: shop.receipt_show_logo ?? true,
-        receipt_show_tax: shop.receipt_show_tax ?? true,
+        name:                shop.name                || '',
+        phone:               shop.phone               || '',
+        address:             shop.address             || '',
+        email:               shop.email               || '',
+        website:             shop.website             || '',
+        instagram:           shop.instagram           || '',
+        currency:            shop.currency            || 'KES',
+        tax_rate:            shop.tax_rate            || 0,
+        business_type:       shop.business_type       || '',
+        etims_pin:           shop.etims_pin           || '',
+        etims_serial:        shop.etims_serial        || '',
+        brand_color:         shop.brand_color         || '#c8456a',
+        receipt_footer:      shop.receipt_footer      || '',
+        receipt_header:      shop.receipt_header      || '',
+        receipt_show_logo:   shop.receipt_show_logo   ?? true,
+        receipt_show_tax:    shop.receipt_show_tax    ?? true,
         whatsapp_welcome_msg: shop.whatsapp_welcome_msg || '',
       })
       setCustomColor(shop.brand_color || '#c8456a')
       loadStaff()
       loadCategories()
+      loadServices()
     }
   }, [shop])
 
   const loadStaff = async () => {
     try {
-      const res = await pb.collection(C.SHOP_ADMINS).getFullList({ filter:`shop_id="${shop.id}"`, expand:'admin_id' })
+      const res = await pb.collection(C.SHOP_ADMINS).getFullList({ filter: `shop_id="${shop.id}"`, expand: 'admin_id' })
       setStaff(res)
     } catch {}
   }
 
   const loadCategories = async () => {
     try {
-      const res = await pb.collection(C.CATEGORIES).getFullList({ filter:`shop_id="${shop.id}"`, sort:'sort_order,name' })
+      const res = await pb.collection(C.CATEGORIES).getFullList({ filter: `shop_id="${shop.id}"`, sort: 'sort_order,name' })
       setCategories(res)
+    } catch {}
+  }
+
+  const loadServices = async () => {
+    try {
+      const res = await pb.collection(C.SERVICES).getList(1, 100, {
+        filter: `shop_id="${shop.id}" && is_active=true`, sort: 'name',
+        '$cancelKey': 'settings-svcs',
+      })
+      setServices(res.items)
     } catch {}
   }
 
@@ -164,7 +184,18 @@ export default function SettingsPage() {
     catch { toast.error('Failed') }
   }
 
-  const brandColor = shopForm.brand_color || '#c8456a'
+  // GOLDMINE — copy link helper
+  const copyLink = (key, url) => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedKey(key)
+      toast.success('Link copied!')
+      setTimeout(() => setCopiedKey(null), 2000)
+    }).catch(() => toast.error('Could not copy'))
+  }
+
+  const brandColor    = shopForm.brand_color || '#c8456a'
+  const bookingUrl    = shop?.slug ? `${window.location.origin}/book/${shop.slug}` : ''
+  const qrUrl         = (url) => `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(url)}&size=400x400&margin=12`
 
   return (
     <div>
@@ -176,7 +207,8 @@ export default function SettingsPage() {
       {/* Tab nav */}
       <div style={{ display:'flex', gap:3, marginBottom:24, background:'#fce8ed', borderRadius:12, padding:4, width:'fit-content', flexWrap:'wrap' }}>
         {TABS.map((t, i) => (
-          <button key={i} onClick={()=>setTab(i)} style={{ padding:'8px 18px', borderRadius:8, border:'none', background: tab===i ? 'linear-gradient(135deg,#c8456a,#8b2550)' : 'transparent', color: tab===i ? '#fff' : '#8b2550', fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'Nunito,sans-serif', display:'flex', alignItems:'center', gap:5 }}>
+          <button key={i} onClick={() => setTab(i)}
+            style={{ padding:'8px 18px', borderRadius:8, border:'none', background: tab===i ? 'linear-gradient(135deg,#c8456a,#8b2550)' : 'transparent', color: tab===i ? '#fff' : '#8b2550', fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'Nunito,sans-serif', display:'flex', alignItems:'center', gap:5 }}>
             <t.icon size={13}/> {t.label}
           </button>
         ))}
@@ -246,10 +278,7 @@ export default function SettingsPage() {
           {/* Logo */}
           <div className="card">
             <h3 style={{ fontFamily:'Playfair Display,serif', fontSize:17, color:'#3d1020', margin:'0 0 16px' }}>Business Logo</h3>
-            <p style={{ fontSize:13, color:'#9b6070', marginBottom:16 }}>
-              Appears on all receipts, invoices, reports and the sidebar. Keep it square for best results.
-            </p>
-            {/* Current logo */}
+            <p style={{ fontSize:13, color:'#9b6070', marginBottom:16 }}>Appears on all receipts, invoices, reports and the sidebar. Keep it square for best results.</p>
             {(logoPreview || logoUrl) && (
               <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14, padding:'12px', background:'#fdf5f7', borderRadius:12, border:'1px solid #f0e4e8' }}>
                 <img src={logoPreview || logoUrl} alt="logo" style={{ width:60, height:60, objectFit:'contain', borderRadius:8, background:'#fff', padding:4, border:'1px solid #f0e4e8' }} />
@@ -262,8 +291,13 @@ export default function SettingsPage() {
                 )}
               </div>
             )}
-            {/* Upload area */}
-            <div onDragOver={e=>{e.preventDefault();setDragOver(true)}} onDragLeave={()=>setDragOver(false)} onDrop={e=>{e.preventDefault();setDragOver(false);handleLogoFile(e.dataTransfer.files[0])}} onClick={()=>logoRef.current?.click()} style={{ border:`2px dashed ${dragOver?'#c8456a':'#f0e4e8'}`, borderRadius:12, padding:'20px', textAlign:'center', cursor:'pointer', background: dragOver?'#fce8ed':'#fdf5f7', transition:'all 0.2s' }}>
+            <div
+              onDragOver={e=>{e.preventDefault();setDragOver(true)}}
+              onDragLeave={()=>setDragOver(false)}
+              onDrop={e=>{e.preventDefault();setDragOver(false);handleLogoFile(e.dataTransfer.files[0])}}
+              onClick={()=>logoRef.current?.click()}
+              style={{ border:`2px dashed ${dragOver?'#c8456a':'#f0e4e8'}`, borderRadius:12, padding:'20px', textAlign:'center', cursor:'pointer', background: dragOver?'#fce8ed':'#fdf5f7', transition:'all 0.2s' }}
+            >
               <Upload size={28} color={dragOver?'#c8456a':'#d4a0b0'} style={{ margin:'0 auto 8px' }} />
               <div style={{ fontSize:13, color:'#9b6070', fontWeight:600 }}>Drop logo or click to upload</div>
               <div style={{ fontSize:11, color:'#c8b0b8', marginTop:3 }}>JPG · PNG · WebP · Max 5MB</div>
@@ -289,11 +323,9 @@ export default function SettingsPage() {
                       {brandColor===c && <Check size={12} color="#fff"/>}
                     </button>
                   ))}
-                  {/* Custom color */}
                   <input type="color" value={customColor} onChange={e=>{setCustomColor(e.target.value);setShopForm(f=>({...f,brand_color:e.target.value}))}}
                     style={{ width:30, height:30, borderRadius:'50%', border:'2px solid #f0e4e8', cursor:'pointer', padding:1 }} title="Custom color" />
                 </div>
-                {/* Receipt preview */}
                 <div style={{ background:brandColor, borderRadius:10, padding:'12px 14px', display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
                   {(logoPreview||logoUrl)
                     ? <img src={logoPreview||logoUrl} alt="logo" style={{ width:28, height:28, objectFit:'contain', borderRadius:5, background:'rgba(255,255,255,0.9)', padding:2 }} />
@@ -334,8 +366,131 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ── TAB 2: CATEGORIES ── */}
+      {/* ── TAB 2: BOOKING LINKS (GOLDMINE) ── */}
       {tab === 2 && (
+        <div style={{ maxWidth: 720 }}>
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:'0 0 6px' }}>🔗 Booking Links & QR Codes</h2>
+            <p style={{ fontSize:13, color:'#9b6070', margin:0 }}>Share these links on WhatsApp, Instagram bio, printed flyers, or as QR codes at your counter. Each link opens your public booking page — no login required for customers.</p>
+          </div>
+
+          {/* Main booking page */}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16, flexWrap:'wrap', gap:10 }}>
+              <div>
+                <div style={{ fontFamily:'Playfair Display,serif', fontSize:17, color:'#3d1020', fontWeight:700, marginBottom:4 }}>Main Booking Page</div>
+                <div style={{ fontSize:12, color:'#9b6070' }}>Customers can browse all your services from this link</div>
+              </div>
+              <a href={bookingUrl} target="_blank" rel="noopener noreferrer"
+                style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12, color:'#c8456a', fontWeight:700, textDecoration:'none' }}>
+                Preview <ExternalLink size={12}/>
+              </a>
+            </div>
+
+            {/* URL display */}
+            <div style={{ background:'#fdf5f7', border:'1.5px solid #f0e4e8', borderRadius:10, padding:'11px 14px', fontSize:13, color:'#3d1020', fontWeight:600, wordBreak:'break-all', marginBottom:14 }}>
+              {bookingUrl}
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:20 }}>
+              <button onClick={() => copyLink('main', bookingUrl)}
+                style={{ padding:'9px 16px', borderRadius:10, border:'none', background: copiedKey==='main'?'#059669':'#c8456a', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:6, transition:'background 0.2s' }}>
+                {copiedKey==='main' ? <><Check size={14}/> Copied!</> : '📋 Copy Link'}
+              </button>
+              <a href={`https://wa.me/?text=${encodeURIComponent(`Book an appointment at ${shop?.name}! 💅\n\n👉 ${bookingUrl}`)}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ padding:'9px 16px', borderRadius:10, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6 }}>
+                📲 Share on WhatsApp
+              </a>
+              <a href={qrUrl(bookingUrl)} target="_blank" rel="noopener noreferrer"
+                style={{ padding:'9px 16px', borderRadius:10, border:'1.5px solid #f0e4e8', background:'#fff', color:'#3d1020', fontWeight:700, fontSize:13, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6 }}>
+                🖨️ Print QR Code
+              </a>
+            </div>
+
+            {/* Live QR preview */}
+            {bookingUrl && (
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontSize:11, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.08em', color:'#9b6070', marginBottom:10 }}>QR Code — screenshot to print or share</div>
+                <div style={{ display:'inline-block', background:'#fff', border:'2px solid #f0e4e8', borderRadius:14, padding:12 }}>
+                  <img
+                    src={qrUrl(bookingUrl)}
+                    alt="Booking QR code"
+                    style={{ width:160, height:160, display:'block' }}
+                  />
+                  <div style={{ fontSize:11, color:'#9b6070', marginTop:8, fontWeight:600 }}>{shop?.name}</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Per-service links */}
+          <div className="card">
+            <div style={{ fontFamily:'Playfair Display,serif', fontSize:17, color:'#3d1020', fontWeight:700, marginBottom:6 }}>Per-Service Links</div>
+            <p style={{ fontSize:12, color:'#9b6070', margin:'0 0 16px' }}>
+              Each link opens your booking page with that service already pre-selected. Put a different link in each Instagram story or WhatsApp broadcast for each service you want to promote.
+            </p>
+
+            {services.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'32px 20px', color:'#9b6070' }}>
+                <div style={{ fontSize:32, marginBottom:8 }}>💅</div>
+                <div style={{ fontSize:13 }}>No active services found.</div>
+                <div style={{ fontSize:12, marginTop:4 }}>Add services in Staff & Commissions → Services first.</div>
+              </div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                {services.map(svc => {
+                  const svcUrl = `${window.location.origin}/book/${shop?.slug}?service=${encodeURIComponent(svc.name)}`
+                  const copyKey = `svc-${svc.id}`
+                  return (
+                    <div key={svc.id} style={{ border:'1.5px solid #f0e4e8', borderRadius:12, padding:'14px 16px' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10, flexWrap:'wrap', gap:8 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                          <span style={{ fontSize:22 }}>{CAT_EMOJI[svc.category] || '💅'}</span>
+                          <div>
+                            <div style={{ fontSize:14, fontWeight:700, color:'#1a1a1f' }}>{svc.name}</div>
+                            <div style={{ fontSize:11, color:'#9b6070' }}>{svc.duration_minutes} min · KES {svc.price_kes?.toLocaleString()}</div>
+                          </div>
+                        </div>
+                        <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                          <button onClick={() => copyLink(copyKey, svcUrl)}
+                            style={{ padding:'6px 12px', borderRadius:8, border:'none', background: copiedKey===copyKey?'#059669':'#c8456a', color:'#fff', fontWeight:700, fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:5, transition:'background 0.2s', minWidth:72 }}>
+                            {copiedKey===copyKey ? <><Check size={11}/> Copied!</> : '📋 Copy'}
+                          </button>
+                          <a href={`https://wa.me/?text=${encodeURIComponent(`Book *${svc.name}* at ${shop?.name}!\n⏱ ${svc.duration_minutes} min · KES ${svc.price_kes?.toLocaleString()}\n\n👉 ${svcUrl}`)}`}
+                            target="_blank" rel="noopener noreferrer"
+                            style={{ padding:'6px 12px', borderRadius:8, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:12, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center' }}>
+                            📲
+                          </a>
+                          <a href={qrUrl(svcUrl)} target="_blank" rel="noopener noreferrer"
+                            style={{ padding:'6px 12px', borderRadius:8, border:'1.5px solid #f0e4e8', background:'#fff', color:'#3d1020', fontWeight:700, fontSize:12, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center' }}>
+                            🖨️
+                          </a>
+                        </div>
+                      </div>
+                      <div style={{ background:'#fdf5f7', borderRadius:8, padding:'8px 10px', fontSize:11, color:'#6b4050', wordBreak:'break-all', fontFamily:'monospace' }}>
+                        {svcUrl}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Pro tip */}
+          <div style={{ background:'linear-gradient(135deg,#fce8ed,#fdf5f7)', border:'1px solid #f0e4e8', borderRadius:12, padding:'14px 18px', marginTop:16 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#8b2550', marginBottom:6 }}>💡 Pro tip — get 3x more bookings</div>
+            <div style={{ fontSize:13, color:'#6b4050', lineHeight:1.6 }}>
+              Put your main booking link in your WhatsApp bio and Instagram bio. Then send service-specific links in your WhatsApp broadcasts — "Book your Gel Manicure this weekend 👉 [link]". Customers land straight on that service, skip browsing, and book in under 60 seconds.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 3: CATEGORIES ── */}
+      {tab === 3 && (
         <div style={{ maxWidth:600 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
             <div>
@@ -360,44 +515,40 @@ export default function SettingsPage() {
                 <div style={{ fontSize:14, fontWeight:600 }}>No categories yet</div>
                 <div style={{ fontSize:12, marginTop:4 }}>Add categories to organise your products</div>
               </div>
-            ) : (
-              <div>
-                {categories.map((cat, idx) => (
-                  <div key={cat.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 20px', borderBottom: idx < categories.length-1 ? '1px solid #f5edf0' : 'none' }}>
-                    <div style={{ width:34, height:34, borderRadius:10, background:'linear-gradient(135deg,#fce8ed,#f5c0cc)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>
-                      {cat.icon || '🏷️'}
-                    </div>
-                    {editCatId === cat.id ? (
-                      <input className="input" autoFocus value={editCatName} onChange={e=>setEditCatName(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter') updateCategory(cat.id); if(e.key==='Escape') setEditCatId(null) }} style={{ flex:1, padding:'6px 10px', fontSize:13 }} />
-                    ) : (
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:14, fontWeight:600, color:'#1a1a1f' }}>{cat.name}</div>
-                        <div style={{ fontSize:11, color:'#9b6070' }}>Sort order: {cat.sort_order ?? idx}</div>
-                      </div>
-                    )}
-                    <div style={{ display:'flex', gap:4 }}>
-                      {editCatId === cat.id ? (
-                        <>
-                          <button onClick={()=>updateCategory(cat.id)} className="btn-ghost" style={{ padding:'5px 10px', color:'#059669', fontSize:12, fontWeight:700 }}>Save</button>
-                          <button onClick={()=>setEditCatId(null)} className="btn-ghost" style={{ padding:'5px 8px' }}><X size={13}/></button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={()=>{setEditCatId(cat.id);setEditCatName(cat.name)}} className="btn-ghost" style={{ padding:'5px 8px' }}><Edit2 size={14}/></button>
-                          <button onClick={()=>deleteCategory(cat.id)} className="btn-ghost" style={{ padding:'5px 8px', color:'#dc2626' }}><Trash2 size={14}/></button>
-                        </>
-                      )}
-                    </div>
+            ) : categories.map((cat, idx) => (
+              <div key={cat.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 20px', borderBottom: idx < categories.length-1 ? '1px solid #f5edf0' : 'none' }}>
+                <div style={{ width:34, height:34, borderRadius:10, background:'linear-gradient(135deg,#fce8ed,#f5c0cc)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>
+                  {cat.icon || '🏷️'}
+                </div>
+                {editCatId === cat.id ? (
+                  <input className="input" autoFocus value={editCatName} onChange={e=>setEditCatName(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter') updateCategory(cat.id); if(e.key==='Escape') setEditCatId(null) }} style={{ flex:1, padding:'6px 10px', fontSize:13 }} />
+                ) : (
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:14, fontWeight:600, color:'#1a1a1f' }}>{cat.name}</div>
+                    <div style={{ fontSize:11, color:'#9b6070' }}>Sort order: {cat.sort_order ?? idx}</div>
                   </div>
-                ))}
+                )}
+                <div style={{ display:'flex', gap:4 }}>
+                  {editCatId === cat.id ? (
+                    <>
+                      <button onClick={()=>updateCategory(cat.id)} className="btn-ghost" style={{ padding:'5px 10px', color:'#059669', fontSize:12, fontWeight:700 }}>Save</button>
+                      <button onClick={()=>setEditCatId(null)} className="btn-ghost" style={{ padding:'5px 8px' }}><X size={13}/></button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={()=>{setEditCatId(cat.id);setEditCatName(cat.name)}} className="btn-ghost" style={{ padding:'5px 8px' }}><Edit2 size={14}/></button>
+                      <button onClick={()=>deleteCategory(cat.id)} className="btn-ghost" style={{ padding:'5px 8px', color:'#dc2626' }}><Trash2 size={14}/></button>
+                    </>
+                  )}
+                </div>
               </div>
-            )}
+            ))}
           </div>
         </div>
       )}
 
-      {/* ── TAB 3: eTIMS ── */}
-      {tab === 3 && (
+      {/* ── TAB 4: eTIMS ── */}
+      {tab === 4 && (
         <div className="card" style={{ maxWidth:640 }}>
           <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:'0 0 8px' }}>eTIMS / KRA Integration</h2>
           <p style={{ fontSize:13, color:'#9b6070', marginBottom:20 }}>Kenya Revenue Authority Electronic Tax Invoice Management System.</p>
@@ -426,8 +577,8 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ── TAB 4: STAFF ── */}
-      {tab === 4 && (
+      {/* ── TAB 5: STAFF ── */}
+      {tab === 5 && (
         <div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
             <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:0 }}>Staff & Access Control</h2>

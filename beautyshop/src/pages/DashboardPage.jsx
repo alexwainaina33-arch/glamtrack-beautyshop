@@ -488,6 +488,71 @@ function OnboardingChecklist({ shop, onDismiss }) {
   )
 }
 
+// ─── TOMORROWS APPOINTMENTS BANNER (GOLDMINE G2) ─────────────────
+function TomorrowsBanner({ shop, onViewAppointments }) {
+  const [tomorrowCount, setTomorrowCount] = useState(0)
+  const [dismissed, setDismissed] = useState(false)
+
+  useEffect(() => {
+    if (!shop) return
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const dateStr = tomorrow.toISOString().split('T')[0]
+
+    pb.collection(C.APPOINTMENTS).getList(1, 200, {
+      filter: `shop_id="${shop.id}" && appt_date="${dateStr}" && status!="cancelled"`,
+      '$autoCancel': false,
+      '$cancelKey': 'tomorrow-banner',
+    }).then(r => setTomorrowCount(r.totalItems)).catch(() => {})
+  }, [shop])
+
+  if (dismissed || tomorrowCount === 0) return null
+
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
+      border: '1.5px solid #93c5fd',
+      borderRadius: 14,
+      padding: '14px 20px',
+      marginBottom: 20,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14,
+      flexWrap: 'wrap',
+    }}>
+      <div style={{ fontSize: 26, flexShrink: 0 }}>📅</div>
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8' }}>
+          You have {tomorrowCount} appointment{tomorrowCount !== 1 ? 's' : ''} tomorrow
+        </div>
+        <div style={{ fontSize: 12, color: '#3b82f6', marginTop: 2 }}>
+          Send reminders now so customers don't forget — one tap per customer.
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <button
+          onClick={onViewAppointments}
+          style={{
+            padding: '8px 16px', borderRadius: 10, border: 'none',
+            background: '#2563eb', color: '#fff', fontWeight: 700,
+            fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif',
+          }}
+        >
+          📲 Send Reminders →
+        </button>
+        <button
+          onClick={() => setDismissed(true)}
+          style={{
+            padding: '8px 10px', borderRadius: 10, border: '1px solid #93c5fd',
+            background: 'transparent', color: '#3b82f6', fontWeight: 700,
+            fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif',
+          }}
+        >✕</button>
+      </div>
+    </div>
+  )
+}
+
 // ─── MAIN DASHBOARD ──────────────────────────────────────────────
 export default function DashboardPage() {
   const { shop, needsShop } = useAuth()
@@ -618,18 +683,26 @@ export default function DashboardPage() {
     if (!phone) { toast.error('Add your phone number in Settings first'); return }
     const s = stats || {}
     const msg = [
-      `📊 *SalesTrack Daily Summary — ${shop.name}*`,
-      `📅 ${format(new Date(), 'dd MMM yyyy')}`,
+      `💅 *${shop.name}*`,
+      `_Daily Summary — ${format(new Date(), 'dd MMM yyyy')}_`,
       ``,
-      `💰 Revenue: KES ${(s.revenue||0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`,
-      `📈 Gross Profit: KES ${(s.grossProfit||0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`,
-      `💸 Expenses: KES ${(s.totalExpenses||0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`,
-      `🎯 Net Profit: KES ${(s.netProfit||0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`,
-      `🧾 Transactions: ${s.salesCount||0}`,
+      `💰 Revenue`,
+      `*KES ${(s.revenue||0).toLocaleString('en-KE')}*`,
       ``,
-      (s.lowStockCount||0) > 0 ? `⚠️ Low Stock: ${s.lowStockCount} product(s) need restocking` : `✅ Stock levels OK`,
+      `📈 Gross Profit`,
+      `*KES ${(s.grossProfit||0).toLocaleString('en-KE')}*`,
       ``,
-      `_Powered by SalesTrack POS_`
+      `💸 Expenses`,
+      `*KES ${(s.totalExpenses||0).toLocaleString('en-KE')}*`,
+      ``,
+      `🎯 Net Profit`,
+      `*KES ${(s.netProfit||0).toLocaleString('en-KE')}*`,
+      ``,
+      `🧾 Transactions: *${s.salesCount||0}*`,
+      ``,
+      (s.lowStockCount||0) > 0 ? `⚠️ Stock alert: *${s.lowStockCount} item(s) running low*` : `✅ All stock levels healthy`,
+      ``,
+      `_${shop.name} · Powered by SalesTrack_`
     ].join('\n')
     const a = document.createElement('a')
     a.href = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
@@ -674,6 +747,15 @@ export default function DashboardPage() {
 
       {/* Email verification banner */}
       <EmailVerificationBanner />
+
+      {/* GOLDMINE G2 — Tomorrow's appointments banner */}
+      <TomorrowsBanner
+        shop={shop}
+        onViewAppointments={() => {
+          navigate('/app/appointments')
+          toast.success('Pre-filtered to tomorrow — hit Remind All!')
+        }}
+      />
 
       {/* Onboarding checklist */}
       {showChecklist && shop && <OnboardingChecklist shop={shop} onDismiss={() => setShowChecklist(false)} />}
