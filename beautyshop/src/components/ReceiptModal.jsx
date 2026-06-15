@@ -7,7 +7,12 @@ export default function ReceiptModal({ sale, shop, onClose }) {
   const receiptRef = useRef()
   const handlePrint = useReactToPrint({ content: () => receiptRef.current })
 
-  const items = sale.items || []
+  const items = (sale.items || []).map(i => ({
+    ...i,
+    name: i.name || i.product_name || '—',
+    qty: i.qty || 1,
+    unit_price: i.unit_price ?? i.unit_price_kes ?? 0,
+  }))
   const subtotal = items.reduce((s, i) => s + i.unit_price * i.qty, 0)
 
   return (
@@ -97,8 +102,8 @@ export default function ReceiptModal({ sale, shop, onClose }) {
                   <tr key={i}>
                     <td style={{ paddingTop: 4 }}>{item.name}</td>
                     <td style={{ textAlign: 'center' }}>{item.qty}</td>
-                    <td style={{ textAlign: 'right' }}>{item.unit_price.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right' }}>{(item.unit_price * item.qty).toLocaleString()}</td>
+                    <td style={{ textAlign: 'right' }}>{(item.unit_price || 0).toLocaleString()}</td>
+                    <td style={{ textAlign: 'right' }}>{((item.unit_price || 0) * item.qty).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
