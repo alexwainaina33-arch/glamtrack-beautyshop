@@ -51,10 +51,16 @@ export default function SalesPage() {
 
   const viewSale = async (sale) => {
     try {
-      const items = await pb.collection(C.SALE_ITEMS).getList(1, 200, { filter: `sale_id="${sale.id}"` }).then(r => r.items)
-      setSelectedSale({ ...sale, items })
+      const items = await pb.collection(C.SALE_ITEMS).getList(1, 200, {
+        filter: `sale_id="${sale.id}"`,
+        '$cancelKey': 'view-sale-items'
+      }).then(r => r.items)
+      const shop_ = shop
+      setSelectedSale({ ...sale, items, shop: shop_ })
       setShowReceipt(true)
-    } catch { toast.error('Failed to load sale details') }
+    } catch (err) {
+      toast.error('Could not load receipt: ' + (err?.message || 'Unknown error'))
+    }
   }
 
   const voidSale = async (sale) => {

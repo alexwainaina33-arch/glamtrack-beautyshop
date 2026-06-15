@@ -248,7 +248,7 @@ export default function CustomersPage() {
                 <div><label className="label">Email</label><input className="input" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
                 <div><label className="label">Birthday 🎂</label><input className="input" type="date" value={form.birthday} onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} /></div>
                 <div><label className="label">Notes</label><textarea className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={{ resize: 'vertical' }} /></div>
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
                   <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
                   <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Saving…' : editing ? 'Update' : 'Add Customer'}</button>
                 </div>

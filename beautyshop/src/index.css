@@ -550,4 +550,7 @@ tbody td { padding: 12px 16px; color: #1a1a1f; }
   /* Customer page header */
   .page-header { flex-wrap: wrap !important; }
   .page-header .btn-primary { width: 100%; justify-content: center; }
+
+  /* Modal bottom sheet: ensure buttons clear bottom nav */
+  .modal-body { padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)) !important; }
 }
