@@ -64,6 +64,14 @@ export default function ReceiptPublicPage() {
   const date = new Date(sale.created).toLocaleDateString('en-KE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const time = new Date(sale.created).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })
 
+  const reorderMsg = encodeURIComponent(
+    'Hi ' + shop.name + '! 👋\n\n' +
+    "I'd like to order the same items as receipt *#" + sale.receipt_no + '*:\n\n' +
+    items.map(function(it) { return '• ' + it.product_name + ' × ' + it.qty }).join('\n') +
+    '\n\nPlease confirm availability. Thank you! 🙏'
+  )
+  const reorderPhone = shop.phone ? shop.phone.replace(/[^0-9]/g, '') : ''
+
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'Nunito,sans-serif', padding: '24px 16px' }}>
       <style>{`@media print{body{background:#fff}.no-print{display:none!important}}`}</style>
@@ -136,6 +144,22 @@ export default function ReceiptPublicPage() {
               📲 Query this receipt on WhatsApp
             </a>
           )}
+
+          {/* G4 — Reorder button */}
+          {shop?.phone && items.length > 0 && (
+            <div className="no-print" style={{ margin: '12px 0' }}>
+              <a
+                href={'https://wa.me/' + reorderPhone + '?text=' + reorderMsg}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 12, background: 'linear-gradient(135deg,' + brand + ',' + brand + 'cc)', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
+              >
+                🔁 Order Same Items Again
+              </a>
+              <div style={{ fontSize: 11, color: '#9b6070', marginTop: 6 }}>Tap to reorder via WhatsApp</div>
+            </div>
+          )}
+
           <div style={{ marginTop: 8 }}>
             <a href={`${window.location.origin}/shop/${shop?.slug}`} style={{ color: brand, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
               View our services & book online →

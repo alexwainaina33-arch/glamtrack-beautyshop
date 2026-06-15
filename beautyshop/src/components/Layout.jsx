@@ -128,6 +128,13 @@ export default function Layout() {
             </div>
           )}
         </button>
+        <button
+          onClick={() => { logout(); navigate('/login') }}
+          style={{ background: 'rgba(255,255,255,0.12)', border: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 40, minHeight: 40, flexShrink: 0 }}
+          title="Sign out"
+        >
+          <LogOut size={18} color="#fce8ed" />
+        </button>
       </div>
 
       {/* ── Sidebar overlay — only rendered when open ── */}
