@@ -27,7 +27,7 @@ export default function ReceiptModal({ sale, shop, onClose }) {
             <button className="btn-primary" onClick={handlePrint} style={{ flex: 1, justifyContent: 'center' }}>
               <Printer size={16} /> Print Receipt
             </button>
-            <button className="btn-secondary" onClick={onClose} style={{ flex: 1, justifyContent: 'center' }}>
+            <button className="btn-secondary" onClick={() => { onClose(); window.location.href = '/app/pos'; }} style={{ flex: 1, justifyContent: 'center' }}>
               New Sale
             </button>
           </div>
