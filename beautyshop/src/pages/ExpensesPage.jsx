@@ -132,9 +132,9 @@ export default function ExpensesPage() {
 
       <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
         {/* Expenses table */}
-        <div className="card" style={{ padding: 0 }}>
+        <div className="card" style={{ padding: 0, minWidth: 0 }}>
           <div className="table-wrap">
-            <table>
+            <table style={{ minWidth: 640 }}>
               <thead>
                 <tr><th>Date</th><th>Description</th><th>Category</th><th>Payment</th><th>Amount</th><th>Receipt</th><th></th></tr>
               </thead>
