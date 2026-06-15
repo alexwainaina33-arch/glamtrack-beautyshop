@@ -522,10 +522,9 @@ tbody td { padding: 12px 16px; color: #1a1a1f; }
   margin-bottom: 12px;
   box-shadow: 0 2px 8px rgba(200,69,106,0.08);
 }
-.pos-panel-hidden { display: none !important; }
 
 @media (max-width: 768px) {
   .pos-mobile-tabs { display: flex; }
-  .pos-panel-products,
-  .pos-panel-cart { display: flex !important; flex-direction: column !important; }
+  .pos-panel-products[data-mobile-hidden="true"],
+  .pos-panel-cart[data-mobile-hidden="true"] { display: none !important; }
 }

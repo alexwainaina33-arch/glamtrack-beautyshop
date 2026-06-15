@@ -415,7 +415,7 @@ export default function POSPage() {
 
       <div className="pos-grid">
         {/* LEFT */}
-        <div className={`pos-panel-products${mobileTab === 'cart' ? ' pos-panel-hidden' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden' }}>
+        <div className="pos-panel-products" data-mobile-hidden={mobileTab === 'cart'} style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden' }}>
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ position: 'relative', flex: 1 }}>
               <Search size={14} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: '#9b6070' }} />
@@ -454,7 +454,7 @@ export default function POSPage() {
         </div>
 
         {/* RIGHT: Cart */}
-        <div className={`pos-panel-cart${mobileTab === 'products' ? ' pos-panel-hidden' : ''}`} style={{ display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: 16, border: '1px solid #f0e4e8', overflow: 'hidden' }}>
+        <div className="pos-panel-cart" data-mobile-hidden={mobileTab === 'products'} style={{ display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: 16, border: '1px solid #f0e4e8', overflow: 'hidden' }}>
           <div style={{ padding: '13px 16px', background: 'linear-gradient(90deg,#fce8ed,#fff5f7)', borderBottom: '1px solid #f5edf0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}><ShoppingBag size={16} color="#c8456a" /><span style={{ fontFamily: 'Playfair Display,serif', fontWeight: 700, fontSize: 16, color: '#3d1020' }}>Cart ({cart.length})</span></div>
             {cart.length > 0 && <button className="btn-ghost" onClick={clearCart} style={{ color: '#dc2626', fontSize: 11, padding: '3px 8px' }}><X size={10} /> Clear</button>}
