@@ -331,6 +331,9 @@ tbody td { padding: 12px 16px; color: #1a1a1f; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Mobile-only: hidden on desktop */
+.mobile-only { display: none; }
+
 /* ── Profit/Loss ── */
 .profit { color: #059669; }
 .loss { color: #dc2626; }
@@ -581,6 +584,9 @@ tbody td { padding: 12px 16px; color: #1a1a1f; }
 
   /* Desktop-only action button: full width on mobile */
   .desktop-action-btn { width: 100%; justify-content: center; }
+
+  /* Mobile-only: show on mobile */
+  .mobile-only { display: flex !important; }
 
   /* Pricing: 3-col plan cards → single column on mobile */
   .pricing-cards-grid { grid-template-columns: 1fr !important; max-width: 400px; margin: 0 auto; }

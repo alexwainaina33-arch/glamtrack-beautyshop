@@ -93,9 +93,10 @@ export default function BarcodeLabelsPage() {
             </div>
           </div>
 
-          <div className="card" style={{ padding: 0, minWidth: 0, overflow: 'hidden' }}>
-            <div className="table-wrap" style={{ overflowX: 'auto', maxWidth: '100%', display: 'block' }}>
-              <table style={{ minWidth: 560, width: 'max-content' }}>
+          {/* Desktop: table view */}
+          <div className="card desktop-only" style={{ padding: 0 }}>
+            <div className="table-wrap">
+              <table style={{ minWidth: 560 }}>
                 <thead><tr><th>Product</th><th>Barcode/SKU</th><th>Price</th><th>Add</th></tr></thead>
                 <tbody>
                   {filtered.map(p => (
@@ -116,6 +117,26 @@ export default function BarcodeLabelsPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Mobile: card list view */}
+          <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {filtered.map(p => (
+              <div key={p.id} className="card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                  {p.brand && <div style={{ fontSize: 11, color: '#9b6070' }}>{p.brand}</div>}
+                  <div style={{ fontSize: 12, color: '#9b6070', fontFamily: 'monospace', marginTop: 2 }}>{p.barcode || p.sku || 'No barcode'}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#c8456a', marginTop: 3 }}>{fmtKES(p.price_kes)}</div>
+                </div>
+                <button className="btn-primary" style={{ padding: '8px 16px', fontSize: 13, boxShadow: 'none', flexShrink: 0, minHeight: 44 }} onClick={() => addToQueue(p)}>
+                  <Plus size={14} /> Add
+                </button>
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: '#9b6070', fontSize: 14 }}>No products found</div>
+            )}
           </div>
         </div>
 
