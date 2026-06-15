@@ -8,7 +8,8 @@ import ReceiptModal from '../components/ReceiptModal'
 import toast from 'react-hot-toast'
 
 export default function SalesPage() {
-  const { shop, loading: authLoading } = useAuth()
+  const { shop, role } = useAuth()
+  const isCashier = role === 'cashier'
   const [sales, setSales] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -27,6 +28,7 @@ export default function SalesPage() {
     setLoading(true)
     try {
       const filters = [`shop_id="${shop.id}"`]
+      if (isCashier) filters.push(`served_by="${pb.authStore.model?.id}"`)
       if (statusFilter === 'credit') filters.push(`payment_status="pending"`)
       else if (statusFilter) filters.push(`status="${statusFilter}"`)
       const res = await pb.collection(C.SALES).getList(page, PER_PAGE, {
@@ -93,6 +95,7 @@ export default function SalesPage() {
   const totalRevenue = filtered.reduce((s, x) => s + (x.payment_status !== 'pending' ? (x.total_kes || 0) : 0), 0)
   const totalProfit = filtered.reduce((s, x) => s + (x.payment_status !== 'pending' ? (x.gross_profit_kes || 0) : 0), 0)
   const totalOutstanding = filtered.reduce((s, x) => s + (x.payment_status === 'pending' ? (x.total_kes || 0) : 0), 0)
+  const avgSaleValue = filtered.length ? totalRevenue / Math.max(1, filtered.filter(s => s.status === 'completed' && s.payment_status !== 'pending').length) : 0
 
   return (
     <div>
@@ -135,14 +138,17 @@ export default function SalesPage() {
 
       {/* Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
-        {[
+        {(isCashier ? [
+          { label: 'My Sales', value: filtered.length, color: '#3b82f6', isCount: true },
+          { label: 'My Revenue', value: fmtKES(totalRevenue), color: '#c8456a' },
+        ] : [
           { label: 'Total Revenue', value: fmtKES(totalRevenue), color: '#c8456a' },
           { label: 'Gross Profit', value: fmtKES(totalProfit), color: '#059669' },
-          { label: 'Avg Sale Value', value: fmtKES(filtered.length ? totalRevenue / Math.max(1, filtered.filter(s => s.status === 'completed' && s.payment_status !== 'pending').length) : 0), color: '#3b82f6' },
+          { label: 'Avg Sale Value', value: fmtKES(avgSaleValue), color: '#3b82f6' },
           { label: '💳 Outstanding Credit', value: fmtKES(totalOutstanding), color: totalOutstanding > 0 ? '#dc2626' : '#9b6070', alert: totalOutstanding > 0 },
-        ].map((s, i) => (
+        ]).map((s, i) => (
           <div key={i} className="card" style={{ textAlign: 'center', padding: '16px', border: s.alert ? '2px solid #fee2e2' : undefined, background: s.alert ? '#fff5f5' : undefined }}>
-            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'Playfair Display,serif', color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'Playfair Display,serif', color: s.color }}>{s.isCount ? s.value : s.value}</div>
             <div style={{ fontSize: 12, color: '#9b6070', marginTop: 4 }}>{s.label}</div>
           </div>
         ))}
@@ -160,13 +166,13 @@ export default function SalesPage() {
                   <th>Receipt No</th>
                   <th>Date & Time</th>
                   <th>Customer</th>
-                  <th>Served By</th>
+                  {!isCashier && <th>Served By</th>}
                   <th>Subtotal</th>
                   <th>Discount</th>
                   <th>Total</th>
-                  <th>Profit</th>
+                  {!isCashier && <th>Profit</th>}
                   <th>Payment</th>
-                  <th>eTIMS</th>
+                  {!isCashier && <th>eTIMS</th>}
                   <th>Status</th>
                   <th></th>
                 </tr>
@@ -177,22 +183,22 @@ export default function SalesPage() {
                     <td style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#c8456a' }}>{sale.receipt_no}</td>
                     <td style={{ fontSize: 12, color: '#9b6070', whiteSpace: 'nowrap' }}>{fmtDateTime(sale.created)}</td>
                     <td style={{ fontSize: 13 }}>{sale.expand?.customer_id?.name || <span style={{ color: '#9b6070' }}>Walk-in</span>}</td>
-                    <td style={{ fontSize: 12, color: '#9b6070' }}>{sale.expand?.served_by?.name || '—'}</td>
+                    {!isCashier && <td style={{ fontSize: 12, color: '#9b6070' }}>{sale.expand?.served_by?.name || '—'}</td>}
                     <td>{fmtKES(sale.subtotal_kes)}</td>
                     <td style={{ color: '#dc2626' }}>{sale.discount_kes > 0 ? fmtKES(sale.discount_kes) : '—'}</td>
                     <td style={{ fontWeight: 700 }}>{fmtKES(sale.total_kes)}</td>
-                    <td style={{ color: '#059669', fontWeight: 600 }}>{fmtKES(sale.gross_profit_kes)}</td>
+                    {!isCashier && <td style={{ color: '#059669', fontWeight: 600 }}>{fmtKES(sale.gross_profit_kes)}</td>}
                     <td>
                       <span style={{ fontSize: 12, background: sale.payment_status === 'pending' ? '#fef3c7' : '#f5edf0', color: sale.payment_status === 'pending' ? '#b45309' : '#6b4050', padding: '2px 8px', borderRadius: 20, fontWeight: sale.payment_status === 'pending' ? 700 : 400 }}>
                         {sale.payment_method === 'cash' ? '💵' : sale.payment_method === 'mpesa' ? '📱' : sale.payment_method === 'credit' ? '💳' : '💳'} {sale.payment_method}
                         {sale.payment_status === 'pending' && ' ⚠️'}
                       </span>
                     </td>
-                    <td>
+                    {!isCashier && <td>
                       <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: sale.etims_status === 'success' ? '#f0fdf4' : sale.etims_status === 'failed' ? '#fee2e2' : '#fefce8', color: sale.etims_status === 'success' ? '#059669' : sale.etims_status === 'failed' ? '#dc2626' : '#d97706' }}>
                         {sale.etims_status || 'pending'}
                       </span>
-                    </td>
+                    </td>}
                     <td>
                       <span className={`badge ${sale.status === 'completed' ? 'text-emerald-600 bg-emerald-50' : sale.status === 'voided' ? 'text-red-600 bg-red-50' : 'text-gray-500 bg-gray-100'}`}>
                         {sale.status}
@@ -207,14 +213,14 @@ export default function SalesPage() {
                             <button onClick={() => sendWhatsAppReminder(sale)} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0fdf4', color: '#25D366', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>📲</button>
                           </>
                         )}
-                        {sale.status === 'completed' && sale.payment_status !== 'pending' && (
+                        {!isCashier && sale.status === 'completed' && sale.payment_status !== 'pending' && (
                           <button className="btn-ghost" style={{ padding: '5px 10px', color: '#dc2626', fontSize: 11 }} onClick={() => voidSale(sale)}>Void</button>
                         )}
                       </div>
                     </td>
                   </tr>
                 ))}
-                {filtered.length === 0 && <tr><td colSpan={12} style={{ textAlign: 'center', padding: '48px 0', color: '#9b6070' }}>No sales found</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={isCashier ? 8 : 12} style={{ textAlign: 'center', padding: '48px 0', color: '#9b6070' }}>No sales found</td></tr>}
               </tbody>
             </table>
           </div>

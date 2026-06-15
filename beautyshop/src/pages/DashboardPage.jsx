@@ -808,8 +808,17 @@ function DailyShareCard({ stats, shop, period }) {
 
 // ─── MAIN DASHBOARD ──────────────────────────────────────────────
 export default function DashboardPage() {
-  const { shop, needsShop } = useAuth()
+  const { shop, needsShop, role } = useAuth()
+  const isCashier = role === 'cashier'
+  const isViewer  = role === 'viewer'
+  const isLimited = isCashier || isViewer
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (role === 'cashier') {
+      navigate('/app/pos', { replace: true })
+    }
+  }, [role])
   const [stats, setStats]             = useState(null)
   const [salesChart, setSalesChart]   = useState([])
   const [recentSales, setRecentSales] = useState([])
@@ -846,10 +855,15 @@ export default function DashboardPage() {
       const prevFrom = subDays(from, period === 'today' ? 1 : 30)
       const prevTo   = subDays(to,   period === 'today' ? 1 : 30)
 
+      const currentUserId = pb.authStore.model?.id
+      const salesFilter = isCashier
+        ? `shop_id="${shop.id}" && status="completed" && served_by="${currentUserId}"`
+        : `shop_id="${shop.id}" && status="completed"`
+
       const [sales, prevSales, expenses, products, customers, recent] = await Promise.all([
-        pb.collection(C.SALES).getList(1, 500, { filter: `shop_id="${shop.id}" && status="completed"`, '$autoCancel': false, '$cancelKey': 'dash-sales' })
+        pb.collection(C.SALES).getList(1, 500, { filter: salesFilter, '$autoCancel': false, '$cancelKey': 'dash-sales' })
           .then(r => filterByReceiptDate(r.items, from, to)),
-        pb.collection(C.SALES).getList(1, 500, { filter: `shop_id="${shop.id}" && status="completed"`, '$autoCancel': false, '$cancelKey': 'dash-prev' })
+        pb.collection(C.SALES).getList(1, 500, { filter: salesFilter, '$autoCancel': false, '$cancelKey': 'dash-prev' })
           .then(r => filterByReceiptDate(r.items, prevFrom, prevTo)),
         pb.collection(C.EXPENSES).getList(1, 500, { filter: `shop_id="${shop.id}"`, '$autoCancel': false, '$cancelKey': 'dash-exp' })
           .then(r => r.items.filter(x => {
@@ -973,12 +987,15 @@ export default function DashboardPage() {
 
   if (needsShop) return <ShopSetupWizard />
 
-  const statCards = stats ? [
+  const statCards = stats ? (isCashier ? [
+    { label: 'My Sales Today', value: stats.salesCount,         sub: 'Transactions you processed', icon: '🧾', cls: 'blue',  trend: true },
+    { label: 'My Revenue',     value: fmtKES(stats.revenue),   sub: 'Your sales total',            icon: '💰', cls: 'rose',  trend: stats.revenue > 0 },
+  ] : [
     { label: 'Revenue',      value: fmtKES(stats.revenue),     sub: `${pctChange(stats.revenue, stats.prevRevenue)}% vs prev`, icon: '💰', cls: 'rose', trend: stats.revenue >= stats.prevRevenue },
     { label: 'Gross Profit', value: fmtKES(stats.grossProfit), sub: `Margin ${stats.revenue ? ((stats.grossProfit/stats.revenue)*100).toFixed(1) : 0}%`, icon: '📈', cls: 'gold', trend: stats.grossProfit > 0 },
     { label: 'Net Profit',   value: fmtKES(stats.netProfit),   sub: `After KES ${(stats.totalExpenses/1000).toFixed(1)}k expenses`, icon: '🎯', cls: stats.netProfit >= 0 ? 'green' : 'rose', trend: stats.netProfit >= 0 },
     { label: 'Transactions', value: stats.salesCount,          sub: `Avg ${fmtKES(stats.avgOrderValue)}`, icon: '🧾', cls: 'blue', trend: true },
-  ] : []
+  ]) : []
 
   return (
     <div>
@@ -986,12 +1003,12 @@ export default function DashboardPage() {
       <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <div className="page-title">Good {getGreeting()}, {pb.authStore.model?.name?.split(' ')[0]} ✨</div>
-          <div className="page-subtitle">{shop?.name} · {fmtDate(new Date())}</div>
+          <div className="page-subtitle">{shop?.name} · {fmtDate(new Date())}{isCashier ? ' · My sales only' : ''}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={sendWhatsAppSummary} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center', gap: 6 }}>
+          {!isLimited && <button onClick={sendWhatsAppSummary} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center', gap: 6 }}>
             📲 WhatsApp Summary
-          </button>
+          </button>}
           {['today','7d','month'].map(p => (
             <button key={p} onClick={() => setPeriod(p)} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: period === p ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: period === p ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', boxShadow: period === p ? '0 4px 14px #c8456a44' : '0 1px 4px #0001', fontFamily: 'Nunito,sans-serif' }}>
               {p === 'today' ? 'Today' : p === '7d' ? '7 Days' : 'This Month'}
@@ -1042,24 +1059,24 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Smart Insight Widget */}
-          <AIInsightWidget
+          {/* Smart Insight Widget — owner/manager only */}
+          {!isLimited && <AIInsightWidget
             stats={stats}
             hourData={hourData}
             shop={shop}
             period={period}
             memory={insightMemory}
             onRecord={(insight) => recordInsightShown(shop.id, insight, stats)}
-          />
+          />}
 
-          {/* Sales Assistant Widget */}
-          <SalesAssistantWidget shop={shop} assistantData={assistantData} />
+          {/* Sales Assistant Widget — owner/manager only */}
+          {!isLimited && <SalesAssistantWidget shop={shop} assistantData={assistantData} />}
 
-          {/* Daily Share Card */}
-          <DailyShareCard stats={stats} shop={shop} period={period} />
+          {/* Daily Share Card — owner/manager only */}
+          {!isLimited && <DailyShareCard stats={stats} shop={shop} period={period} />}
 
-          {/* Charts row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
+          {/* Charts row — owner/manager only */}
+          {!isLimited && <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
             <div className="card">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                 <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>Revenue Overview</h3>
@@ -1096,13 +1113,13 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
 
-          {/* Goldmine B — Dead Hours Map */}
-          {hourData.length > 0 && <DeadHoursMap hourData={hourData} />}
+          {/* Goldmine B — Dead Hours Map — owner/manager only */}
+          {!isLimited && hourData.length > 0 && <DeadHoursMap hourData={hourData} />}
 
           {/* Bottom row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isCashier ? '1fr' : '1fr 1fr 1fr 1fr', gap: 16 }}>
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>Recent Sales</h3>
@@ -1130,7 +1147,7 @@ export default function DashboardPage() {
                 <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>
                   Low Stock {stats?.lowStockCount > 0 && <span style={{ background: '#fee2e2', color: '#dc2626', fontSize: 11, padding: '2px 8px', borderRadius: 20, marginLeft: 8 }}>{stats.lowStockCount}</span>}
                 </h3>
-                <button onClick={() => navigate('/app/inventory')} className="btn-ghost" style={{ fontSize: 12 }}>Manage <ArrowRight size={12}/></button>
+                {!isLimited && <button onClick={() => navigate('/app/inventory')} className="btn-ghost" style={{ fontSize: 12 }}>Manage <ArrowRight size={12}/></button>}
               </div>
               {lowStock.length === 0
                 ? <div style={{ textAlign: 'center', padding: '24px 0', color: '#059669', fontSize: 14 }}>✅ All products well stocked</div>
@@ -1179,8 +1196,8 @@ export default function DashboardPage() {
               }
             </div>
 
-            {/* Goldmine F — Business Health Score */}
-            <BusinessHealthScore stats={stats} shop={shop} />
+            {/* Goldmine F — Business Health Score — owner/manager only */}
+            {!isLimited && <BusinessHealthScore stats={stats} shop={shop} />}
           </div>
         </>
       )}

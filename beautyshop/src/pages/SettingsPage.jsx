@@ -185,6 +185,17 @@ export default function SettingsPage() {
     catch { toast.error('Failed') }
   }
 
+  const changeStaffRole = async (shopAdminId, adminId, newRole) => {
+    try {
+      await pb.collection(C.SHOP_ADMINS).update(shopAdminId, { role: newRole })
+      if (adminId) await pb.collection(C.ADMINS).update(adminId, { role: newRole })
+      toast.success(`Role updated to ${newRole}`)
+      loadStaff()
+    } catch (err) {
+      toast.error(err?.message || 'Failed to update role')
+    }
+  }
+
   // GOLDMINE — copy link helper
   const copyLink = (key, url) => {
     navigator.clipboard.writeText(url).then(() => {
@@ -734,14 +745,44 @@ export default function SettingsPage() {
                         </div>
                       </td>
                       <td style={{ fontSize:12, color:'#9b6070' }}>{s.expand?.admin_id?.email}</td>
-                      <td><span style={{ background:'#fce8ed', color:'#8b2550', padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:700, textTransform:'capitalize' }}>{s.role}</span></td>
-                      <td><span style={{ background:'#f0fdf4', color:'#059669', padding:'3px 9px', borderRadius:20, fontSize:11, fontWeight:700 }}>Active</span></td>
-                      <td><button className="btn-ghost" style={{ padding:'4px 8px', color:'#dc2626' }} onClick={()=>removeStaff(s.id)}><Trash2 size={13}/></button></td>
+                      <td>
+                        <select
+                          value={s.role || 'cashier'}
+                          onChange={e => changeStaffRole(s.id, s.expand?.admin_id?.id, e.target.value)}
+                          style={{ padding:'4px 10px', borderRadius:20, border:'1.5px solid #f0e4e8', background:'#fce8ed', color:'#8b2550', fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}
+                        >
+                          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      </td>
+                      <td>
+                        <span style={{ background: s.expand?.admin_id?.is_active ? '#f0fdf4' : '#fee2e2', color: s.expand?.admin_id?.is_active ? '#059669' : '#dc2626', padding:'3px 9px', borderRadius:20, fontSize:11, fontWeight:700 }}>
+                          {s.expand?.admin_id?.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td>
+                        <button className="btn-ghost" style={{ padding:'4px 8px', color:'#dc2626' }} onClick={()=>removeStaff(s.id)}><Trash2 size={13}/></button>
+                      </td>
                     </tr>
                   ))}
                   {staff.length===0 && <tr><td colSpan={5} style={{ textAlign:'center', padding:'28px 0', color:'#9b6070', fontSize:13 }}>No staff assigned yet</td></tr>}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* Permission matrix info card */}
+          <div style={{ background:'linear-gradient(135deg,#fce8ed,#fdf5f7)', border:'1px solid #f0e4e8', borderRadius:12, padding:'14px 18px', marginTop:16 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#8b2550', marginBottom:10 }}>🔐 What each role can access</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+              {ROLES.map(r => (
+                <div key={r} style={{ background:'#fff', borderRadius:10, padding:'10px 14px', border:'1px solid #f0e4e8' }}>
+                  <div style={{ fontWeight:700, textTransform:'capitalize', color:'#3d1020', fontSize:13, marginBottom:4 }}>{r}</div>
+                  <div style={{ fontSize:11, color:'#9b6070', lineHeight:1.6 }}>{ROLE_DESC[r]}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize:11, color:'#9b6070', marginTop:10 }}>
+              💡 Change a staff member's role using the dropdown above — takes effect on their next login.
             </div>
           </div>
         </div>

@@ -26,10 +26,22 @@ import ShopPage from './pages/ShopPage'
 import ReceiptPublicPage from './pages/ReceiptPublicPage'
 import NotFoundPage from './pages/NotFoundPage'
 import InstallBanner from './components/InstallBanner'
+import RoleGuard from './components/RoleGuard'
+import ProfilePage from './pages/ProfilePage'
 
 function LandingRedirect() {
   window.location.replace('/landing.html')
   return null
+}
+
+function RoleBasedRedirect() {
+  const { role, loading } = useAuth()
+  if (loading || role === null) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh' }}>
+      <div className="spinner" />
+    </div>
+  )
+  return <Navigate to={role === 'cashier' ? '/app/pos' : '/app/dashboard'} replace />
 }
 
 function Protected({ children }) {
@@ -59,22 +71,23 @@ function AppRoutes() {
 
       {/* Protected app */}
       <Route path="/app" element={<Protected><Layout /></Protected>}>
-        <Route index element={<Navigate to="/app/dashboard" replace />} />
+        <Route index element={<RoleBasedRedirect />} />
         <Route path="dashboard"    element={<DashboardPage />} />
         <Route path="pos"          element={<POSPage />} />
         <Route path="products"     element={<ProductsPage />} />
         <Route path="inventory"    element={<InventoryPage />} />
         <Route path="sales"        element={<SalesPage />} />
-        <Route path="expenses"     element={<ExpensesPage />} />
-        <Route path="reports"      element={<ReportsPage />} />
+        <Route path="expenses"     element={<RoleGuard allow={['owner','manager']}><ExpensesPage /></RoleGuard>} />
+        <Route path="reports"      element={<RoleGuard allow={['owner','manager','viewer']}><ReportsPage /></RoleGuard>} />
         <Route path="customers"    element={<CustomersPage />} />
-        <Route path="suppliers"    element={<SuppliersPage />} />
-        <Route path="analytics"    element={<AnalyticsPage />} />
-        <Route path="labels"       element={<BarcodeLabelsPage />} />
-        <Route path="reconcile"    element={<ReconciliationPage />} />
-        <Route path="settings"     element={<SettingsPage />} />
+        <Route path="suppliers"    element={<RoleGuard allow={['owner','manager']}><SuppliersPage /></RoleGuard>} />
+        <Route path="analytics"    element={<RoleGuard allow={['owner','manager','viewer']}><AnalyticsPage /></RoleGuard>} />
+        <Route path="labels"       element={<RoleGuard allow={['owner','manager']}><BarcodeLabelsPage /></RoleGuard>} />
+        <Route path="reconcile"    element={<RoleGuard allow={['owner','manager']}><ReconciliationPage /></RoleGuard>} />
+        <Route path="settings"     element={<RoleGuard allow={['owner']}><SettingsPage /></RoleGuard>} />
         <Route path="appointments" element={<AppointmentsPage />} />
-        <Route path="staff"        element={<StaffPage />} />
+        <Route path="staff"        element={<RoleGuard allow={['owner','manager']}><StaffPage /></RoleGuard>} />
+        <Route path="profile"      element={<ProfilePage />} />
       </Route>
 
       {/* Public booking page — no auth */}

@@ -4,10 +4,12 @@ import pb, { C } from '../lib/pb'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [admin, setAdmin]       = useState(pb.authStore.model)
-  const [shop, setShop]         = useState(null)
-  const [needsShop, setNeedsShop] = useState(false)   // true = show shop wizard
-  const [loading, setLoading]   = useState(true)
+  const [admin, setAdmin]         = useState(pb.authStore.model)
+  const [shop, setShop]           = useState(null)
+  const [role, setRole]           = useState(null)
+  const [permissions, setPermissions] = useState(null)
+  const [needsShop, setNeedsShop] = useState(false)
+  const [loading, setLoading]     = useState(true)
 
   useEffect(() => {
     const unsub = pb.authStore.onChange((token, model) => {
@@ -35,12 +37,13 @@ export function AuthProvider({ children }) {
       )
       if (res?.expand?.shop_id) {
         setShop(res.expand.shop_id)
+        setRole(res.role || 'owner')
+        setPermissions(res.permissions ? JSON.parse(res.permissions) : null)
         setNeedsShop(false)
       } else {
         setNeedsShop(true)
       }
     } catch {
-      // No shop_admins entry — new user needs to create their shop
       setNeedsShop(true)
       setShop(null)
     }
@@ -57,8 +60,14 @@ export function AuthProvider({ children }) {
     pb.authStore.clear()
     setAdmin(null)
     setShop(null)
+    setRole('owner')
+    setPermissions(null)
     setNeedsShop(false)
   }
+
+  // Returns true if the current user can access a feature
+  // Usage: canAccess(['owner','manager'])
+  const canAccess = (allowedRoles) => allowedRoles.includes(role)
 
   const switchShop = (newShop) => setShop(newShop)
 
@@ -69,7 +78,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ admin, shop, needsShop, loading, login, logout, switchShop, completeShopSetup, loadShop }}>
+    <AuthContext.Provider value={{ admin, shop, role, permissions, needsShop, loading, login, logout, switchShop, completeShopSetup, loadShop, canAccess }}>
       {children}
     </AuthContext.Provider>
   )
