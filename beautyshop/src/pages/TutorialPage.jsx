@@ -92,7 +92,7 @@ export default function TutorialPage() {
                 Built for retail shops, salons, restaurants and every business in Africa
               </div>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <div className="mobile-stack" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
               {FEATURES.map(({ icon: Icon, label, desc }) => (
                 <div key={label} style={{
                   background:'rgba(255,255,255,0.06)',

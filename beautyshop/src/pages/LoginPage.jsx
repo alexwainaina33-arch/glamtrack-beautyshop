@@ -1130,7 +1130,7 @@ function PageWrapper({ children }) {
       minHeight: '100vh',
       background: 'linear-gradient(160deg,#0d0508 0%,#2a0b18 40%,#4a1228 70%,#6b1e38 100%)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      padding: '16px', position: 'relative', overflow: 'hidden',
+      padding: '16px 16px calc(16px + env(safe-area-inset-bottom, 0px))', position: 'relative', overflow: 'hidden',
       WebkitTapHighlightColor: 'transparent',
     }}>
       {/* Ambient orbs */}

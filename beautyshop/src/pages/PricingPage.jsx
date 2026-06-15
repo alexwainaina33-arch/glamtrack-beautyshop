@@ -180,7 +180,7 @@ export default function PricingPage() {
         </div>
 
         {/* Plan cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 28 }}>
+        <div className="pricing-cards-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 28 }}>
           {plans.map(plan => (
             <div key={plan.id} style={{
               background: plan.highlight ? 'rgba(200,69,106,0.12)' : 'rgba(255,255,255,0.06)',
@@ -287,7 +287,7 @@ export default function PricingPage() {
         <p style={{ textAlign: 'center', color: '#f7c5d033', fontSize: 12 }}>
           All plans include SSL security · Daily backups · 99.9% uptime · M-Pesa & card payments
         </p>
-        <div style={{ textAlign: 'center', marginTop: 12, display: 'flex', gap: 20, justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center', marginTop: 12, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={() => navigate('/login')} style={{ background: 'none', border: 'none', color: '#f7c5d044', fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>← Back to login</button>
           <button onClick={() => navigate('/tutorial')} style={{ background: 'none', border: 'none', color: '#f7c5d044', fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>← Back to tutorial</button>
           <button onClick={() => window.location.href='/landing.html'} style={{ background: 'none', border: 'none', color: '#f7c5d044', fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>← SalesTrack website</button>

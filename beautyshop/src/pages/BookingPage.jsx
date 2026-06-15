@@ -430,7 +430,7 @@ export default function BookingPage() {
               )}
 
               <button onClick={handleSubmit} disabled={submitting}
-                style={{ width: '100%', padding: '15px', borderRadius: 14, background: submitting ? '#f0e4e8' : `linear-gradient(135deg,${brand},${brand}cc)`, color: submitting ? '#9b6070' : '#fff', border: 'none', fontWeight: 800, fontSize: 16, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'Nunito,sans-serif', boxShadow: submitting ? 'none' : `0 6px 20px ${brand}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+                style={{ width: '100%', padding: '15px', borderRadius: 14, background: submitting ? '#f0e4e8' : `linear-gradient(135deg,${brand},${brand}cc)`, color: submitting ? '#9b6070' : '#fff', border: 'none', fontWeight: 800, fontSize: 16, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'Nunito,sans-serif', boxShadow: submitting ? 'none' : `0 6px 20px ${brand}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 52, marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
               >
                 {submitting ? <><div style={{ width: 16, height: 16, border: '2px solid #9b6070', borderTop: '2px solid #c8456a', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Booking…</> : '✅ Confirm Booking'}
               </button>

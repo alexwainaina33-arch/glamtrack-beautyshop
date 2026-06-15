@@ -123,7 +123,7 @@ export default function ProfilePage() {
         <div className="page-subtitle">Update your personal details and password</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, maxWidth: 860 }}>
+      <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, maxWidth: 860 }}>
 
         {/* Left — Avatar + basic info */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
