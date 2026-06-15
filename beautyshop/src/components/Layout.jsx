@@ -130,10 +130,10 @@ export default function Layout() {
         </button>
         <button
           onClick={() => { logout(); navigate('/login') }}
-          style={{ background: 'rgba(255,255,255,0.12)', border: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 40, minHeight: 40, flexShrink: 0 }}
+          style={{ background: 'rgba(220,38,38,0.85)', border: '1.5px solid rgba(255,100,100,0.4)', cursor: 'pointer', padding: '6px 10px', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 40, minHeight: 40, flexShrink: 0 }}
           title="Sign out"
         >
-          <LogOut size={18} color="#fce8ed" />
+          <LogOut size={18} color="#fff" />
         </button>
       </div>
 
