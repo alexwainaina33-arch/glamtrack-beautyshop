@@ -584,4 +584,13 @@ tbody td { padding: 12px 16px; color: #1a1a1f; }
 
   /* Pricing: 3-col plan cards → single column on mobile */
   .pricing-cards-grid { grid-template-columns: 1fr !important; max-width: 400px; margin: 0 auto; }
+
+  /* Force table scroll inside container, never page-wide */
+  .table-wrap { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Show visible scrollbar on table-wrap — override the hidden rule above */
+  .table-wrap { scrollbar-width: thin !important; scrollbar-color: #c8456a #f0e4e8 !important; }
+  .table-wrap::-webkit-scrollbar { display: block !important; height: 6px !important; }
+  .table-wrap::-webkit-scrollbar-track { background: #f0e4e8 !important; }
+  .table-wrap::-webkit-scrollbar-thumb { background: #c8456a !important; border-radius: 3px !important; }
 }
