@@ -76,7 +76,7 @@ export default function ReceiptPublicPage() {
     <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'Nunito,sans-serif', padding: '24px 16px' }}>
       <style>{`@media print{body{background:#fff}.no-print{display:none!important}}`}</style>
 
-      <div style={{ maxWidth: 480, margin: '0 auto', background: '#fff', borderRadius: 20, overflow: 'hidden', boxShadow: '0 4px 32px rgba(0,0,0,0.10)' }}>
+      <div data-receipt style={{ maxWidth: 480, margin: '0 auto', background: '#fff', borderRadius: 20, overflow: 'hidden', boxShadow: '0 4px 32px rgba(0,0,0,0.10)' }}>
 
         {/* Header */}
         <div style={{ background: `linear-gradient(135deg,${brand},${brand}cc)`, padding: '24px 20px', textAlign: 'center' }}>
@@ -168,10 +168,29 @@ export default function ReceiptPublicPage() {
           <div style={{ fontSize: 10, color: '#c8b0b8', marginTop: 16 }}>
             Powered by <strong style={{ color: brand }}>SalesTrack</strong>
           </div>
-          <button onClick={() => window.print()} className="no-print"
-            style={{ marginTop: 12, padding: '8px 20px', borderRadius: 8, border: '1.5px solid #f0e4e8', background: '#fff', color: '#6b4050', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
-            🖨️ Print Receipt
-          </button>
+          <div className="no-print" style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+            <button onClick={() => window.print()}
+              style={{ padding: '8px 20px', borderRadius: 8, border: '1.5px solid #f0e4e8', background: '#fff', color: '#6b4050', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+              🖨️ Print Receipt
+            </button>
+            <button onClick={async () => {
+              const el = document.querySelector('[data-receipt]')
+              if (!el) return
+              try {
+                const { default: html2canvas } = await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')
+                const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
+                const link = document.createElement('a')
+                link.download = 'receipt-' + sale.receipt_no + '.png'
+                link.href = canvas.toDataURL('image/png')
+                link.click()
+              } catch {
+                alert('Could not save image. Try screenshot instead.')
+              }
+            }}
+              style={{ padding: '8px 20px', borderRadius: 8, border: '1.5px solid #f0e4e8', background: '#fff', color: '#6b4050', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+              💾 Save as Image
+            </button>
+          </div>
         </div>
       </div>
     </div>
