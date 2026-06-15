@@ -189,7 +189,7 @@ export default function ReportsPage() {
 
   return (
     <div ref={printRef}>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div className="page-title">Reports & Analytics 📊</div>
           <div className="page-subtitle">{shop?.name} · {fmtDate(new Date(dateFrom))} – {fmtDate(new Date(dateTo))}</div>
@@ -204,7 +204,7 @@ export default function ReportsPage() {
         <div style={{ display: 'flex', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
           <div>
             <label className="label">Quick Period</label>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {[['month', 'This Month'], ['last_month', 'Last Month'], ['year', 'This Year'], ['custom', 'Custom']].map(([v, l]) => (
                 <button key={v} onClick={() => setPeriod(v)} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: period === v ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fce8ed', color: period === v ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>{l}</button>
               ))}
@@ -240,7 +240,7 @@ export default function ReportsPage() {
         <>
           {/* P&L Statement */}
           {tab === 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
               {/* P&L Table */}
               <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -290,7 +290,7 @@ export default function ReportsPage() {
               {/* Charts */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {/* KPI cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   {[
                     { label: 'Revenue', value: fmtKES(data.revenue), color: '#c8456a', icon: '💰' },
                     { label: 'Gross Profit', value: fmtKES(data.grossProfit), color: '#059669', icon: '📈' },
@@ -379,7 +379,7 @@ export default function ReportsPage() {
 
           {/* Balance Sheet */}
           {tab === 1 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
               <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                   <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 22, color: '#3d1020', margin: 0 }}>Balance Sheet</h2>
@@ -459,7 +459,7 @@ export default function ReportsPage() {
                   <Download size={14} /> Export CSV
                 </button>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
+              <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
                 <div className="card">
                   <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 16px' }}>Daily Sales</h3>
                   <ResponsiveContainer width="100%" height={240}>
@@ -492,7 +492,7 @@ export default function ReportsPage() {
                 </div>
               </div>
               {/* Peak hours + transaction stats row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
+              <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
                 <div className="card">
                   <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 16, color: '#3d1020', margin: '0 0 16px' }}>⏰ Peak Selling Hours</h3>
                   <ResponsiveContainer width="100%" height={160}>
@@ -560,7 +560,7 @@ export default function ReportsPage() {
 
           {/* Expense Report */}
           {tab === 3 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
               <div className="card" style={{ padding: 0 }}>
                 <div style={{ padding: '14px 20px', borderBottom: '1px solid #f5edf0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 16, color: '#3d1020', margin: 0 }}>All Expenses</h3>
@@ -622,7 +622,7 @@ export default function ReportsPage() {
                   <Download size={14} /> Export CSV
                 </button>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
+              <div className="stat-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
                 {[
                   { label: 'Total Products', value: data.stockVal.length, color: '#c8456a', icon: '📦' },
                   { label: 'Stock at Cost', value: fmtKES(data.totalStockCost), color: '#d97706', icon: '💰' },

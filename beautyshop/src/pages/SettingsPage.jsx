@@ -218,10 +218,10 @@ export default function SettingsPage() {
       </div>
 
       {/* Tab nav */}
-      <div style={{ display:'flex', gap:3, marginBottom:24, background:'#fce8ed', borderRadius:12, padding:4, width:'fit-content', flexWrap:'wrap' }}>
+      <div className="tab-nav" style={{ display:'flex', gap:3, marginBottom:24, background:'#fce8ed', borderRadius:12, padding:4, width:'fit-content', flexWrap:'wrap' }}>
         {TABS.map((t, i) => (
           <button key={i} onClick={() => setTab(i)}
-            style={{ padding:'8px 18px', borderRadius:8, border:'none', background: tab===i ? 'linear-gradient(135deg,#c8456a,#8b2550)' : 'transparent', color: tab===i ? '#fff' : '#8b2550', fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'Nunito,sans-serif', display:'flex', alignItems:'center', gap:5 }}>
+            style={{ padding:'8px 18px', borderRadius:8, border:'none', background: tab===i ? 'linear-gradient(135deg,#c8456a,#8b2550)' : 'transparent', color: tab===i ? '#fff' : '#8b2550', fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'Nunito,sans-serif', display:'flex', alignItems:'center', gap:5, whiteSpace:'nowrap' }}>
             <t.icon size={13}/> {t.label}
           </button>
         ))}
@@ -232,7 +232,7 @@ export default function SettingsPage() {
         <div className="card" style={{ maxWidth:680 }}>
           <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:'0 0 24px' }}>Business Information</h2>
           <form onSubmit={saveShop} style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+            <div className="mobile-stack" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
               <div style={{ gridColumn:'1/-1' }}>
                 <label className="label">Business Name *</label>
                 <input className="input" required value={shopForm.name||''} onChange={e=>setShopForm(f=>({...f,name:e.target.value}))} />
@@ -287,7 +287,7 @@ export default function SettingsPage() {
 
       {/* ── TAB 1: BRANDING ── */}
       {tab === 1 && (
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, maxWidth:780 }}>
+        <div className="mobile-stack" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, maxWidth:780 }}>
           {/* Logo */}
           <div className="card">
             <h3 style={{ fontFamily:'Playfair Display,serif', fontSize:17, color:'#3d1020', margin:'0 0 16px' }}>Business Logo</h3>
@@ -629,7 +629,7 @@ export default function SettingsPage() {
       {/* ── TAB 4: CATEGORIES ── */}
       {tab === 4 && (
         <div style={{ maxWidth:600 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:8 }}>
             <div>
               <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:0 }}>Product Categories</h2>
               <p style={{ fontSize:13, color:'#9b6070', margin:'4px 0 0' }}>Organise your products and services into categories</p>
@@ -717,11 +717,11 @@ export default function SettingsPage() {
       {/* ── TAB 6: STAFF ── */}
       {tab === 6 && (
         <div>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:8 }}>
             <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:0 }}>Staff & Access Control</h2>
             <button className="btn-primary" onClick={()=>setShowAddStaff(true)}><Plus size={15}/> Add Staff</button>
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:18 }}>
+          <div className="stat-grid-4" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:18 }}>
             {ROLES.map(role => (
               <div key={role} style={{ background:'#fff', border:'1.5px solid #f0e4e8', borderRadius:12, padding:'12px 14px' }}>
                 <div style={{ fontWeight:700, textTransform:'capitalize', color:'#3d1020', marginBottom:3, fontSize:13 }}>{role}</div>
@@ -773,7 +773,7 @@ export default function SettingsPage() {
           {/* Permission matrix info card */}
           <div style={{ background:'linear-gradient(135deg,#fce8ed,#fdf5f7)', border:'1px solid #f0e4e8', borderRadius:12, padding:'14px 18px', marginTop:16 }}>
             <div style={{ fontSize:13, fontWeight:700, color:'#8b2550', marginBottom:10 }}>🔐 What each role can access</div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+            <div className="mobile-stack" style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
               {ROLES.map(r => (
                 <div key={r} style={{ background:'#fff', borderRadius:10, padding:'10px 14px', border:'1px solid #f0e4e8' }}>
                   <div style={{ fontWeight:700, textTransform:'capitalize', color:'#3d1020', fontSize:13, marginBottom:4 }}>{r}</div>

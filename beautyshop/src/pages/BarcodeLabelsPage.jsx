@@ -61,17 +61,17 @@ export default function BarcodeLabelsPage() {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div className="page-title">Barcode Labels 🏷️</div>
           <div className="page-subtitle">Generate and print product price tags & barcode labels</div>
         </div>
-        <button className="btn-primary" onClick={handlePrint} disabled={queue.length === 0}>
+        <button className="btn-primary desktop-action-btn" onClick={handlePrint} disabled={queue.length === 0}>
           <Printer size={16} /> Print {totalLabels} Label{totalLabels !== 1 ? 's' : ''}
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20 }}>
+      <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20 }}>
         {/* Product selector */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="card" style={{ padding: '12px 16px' }}>

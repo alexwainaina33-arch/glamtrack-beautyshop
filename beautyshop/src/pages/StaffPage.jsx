@@ -168,7 +168,7 @@ export default function StaffPage() {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div className="page-title">Staff & Commissions 👩‍💼</div>
           <div className="page-subtitle">{staff.filter(s => s.is_active).length} active staff · {services.filter(s => s.is_active).length} services · {format(new Date(), 'MMMM yyyy')}</div>
@@ -180,7 +180,7 @@ export default function StaffPage() {
       </div>
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
+      <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
         {[
           { label: 'Active Staff', value: staff.filter(s => s.is_active).length, color: '#c8456a', icon: '👩‍💼' },
           { label: 'Services Offered', value: services.filter(s => s.is_active).length, color: '#3b82f6', icon: '💅' },
@@ -196,7 +196,7 @@ export default function StaffPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
+      <div className="tab-nav" style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
         {['👩‍💼 Staff', '💅 Services', '💸 Commission Payouts'].map((t, i) => (
           <button key={i} onClick={() => setTab(i)} style={{ padding: '9px 18px', borderRadius: 10, border: tab !== i ? '1px solid #f0e4e8' : 'none', background: tab === i ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: tab === i ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', boxShadow: tab === i ? '0 4px 14px #c8456a44' : '0 1px 4px #0001', fontFamily: 'Nunito,sans-serif' }}>
             {t}
@@ -388,8 +388,8 @@ export default function StaffPage() {
               <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, color: '#3d1020', margin: 0 }}>{editStaffId ? 'Edit Staff' : '👩‍💼 Add Staff Member'}</h2>
               <button onClick={() => setShowStaffModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} color="#9b6070" /></button>
             </div>
-            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="modal-body" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label className="label">Full Name *</label>
                   <input className="input" value={staffForm.name} onChange={e => setStaffForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Jane Wanjiku" />
@@ -461,7 +461,7 @@ export default function StaffPage() {
                 <label className="label">Service Name *</label>
                 <input className="input" value={svcForm.name} onChange={e => setSvcForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Hair Wash & Blowdry" />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label className="label">Category</label>
                   <select className="input" value={svcForm.category} onChange={e => setSvcForm(f => ({ ...f, category: e.target.value }))}>
@@ -516,7 +516,7 @@ export default function StaffPage() {
                 <div style={{ fontWeight: 700, fontSize: 16 }}>{payoutStaff.name}</div>
                 <div style={{ fontSize: 12, color: '#9b6070' }}>{payoutStaff.role?.replace(/_/g,' ')}</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label className="label">Period From</label>
                   <input className="input" type="date" value={payoutForm.period_from} onChange={e => setPayoutForm(f => ({ ...f, period_from: e.target.value }))} />

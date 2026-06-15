@@ -124,7 +124,7 @@ export default function AnalyticsPage() {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div className="page-title">Smart Analytics ⚡</div>
           <div className="page-subtitle">AI-powered insights · Last 30 days · Auto reorder detection</div>
@@ -147,7 +147,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
+      <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
         {[
           { label: 'Fast Movers', value: data.fastMovers.length, icon: '🚀', color: '#059669', sub: '10+ units/30 days' },
           { label: 'Dead Stock Items', value: data.deadStock.length, icon: '💤', color: '#dc2626', sub: '0 sales in 30 days' },
@@ -164,7 +164,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Fast Movers + Category Heatmap */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+      <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
         <div className="card">
           <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Zap size={18} color="#c8456a" /> Fast Movers (30 days)
@@ -206,7 +206,7 @@ export default function AnalyticsPage() {
       {/* Reorder List */}
       {data.reorderList.length > 0 && (
         <div className="card" style={{ padding: 0, marginBottom: 20 }}>
-          <div style={{ padding: '14px 20px', background: 'linear-gradient(90deg,#fef3c7,#fff)', borderRadius: '16px 16px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '14px 20px', background: 'linear-gradient(90deg,#fef3c7,#fff)', borderRadius: '16px 16px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 16, color: '#92400e', margin: 0 }}>📦 Reorder Alert — {data.reorderList.length} items</h3>
             <button className="btn-primary" style={{ background: 'linear-gradient(135deg,#d97706,#92400e)', boxShadow: 'none', fontSize: 13 }} onClick={generatePurchaseOrder} disabled={generatingPO}>
               ⬇️ Download Purchase Order CSV

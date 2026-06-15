@@ -61,19 +61,19 @@ export default function ReconciliationPage() {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div className="page-title">Cash Reconciliation 🏦</div>
           <div className="page-subtitle">Daily Z-Report · Count your cash and close the day</div>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <input className="input" type="date" value={date} onChange={e => setDate(e.target.value)} style={{ width: 160 }} />
           <button className="btn-secondary" onClick={handlePrint}><Printer size={16} /> Print Z-Report</button>
         </div>
       </div>
 
       <div ref={printRef}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           {/* LEFT: Sales Summary */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="card">
@@ -134,13 +134,13 @@ export default function ReconciliationPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="card">
               <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 16px' }}>💵 Physical Cash Count</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 80px', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <div className="recon-denom-grid" style={{ display: 'grid', gridTemplateColumns: '80px 1fr 80px', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#9b6070' }}>Denom</span>
                 <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#9b6070' }}>Count</span>
                 <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#9b6070', textAlign: 'right' }}>Total</span>
               </div>
               {DENOMINATIONS.map(d => (
-                <div key={d} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 80px', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <div key={d} className="recon-denom-grid" style={{ display: 'grid', gridTemplateColumns: '80px 1fr 80px', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                   <span style={{ fontWeight: 700, fontSize: 14, color: '#3d1020' }}>KES {d}</span>
                   <input className="input" type="number" min={0} placeholder="0" value={counts[d] || ''} onChange={e => handleCount(d, e.target.value)} style={{ padding: '8px 12px', fontSize: 14 }} />
                   <span style={{ textAlign: 'right', fontSize: 13, fontWeight: 600, color: '#c8456a' }}>{fmtKES(d * (Number(counts[d]) || 0))}</span>
@@ -164,7 +164,7 @@ export default function ReconciliationPage() {
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
+              <div className="stat-grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
                 {[
                   { label: 'Expected', value: fmtKES(expectedCash), color: '#3b82f6' },
                   { label: 'Actual', value: fmtKES(actualCash), color: '#1a1a1f' },

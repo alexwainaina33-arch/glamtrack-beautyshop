@@ -564,4 +564,10 @@ tbody td { padding: 12px 16px; color: #1a1a1f; }
   /* Expenses filter row */
   .expenses-filter-grid { flex-direction: column !important; align-items: stretch !important; }
   .expenses-filter-grid > div { width: 100% !important; }
+
+  /* Reconciliation: denom/count/total grid stays 3-col but tightens */
+  .recon-denom-grid { grid-template-columns: 60px 1fr 70px !important; gap: 6px !important; }
+
+  /* Desktop-only action button: full width on mobile */
+  .desktop-action-btn { width: 100%; justify-content: center; }
 }
