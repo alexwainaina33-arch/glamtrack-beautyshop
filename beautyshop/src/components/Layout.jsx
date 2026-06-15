@@ -1,11 +1,11 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, ShoppingCart, Package, ArchiveX, TrendingUp,
   Receipt, BarChart3, Users, Settings, LogOut, Truck, Zap,
-  Tag, DollarSign, Calendar, UserCheck
+  Tag, DollarSign, Calendar, UserCheck, Menu, X, MoreHorizontal
 } from 'lucide-react'
 
 const NAV = (lapsedCount, role) => {
@@ -46,7 +46,12 @@ const NAV = (lapsedCount, role) => {
 export default function Layout() {
   const { admin, shop, role, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [lapsedCount, setLapsedCount] = useState(0)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Close sidebar on route change (mobile)
+  useEffect(() => { setSidebarOpen(false) }, [location.pathname])
 
   useEffect(() => {
     if (!shop) return
@@ -67,9 +72,60 @@ export default function Layout() {
 
   const brandColor = shop?.brand_color || '#c8456a'
 
+  // Bottom nav items — role-aware, 5 max
+  const bottomNavItems = [
+    { to: '/app/dashboard', icon: LayoutDashboard, label: 'Home',     roles: ['owner','manager','viewer'] },
+    { to: '/app/pos',       icon: ShoppingCart,    label: 'POS',      roles: ['owner','manager','cashier'] },
+    { to: '/app/sales',     icon: Receipt,         label: 'Sales',    roles: ['owner','manager','cashier','viewer'] },
+    { to: '/app/customers', icon: Users,           label: 'Customers',roles: ['owner','manager','cashier','viewer'] },
+    { to: '/app/appointments', icon: Calendar,     label: 'Bookings', roles: ['owner','manager','cashier','viewer'] },
+  ].filter(item => item.roles.includes(role))
+
   return (
     <div style={{ display:'flex', minHeight:'100vh', background:'#f8f6f2' }}>
-      <aside className="sidebar" style={{ height:'100vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+
+      {/* Mobile header */}
+      <div className="mobile-header">
+        <button
+          onClick={() => setSidebarOpen(v => !v)}
+          style={{ background:'none', border:'none', color:'#fce8ed', cursor:'pointer', padding:8, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', minWidth:40, minHeight:40 }}
+        >
+          {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+        {logoUrl ? (
+          <img src={logoUrl} alt={shop?.name} style={{ width:30, height:30, borderRadius:8, objectFit:'contain', background:'rgba(255,255,255,0.9)', padding:2 }} />
+        ) : (
+          <div style={{ width:30, height:30, background:`linear-gradient(135deg,#e6b800,${brandColor})`, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <TrendingUp size={14} color="#fff" />
+          </div>
+        )}
+        <div style={{ flex:1, overflow:'hidden' }}>
+          <div style={{ fontFamily:'Playfair Display,serif', color:'#fce8ed', fontWeight:700, fontSize:15, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            {shop?.name || 'SalesTrack'}
+          </div>
+        </div>
+        <button
+          onClick={() => navigate('/app/profile')}
+          style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}
+        >
+          {admin?.avatar ? (
+            <img src={`${pb.baseURL}/api/files/${C.ADMINS}/${admin.id}/${admin.avatar}?thumb=200x200`} alt={admin?.name} style={{ width:32, height:32, borderRadius:'50%', objectFit:'cover', border:'2px solid rgba(255,255,255,0.3)' }} />
+          ) : (
+            <div style={{ width:32, height:32, borderRadius:'50%', background:`linear-gradient(135deg,${brandColor},#6b1e38)`, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:13 }}>
+              {admin?.name?.[0]?.toUpperCase() || 'A'}
+            </div>
+          )}
+        </button>
+      </div>
+
+      {/* Sidebar overlay (mobile) */}
+      <div
+        className="sidebar-overlay"
+        style={{ display: sidebarOpen ? 'block' : 'none' }}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      <aside className={`sidebar${sidebarOpen ? ' open' : ''}`} style={{ height:'100vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
         {/* Logo / Brand */}
         <div style={{ padding:'18px 16px 12px', borderBottom:'1px solid #ffffff15' }}>
@@ -168,9 +224,35 @@ export default function Layout() {
         </div>
       </aside>
 
-      <main style={{ marginLeft:'var(--sidebar-w)', flex:1, minWidth:0, padding:'24px 28px', overflowY:'auto', minHeight:'100vh' }}>
+      <main
+        className="main-content"
+        style={{ marginLeft:'var(--sidebar-w)', flex:1, minWidth:0, padding:'24px 28px', overflowY:'auto', minHeight:'100vh' }}
+      >
+        {/* Spacer for mobile header */}
+        <div className="mobile-header-spacer" style={{ display:'none', height:56, marginBottom:8 }} />
         <Outlet />
       </main>
+
+      {/* Bottom navigation bar (mobile only) */}
+      <nav className="bottom-nav">
+        {bottomNavItems.map(({ to, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}
+          >
+            <Icon size={20} />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+        <button
+          className="bottom-nav-item"
+          onClick={() => setSidebarOpen(v => !v)}
+        >
+          <MoreHorizontal size={20} />
+          <span>More</span>
+        </button>
+      </nav>
     </div>
   )
 }
