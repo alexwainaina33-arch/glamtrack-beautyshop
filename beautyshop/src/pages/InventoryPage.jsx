@@ -165,10 +165,24 @@ export default function InventoryPage() {
                         </span>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button className="btn-ghost" onClick={() => openAdjust(p, 'stock_in')} title="Stock In" style={{ padding: '5px 10px', color: '#059669' }}><ArrowUp size={14} /></button>
-                          <button className="btn-ghost" onClick={() => openAdjust(p, 'stock_out')} title="Stock Out / Damage" style={{ padding: '5px 10px', color: '#dc2626' }}><ArrowDown size={14} /></button>
-                          <button className="btn-ghost" onClick={() => openAdjust(p, 'adjustment')} title="Adjust" style={{ padding: '5px 10px' }}><RefreshCw size={14} /></button>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <button className="btn-ghost" onClick={() => openAdjust(p, 'stock_in')} title="Stock In" style={{ padding: '5px 10px', color: '#059669', minHeight: 44 }}><ArrowUp size={14} /></button>
+                          <button className="btn-ghost" onClick={() => openAdjust(p, 'stock_out')} title="Stock Out / Damage" style={{ padding: '5px 10px', color: '#dc2626', minHeight: 44 }}><ArrowDown size={14} /></button>
+                          <button className="btn-ghost" onClick={() => openAdjust(p, 'adjustment')} title="Adjust" style={{ padding: '5px 10px', minHeight: 44 }}><RefreshCw size={14} /></button>
+                          {(isLow || isOut) && (
+                            <button
+                              className="btn-ghost"
+                              title="Send low stock alert to yourself via WhatsApp"
+                              style={{ padding: '5px 10px', color: '#25d366', minHeight: 44, fontWeight: 700, fontSize: 12 }}
+                              onClick={() => {
+                                const msg = `⚠️ *Low Stock Alert — ${shop.name}*\n\n*Product:*\n${p.name}${p.brand ? ' (' + p.brand + ')' : ''}\n\n*Current Stock:*\n${p.stock_qty ?? 0} ${p.unit || 'pcs'}\n\n*Reorder Level:*\n${p.reorder_point || 5} ${p.unit || 'pcs'}\n\n*Retail Price:*\n${fmtKES(p.price_kes)}\n\n📦 Restock this product to avoid losing sales.\n\n_${shop.name} · SalesTrack_`
+                                const phone = shop.phone ? shop.phone.replace(/\D/g, '').replace(/^0/, '254') : ''
+                                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
+                              }}
+                            >
+                              📲
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
