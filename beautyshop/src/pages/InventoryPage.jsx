@@ -119,11 +119,31 @@ export default function InventoryPage() {
 
       {tab === 'stock' && (
         <div className="card" style={{ padding: 0 }}>
-          <div style={{ padding: '12px 20px', borderBottom: '1px solid #f5edf0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid #f5edf0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <span style={{ fontWeight: 600, color: '#3d1020', fontSize: 14 }}>Stock Levels</span>
-            <button onClick={() => setFilterAlert(!filterAlert)} className={`btn-ghost ${filterAlert ? 'text-red-600' : ''}`} style={{ fontSize: 12 }}>
-              <Filter size={14} /> {filterAlert ? 'Show All' : 'Low Stock Only'}
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {lowCount > 0 && (
+                <button
+                  className="btn-ghost"
+                  style={{ fontSize: 12, color: '#25d366', fontWeight: 700, minHeight: 36 }}
+                  onClick={() => {
+                    const lowItems = products.filter(p => p.stock_qty <= (p.reorder_point || 5))
+                    const lines = lowItems.map((p, i) =>
+                      `${i + 1}. *${p.name}*\n    Stock: ${p.stock_qty ?? 0} ${p.unit || 'pcs'} (reorder at ${p.reorder_point || 5})`
+                    ).join('\n\n')
+                    const outItems = lowItems.filter(p => p.stock_qty <= 0)
+                    const msg = `⚠️ *Low Stock Report — ${shop.name}*\n\n${outItems.length > 0 ? `❌ *${outItems.length} item(s) completely out of stock*\n` : ''}📦 *${lowItems.length} product(s) need restocking:*\n\n${lines}\n\n_Please reorder to avoid losing sales._\n\n_${shop.name} · SalesTrack_`
+                    const phone = shop.phone ? shop.phone.replace(/\D/g, '').replace(/^0/, '254') : ''
+                    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
+                  }}
+                >
+                  📲 Alert All ({lowCount})
+                </button>
+              )}
+              <button onClick={() => setFilterAlert(!filterAlert)} className={`btn-ghost ${filterAlert ? 'text-red-600' : ''}`} style={{ fontSize: 12, minHeight: 36 }}>
+                <Filter size={14} /> {filterAlert ? 'Show All' : 'Low Stock Only'}
+              </button>
+            </div>
           </div>
           <div className="table-wrap">
             <table>
