@@ -31,6 +31,29 @@ export default defineConfig({
             type: 'image/png',
             purpose: 'any maskable'
           }
+        ],
+        shortcuts: [
+          {
+            name: 'New Sale',
+            short_name: 'New Sale',
+            description: 'Go straight to the POS and start a sale',
+            url: '/app/pos',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }]
+          },
+          {
+            name: "Today's Sales",
+            short_name: 'Sales',
+            description: "View today's sales summary",
+            url: '/app/sales',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }]
+          },
+          {
+            name: 'Add Expense',
+            short_name: 'Expense',
+            description: 'Quickly record a business expense',
+            url: '/app/expenses',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }]
+          }
         ]
       },
       workbox: {
