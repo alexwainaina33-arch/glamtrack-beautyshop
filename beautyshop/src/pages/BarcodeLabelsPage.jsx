@@ -93,10 +93,10 @@ export default function BarcodeLabelsPage() {
             </div>
           </div>
 
-          <div className="card" style={{ padding: 0, minWidth: 0 }}>
+          <div className="card" style={{ padding: 0, minWidth: 0, overflow: 'hidden' }}>
             <div className="table-wrap">
-              <table style={{ minWidth: 480 }}>
-                <thead><tr><th>Product</th><th>Barcode</th><th>Price</th><th></th></tr></thead>
+              <table style={{ minWidth: 560 }}>
+                <thead><tr><th>Product</th><th>Barcode/SKU</th><th>Price</th><th>Add</th></tr></thead>
                 <tbody>
                   {filtered.map(p => (
                     <tr key={p.id}>
