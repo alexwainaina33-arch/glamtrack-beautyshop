@@ -102,12 +102,12 @@ export default function ExpensesPage() {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div className="page-title">Expenses 💸</div>
           <div className="page-subtitle">{expenses.length} entries · {fmtKES(totalExpenses)} total</div>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="btn-secondary" onClick={() => setShowCatModal(true)}>⚙️ Categories</button>
           <button className="btn-primary" onClick={openNew}><Plus size={16} /> Add Expense</button>
         </div>
@@ -115,7 +115,7 @@ export default function ExpensesPage() {
 
       {/* Date filter */}
       <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'end' }}>
+        <div className="expenses-filter-grid" style={{ display: 'flex', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
           <div>
             <label className="label">From</label>
             <input className="input" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
@@ -130,7 +130,7 @@ export default function ExpensesPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
+      <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
         {/* Expenses table */}
         <div className="card" style={{ padding: 0 }}>
           <div className="table-wrap">
@@ -209,7 +209,7 @@ export default function ExpensesPage() {
                   <label className="label">Description *</label>
                   <input className="input" required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Electricity bill August 2025" />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
                     <label className="label">Amount (KES) *</label>
                     <input className="input" type="number" required min={0} step="0.01" value={form.amount_kes} onChange={e => setForm(f => ({ ...f, amount_kes: e.target.value }))} />

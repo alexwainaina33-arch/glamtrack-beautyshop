@@ -84,7 +84,7 @@ export default function InventoryPage() {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div className="page-title">Inventory 📦</div>
           <div className="page-subtitle">{products.length} tracked products</div>
@@ -93,7 +93,7 @@ export default function InventoryPage() {
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
+      <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
         {[
           { label: 'Stock Value (Cost)', value: fmtKES(totalStockValue), icon: '💰', cls: 'rose' },
           { label: 'Retail Value', value: fmtKES(totalRetailValue), icon: '🏷️', cls: 'gold' },

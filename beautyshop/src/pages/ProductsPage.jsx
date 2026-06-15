@@ -276,12 +276,12 @@ export default function ProductsPage() {
 
   return (
     <div>
-      <div className="page-header" style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+      <div className="page-header" style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:8 }}>
         <div>
           <div className="page-title">Products 📦</div>
           <div className="page-subtitle">{products.length} products · {categories.length} categories</div>
         </div>
-        <div style={{ display:'flex', gap:10 }}>
+        <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
           <button className="btn-secondary" onClick={() => { setShowBulk(true); setBulkStep(1) }}><Upload size={15}/> Bulk Import</button>
           <button className="btn-primary" onClick={openNew}><Plus size={15}/> Add Product</button>
         </div>
@@ -374,7 +374,7 @@ export default function ProductsPage() {
             </div>
             <div className="modal-body">
               <form onSubmit={handleSave}>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+                <div className="mobile-stack" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
                   <div style={{ gridColumn:'1/-1' }}>
                     <label className="label">Product Name *</label>
                     <input className="input" required value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Cantu Shea Butter Leave-In" />
@@ -536,7 +536,7 @@ export default function ProductsPage() {
                   {/* CSV columns reference */}
                   <div style={{ background:'#f8f6f2', borderRadius:10, padding:'14px 16px', marginBottom:20 }}>
                     <div style={{ fontSize:11, fontWeight:700, color:'#8b2550', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>CSV Column Reference</div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+                    <div className="mobile-stack" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
                       {[
                         {col:'name', req:true, desc:'Product name (required)'},
                         {col:'price_kes', req:true, desc:'Selling price in KES (required)'},
@@ -628,7 +628,7 @@ export default function ProductsPage() {
               {bulkStep === 2 && (
                 <div>
                   {/* Summary */}
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:18 }}>
+                  <div className="stat-grid-3" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:18 }}>
                     <div style={{ background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:12, padding:'14px 16px', textAlign:'center' }}>
                       <div style={{ fontSize:24, fontWeight:700, color:'#059669' }}>{bulkRows.length}</div>
                       <div style={{ fontSize:12, color:'#059669' }}>Products ready</div>

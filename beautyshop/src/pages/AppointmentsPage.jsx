@@ -196,7 +196,7 @@ export default function AppointmentsPage() {
   }
 
   const convertToSale = (appt) => {
-    navigate('/pos')
+    window.location.href = '/app/pos'
     toast.success(`Open for ${appt.customer_name} — ${appt.service_name}`)
   }
 
@@ -351,7 +351,7 @@ export default function AppointmentsPage() {
       )}
 
       {/* Stats — now includes no-show rate */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 14, marginBottom: 24 }}>
+      <div className="appt-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 14, marginBottom: 24 }}>
         {[
           { label: "Today's Bookings",   value: total,           color: '#c8456a', icon: '📅' },
           { label: 'Confirmed / Active', value: confirmed,       color: '#3b82f6', icon: '✅' },
@@ -380,7 +380,7 @@ export default function AppointmentsPage() {
       )}
 
       {/* Main layout: timeline + sidebar */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20 }}>
+      <div className="appt-main-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20 }}>
 
         {/* Timeline */}
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -544,7 +544,7 @@ export default function AppointmentsPage() {
                 </select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label className="label">Date *</label>
                   <input className="input" type="date" value={form.appt_date} onChange={e => setForm(f => ({ ...f, appt_date: e.target.value }))} />
@@ -555,7 +555,7 @@ export default function AppointmentsPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label className="label">Duration (minutes)</label>
                   <input className="input" type="number" min={15} step={15} value={form.duration_minutes} onChange={e => setForm(f => ({ ...f, duration_minutes: parseInt(e.target.value) || 60 }))} />
