@@ -72,88 +72,110 @@ export default function Layout() {
 
   const brandColor = shop?.brand_color || '#c8456a'
 
-  // Bottom nav items — role-aware, 5 max
+  // Bottom nav items — role-aware
   const bottomNavItems = [
-    { to: '/app/dashboard', icon: LayoutDashboard, label: 'Home',     roles: ['owner','manager','viewer'] },
-    { to: '/app/pos',       icon: ShoppingCart,    label: 'POS',      roles: ['owner','manager','cashier'] },
-    { to: '/app/sales',     icon: Receipt,         label: 'Sales',    roles: ['owner','manager','cashier','viewer'] },
-    { to: '/app/customers', icon: Users,           label: 'Customers',roles: ['owner','manager','cashier','viewer'] },
-    { to: '/app/appointments', icon: Calendar,     label: 'Bookings', roles: ['owner','manager','cashier','viewer'] },
+    { to: '/app/dashboard',    icon: LayoutDashboard, label: 'Home',     roles: ['owner','manager','viewer'] },
+    { to: '/app/pos',          icon: ShoppingCart,    label: 'POS',      roles: ['owner','manager','cashier'] },
+    { to: '/app/sales',        icon: Receipt,         label: 'Sales',    roles: ['owner','manager','cashier','viewer'] },
+    { to: '/app/customers',    icon: Users,           label: 'Customers',roles: ['owner','manager','cashier','viewer'] },
+    { to: '/app/appointments', icon: Calendar,        label: 'Bookings', roles: ['owner','manager','cashier','viewer'] },
   ].filter(item => item.roles.includes(role))
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'#f8f6f2' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8f6f2' }}>
 
-      {/* Mobile header */}
+      {/* ── Mobile top header ── */}
       <div className="mobile-header">
         <button
           onClick={() => setSidebarOpen(v => !v)}
-          style={{ background:'none', border:'none', color:'#fce8ed', cursor:'pointer', padding:8, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', minWidth:40, minHeight:40 }}
+          style={{
+            background: 'none', border: 'none', color: '#fce8ed',
+            cursor: 'pointer', padding: 8, borderRadius: 8,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            minWidth: 40, minHeight: 40, flexShrink: 0
+          }}
         >
           {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
+
         {logoUrl ? (
-          <img src={logoUrl} alt={shop?.name} style={{ width:30, height:30, borderRadius:8, objectFit:'contain', background:'rgba(255,255,255,0.9)', padding:2 }} />
+          <img src={logoUrl} alt={shop?.name} style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'contain', background: 'rgba(255,255,255,0.9)', padding: 2, flexShrink: 0 }} />
         ) : (
-          <div style={{ width:30, height:30, background:`linear-gradient(135deg,#e6b800,${brandColor})`, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          <div style={{ width: 30, height: 30, background: `linear-gradient(135deg,#e6b800,${brandColor})`, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <TrendingUp size={14} color="#fff" />
           </div>
         )}
-        <div style={{ flex:1, overflow:'hidden' }}>
-          <div style={{ fontFamily:'Playfair Display,serif', color:'#fce8ed', fontWeight:700, fontSize:15, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <div style={{ fontFamily: 'Playfair Display,serif', color: '#fce8ed', fontWeight: 700, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {shop?.name || 'SalesTrack'}
           </div>
         </div>
+
         <button
           onClick={() => navigate('/app/profile')}
-          style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, flexShrink: 0 }}
         >
           {admin?.avatar ? (
-            <img src={`${pb.baseURL}/api/files/${C.ADMINS}/${admin.id}/${admin.avatar}?thumb=200x200`} alt={admin?.name} style={{ width:32, height:32, borderRadius:'50%', objectFit:'cover', border:'2px solid rgba(255,255,255,0.3)' }} />
+            <img
+              src={`${pb.baseURL}/api/files/${C.ADMINS}/${admin.id}/${admin.avatar}?thumb=200x200`}
+              alt={admin?.name}
+              style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.3)' }}
+            />
           ) : (
-            <div style={{ width:32, height:32, borderRadius:'50%', background:`linear-gradient(135deg,${brandColor},#6b1e38)`, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:13 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: `linear-gradient(135deg,${brandColor},#6b1e38)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13 }}>
               {admin?.name?.[0]?.toUpperCase() || 'A'}
             </div>
           )}
         </button>
       </div>
 
-      {/* Sidebar overlay (mobile) */}
-      <div
-        className="sidebar-overlay"
-        style={{ display: sidebarOpen ? 'block' : 'none' }}
-        onClick={() => setSidebarOpen(false)}
-      />
+      {/* ── Sidebar overlay — only rendered when open ── */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.55)',
+            zIndex: 199,
+            backdropFilter: 'blur(2px)',
+            WebkitBackdropFilter: 'blur(2px)',
+          }}
+        />
+      )}
 
-      <aside className={`sidebar${sidebarOpen ? ' open' : ''}`} style={{ height:'100vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
-
+      {/* ── Sidebar ── */}
+      <aside
+        className={`sidebar${sidebarOpen ? ' open' : ''}`}
+        style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      >
         {/* Logo / Brand */}
-        <div style={{ padding:'18px 16px 12px', borderBottom:'1px solid #ffffff15' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom: shop ? 10 : 0 }}>
+        <div style={{ padding: '18px 16px 12px', borderBottom: '1px solid #ffffff15' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: shop ? 10 : 0 }}>
             {logoUrl ? (
               <img
                 src={logoUrl}
                 alt={shop?.name}
-                style={{ width:38, height:38, borderRadius:10, objectFit:'contain', background:'rgba(255,255,255,0.9)', padding:2, flexShrink:0 }}
+                style={{ width: 38, height: 38, borderRadius: 10, objectFit: 'contain', background: 'rgba(255,255,255,0.9)', padding: 2, flexShrink: 0 }}
               />
             ) : (
-              <div style={{ width:38, height:38, background:`linear-gradient(135deg,#e6b800,${brandColor})`, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <div style={{ width: 38, height: 38, background: `linear-gradient(135deg,#e6b800,${brandColor})`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <TrendingUp size={18} color="#fff" />
               </div>
             )}
-            <div style={{ overflow:'hidden' }}>
-              <div style={{ fontFamily:'Playfair Display,serif', color:'#fce8ed', fontWeight:700, fontSize:16, lineHeight:1.1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            <div style={{ overflow: 'hidden' }}>
+              <div style={{ fontFamily: 'Playfair Display,serif', color: '#fce8ed', fontWeight: 700, fontSize: 16, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {shop?.name || 'SalesTrack'}
               </div>
-              <div style={{ color:'#f7c5d066', fontSize:9, textTransform:'uppercase', letterSpacing:'0.1em' }}>
+              <div style={{ color: '#f7c5d066', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                 {shop?.business_type || 'Business POS'}
               </div>
             </div>
           </div>
           {shop && (
-            <div style={{ background:'#ffffff10', border:'1px solid #ffffff18', borderRadius:7, padding:'5px 10px', display:'flex', alignItems:'center', gap:6 }}>
-              <div style={{ width:7, height:7, borderRadius:'50%', background:'#4ade80', flexShrink:0 }} />
-              <div style={{ color:'#f7c5d077', fontSize:10, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            <div style={{ background: '#ffffff10', border: '1px solid #ffffff18', borderRadius: 7, padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', flexShrink: 0 }} />
+              <div style={{ color: '#f7c5d077', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {shop?.address || shop?.email || 'Active'}
               </div>
             </div>
@@ -161,10 +183,10 @@ export default function Layout() {
         </div>
 
         {/* Nav */}
-        <nav style={{ flex:1, padding:'8px 0', overflowY:'auto' }}>
+        <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
           {NAV(lapsedCount, role).map(({ section, items }) => (
             <div key={section}>
-              <div style={{ fontSize:8, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.12em', color:'#f7c5d033', padding:'10px 18px 4px' }}>
+              <div style={{ fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#f7c5d033', padding: '10px 18px 4px' }}>
                 {section}
               </div>
               {items.map(({ to, icon: Icon, label, badge }) => (
@@ -187,29 +209,29 @@ export default function Layout() {
         </nav>
 
         {/* User footer */}
-        <div style={{ padding:'12px 16px', borderTop:'1px solid #ffffff15' }}>
+        <div style={{ padding: '12px 16px', borderTop: '1px solid #ffffff15' }}>
           <div
             onClick={() => navigate('/app/profile')}
-            style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, cursor:'pointer', borderRadius:10, padding:'6px 8px', margin:'0 -8px 8px', transition:'background 0.2s' }}
-            onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.08)'}
-            onMouseLeave={e => e.currentTarget.style.background='transparent'}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, cursor: 'pointer', borderRadius: 10, padding: '6px 8px', margin: '0 -8px 8px', transition: 'background 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
             {admin?.avatar ? (
               <img
                 src={`${pb.baseURL}/api/files/${C.ADMINS}/${admin.id}/${admin.avatar}?thumb=200x200`}
                 alt={admin?.name}
-                style={{ width:30, height:30, borderRadius:'50%', objectFit:'cover', flexShrink:0, border:'2px solid rgba(255,255,255,0.2)' }}
+                style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(255,255,255,0.2)' }}
               />
             ) : (
-              <div style={{ width:30, height:30, borderRadius:'50%', background:`linear-gradient(135deg,${brandColor},#6b1e38)`, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:12, flexShrink:0 }}>
+              <div style={{ width: 30, height: 30, borderRadius: '50%', background: `linear-gradient(135deg,${brandColor},#6b1e38)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>
                 {admin?.name?.[0]?.toUpperCase() || 'A'}
               </div>
             )}
-            <div style={{ overflow:'hidden', flex:1 }}>
-              <div style={{ color:'#fce8ed', fontWeight:600, fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            <div style={{ overflow: 'hidden', flex: 1 }}>
+              <div style={{ color: '#fce8ed', fontWeight: 600, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {admin?.name || 'Admin'}
               </div>
-              <div style={{ color:'#f7c5d066', fontSize:9, textTransform:'capitalize' }}>
+              <div style={{ color: '#f7c5d066', fontSize: 9, textTransform: 'capitalize' }}>
                 {role || 'staff'} · {shop?.currency || 'KES'}
               </div>
             </div>
@@ -217,23 +239,24 @@ export default function Layout() {
           <button
             onClick={() => { logout(); navigate('/login') }}
             className="sidebar-link"
-            style={{ width:'100%', margin:0, padding:'6px 10px', fontSize:11 }}
+            style={{ width: '100%', margin: 0, padding: '6px 10px', fontSize: 11 }}
           >
             <LogOut size={13} className="icon" /> Sign out
           </button>
         </div>
       </aside>
 
+      {/* ── Main content ── */}
       <main
         className="main-content"
-        style={{ marginLeft:'var(--sidebar-w)', flex:1, minWidth:0, padding:'24px 28px', overflowY:'auto', minHeight:'100vh' }}
+        style={{ marginLeft: 'var(--sidebar-w)', flex: 1, minWidth: 0, padding: '24px 28px', overflowY: 'auto', minHeight: '100vh' }}
       >
-        {/* Spacer for mobile header */}
-        <div className="mobile-header-spacer" style={{ display:'none', height:56, marginBottom:8 }} />
+        {/* Pushes content below fixed mobile header */}
+        <div className="mobile-spacer" />
         <Outlet />
       </main>
 
-      {/* Bottom navigation bar (mobile only) */}
+      {/* ── Bottom navigation (mobile only) ── */}
       <nav className="bottom-nav">
         {bottomNavItems.map(({ to, icon: Icon, label }) => (
           <NavLink
@@ -253,6 +276,7 @@ export default function Layout() {
           <span>More</span>
         </button>
       </nav>
+
     </div>
   )
 }
