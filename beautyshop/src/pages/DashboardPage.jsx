@@ -1000,18 +1000,18 @@ export default function DashboardPage() {
   return (
     <div>
       {/* Header */}
-      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      <div className="page-header">
         <div>
           <div className="page-title">Good {getGreeting()}, {pb.authStore.model?.name?.split(' ')[0]} ✨</div>
           <div className="page-subtitle">{shop?.name} · {fmtDate(new Date())}{isCashier ? ' · My sales only' : ''}</div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {!isLimited && <button onClick={sendWhatsAppSummary} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+          {!isLimited && <button onClick={sendWhatsAppSummary} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center', gap: 6, minHeight: 40 }}>
             📲 WhatsApp Summary
           </button>}
           {['today','7d','month'].map(p => (
-            <button key={p} onClick={() => setPeriod(p)} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: period === p ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: period === p ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', boxShadow: period === p ? '0 4px 14px #c8456a44' : '0 1px 4px #0001', fontFamily: 'Nunito,sans-serif' }}>
-              {p === 'today' ? 'Today' : p === '7d' ? '7 Days' : 'This Month'}
+            <button key={p} onClick={() => setPeriod(p)} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: period === p ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: period === p ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', boxShadow: period === p ? '0 4px 14px #c8456a44' : '0 1px 4px #0001', fontFamily: 'Nunito,sans-serif', minHeight: 40 }}>
+              {p === 'today' ? 'Today' : p === '7d' ? '7 Days' : 'Month'}
             </button>
           ))}
         </div>
@@ -1045,7 +1045,7 @@ export default function DashboardPage() {
       ) : (
         <>
           {/* Stat Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
+          <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
             {statCards.map((s, i) => (
               <div key={i} className={`stat-card ${s.cls}`}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>{s.icon}</div>
@@ -1076,7 +1076,7 @@ export default function DashboardPage() {
           {!isLimited && <DailyShareCard stats={stats} shop={shop} period={period} />}
 
           {/* Charts row — owner/manager only */}
-          {!isLimited && <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
+          {!isLimited && <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
             <div className="card">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                 <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>Revenue Overview</h3>
@@ -1119,7 +1119,7 @@ export default function DashboardPage() {
           {!isLimited && hourData.length > 0 && <DeadHoursMap hourData={hourData} />}
 
           {/* Bottom row */}
-          <div style={{ display: 'grid', gridTemplateColumns: isCashier ? '1fr' : '1fr 1fr 1fr 1fr', gap: 16 }}>
+          <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: isCashier ? '1fr' : '1fr 1fr 1fr 1fr', gap: 16 }}>
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>Recent Sales</h3>
