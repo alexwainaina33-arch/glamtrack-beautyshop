@@ -79,7 +79,7 @@ export default function CustomersPage() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
+      <div className="stat-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
         {[
           { label: 'Total Customers', value: customers.length, icon: '👤', color: '#c8456a' },
           { label: 'Total Revenue', value: fmtKES(totalSpend), icon: '💰', color: '#059669' },
@@ -180,7 +180,7 @@ export default function CustomersPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+              <div className="stat-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
                 {[
                   { label: 'Total Spent', value: fmtKES(viewCustomer.total_spent_kes), color: '#c8456a' },
                   { label: 'Visits', value: viewCustomer.visit_count || 0, color: '#3b82f6' },

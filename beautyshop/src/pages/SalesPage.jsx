@@ -99,14 +99,16 @@ export default function SalesPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <div className="page-title">Sales 🧾</div>
-        <div className="page-subtitle">{total} records found</div>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <div className="page-title">Sales 🧾</div>
+          <div className="page-subtitle">{total} records found</div>
+        </div>
       </div>
 
       {/* Filters */}
       <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 180px 160px auto', gap: 12, alignItems: 'end' }}>
+        <div className="sales-filters-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 180px 180px 160px auto', gap: 12, alignItems: 'end' }}>
           <div>
             <label className="label">Search</label>
             <div style={{ position: 'relative' }}>
@@ -137,7 +139,7 @@ export default function SalesPage() {
       </div>
 
       {/* Summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
+      <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
         {(isCashier ? [
           { label: 'My Sales', value: filtered.length, color: '#3b82f6', isCount: true },
           { label: 'My Revenue', value: fmtKES(totalRevenue), color: '#c8456a' },
