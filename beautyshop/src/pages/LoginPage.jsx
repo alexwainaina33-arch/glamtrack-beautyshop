@@ -304,7 +304,7 @@ function CelebrationScreen({ bizName, adminName, onDone }) {
         }}
         style={{
           width: '100%', marginBottom: 10,
-          padding: '12px', borderRadius: 12, border: 'none',
+          padding: '12px', borderRadius: 12,
           background: 'rgba(37,211,102,0.15)', color: '#25D366',
           fontWeight: 700, fontSize: 13, cursor: 'pointer',
           fontFamily: 'Nunito,sans-serif',
