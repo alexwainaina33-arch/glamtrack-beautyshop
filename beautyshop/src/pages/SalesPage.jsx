@@ -55,8 +55,15 @@ export default function SalesPage() {
         filter: `sale_id="${sale.id}"`,
         '$cancelKey': 'view-sale-items'
       }).then(r => r.items)
-      const shop_ = shop
-      setSelectedSale({ ...sale, items, shop: shop_ })
+      // Guard: ensure numeric fields are never undefined
+      const safeItems = items.map(i => ({
+        ...i,
+        qty: i.qty || 1,
+        unit_price_kes: i.unit_price_kes ?? i.unit_price ?? 0,
+        total_kes: i.total_kes ?? 0,
+        unit_cost_kes: i.unit_cost_kes ?? 0,
+      }))
+      setSelectedSale({ ...sale, items: safeItems })
       setShowReceipt(true)
     } catch (err) {
       toast.error('Could not load receipt: ' + (err?.message || 'Unknown error'))
