@@ -65,9 +65,10 @@ export default function ProfilePage() {
       fd.append('name', form.name.trim())
       fd.append('phone', form.phone.trim())
       if (avatarFile) fd.append('avatar', avatarFile)
-      const updated = await pb.collection(C.ADMINS).update(admin.id, fd)
-      // Manually sync auth store model so sidebar updates immediately
-      pb.authStore.save(pb.authStore.token, updated)
+      await pb.collection(C.ADMINS).update(admin.id, fd)
+      // Re-authenticate to get fresh model with avatar
+      const refreshed = await pb.collection(C.ADMINS).authRefresh()
+      pb.authStore.save(refreshed.token, refreshed.record)
       setAvatarFile(null)
       setAvatarPreview(null)
       toast.success('Profile updated! ✅')

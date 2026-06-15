@@ -14,9 +14,9 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const unsub = pb.authStore.onChange((token, model) => {
       setAdmin(model)
-      if (model?.id) {
+      if (model?.id && !shop) {
         loadShop(model.id)
-      } else {
+      } else if (!model?.id) {
         setShop(null)
         setNeedsShop(false)
       }
