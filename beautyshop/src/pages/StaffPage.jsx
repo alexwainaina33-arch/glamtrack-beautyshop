@@ -29,23 +29,29 @@ const calcCommission = (staff, sales) => {
 
 export default function StaffPage() {
   const { shop } = useAuth()
-  const [tab, setTab] = useState(0) // 0=Staff, 1=Services, 2=Payouts
+  const [tab, setTab] = useState(0) // 0=Staff, 1=Services, 2=Payouts, 3=Attendance
   const [staff, setStaff] = useState([])
   const [services, setServices] = useState([])
   const [payouts, setPayouts] = useState([])
   const [allSales, setAllSales] = useState([])
   const [admins, setAdmins] = useState([])
+  const [attendance, setAttendance] = useState([])
   const [loading, setLoading] = useState(true)
   const [showStaffModal, setShowStaffModal] = useState(false)
   const [showServiceModal, setShowServiceModal] = useState(false)
   const [showPayoutModal, setShowPayoutModal] = useState(false)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [editStaffId, setEditStaffId] = useState(null)
   const [editServiceId, setEditServiceId] = useState(null)
   const [payoutStaff, setPayoutStaff] = useState(null)
+  const [receiptPayout, setReceiptPayout] = useState(null)
+  const [clockingId, setClockingId] = useState(null)
+  const [viewDate, setViewDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
   const thisMonth = { from: format(startOfMonth(new Date()), 'yyyy-MM-dd'), to: format(endOfMonth(new Date()), 'yyyy-MM-dd') }
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
 
-  const emptyStaffForm = { name: '', phone: '', role: 'stylist', commission_type: 'none', commission_value: 0, admin_id: '', hire_date: '', notes: '', is_active: true }
+  const emptyStaffForm = { name: '', phone: '', role: 'stylist', commission_type: 'none', commission_value: 0, monthly_target_kes: 0, admin_id: '', hire_date: '', notes: '', is_active: true }
   const emptySvcForm = { name: '', category: 'hair', duration_minutes: 60, price_kes: 0, description: '', color: '#c8456a', is_active: true }
   const [staffForm, setStaffForm] = useState(emptyStaffForm)
   const [svcForm, setSvcForm] = useState(emptySvcForm)
@@ -56,18 +62,20 @@ export default function StaffPage() {
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [stf, svcs, pays, sales, adms] = await Promise.all([
+      const [stf, svcs, pays, sales, adms, att] = await Promise.all([
         pb.collection(C.STAFF).getList(1, 200, { filter: `shop_id="${shop.id}"`, sort: 'name' }).then(r => r.items),
         pb.collection(C.SERVICES).getList(1, 200, { filter: `shop_id="${shop.id}"`, sort: 'category,name' }).then(r => r.items),
         pb.collection(C.COMMISSION_PAYOUTS).getList(1, 200, { filter: `shop_id="${shop.id}"`, expand: 'staff_id', sort: '-created' }).then(r => r.items),
         pb.collection(C.SALES).getList(1, 500, { filter: `shop_id="${shop.id}" && status="completed"`, expand: 'served_by' }).then(r => r.items),
         pb.collection(C.ADMINS).getList(1, 100).then(r => r.items),
+        pb.collection(C.ATTENDANCE).getList(1, 500, { filter: `shop_id="${shop.id}" && date>="${format(startOfMonth(new Date()), 'yyyy-MM-dd')}" && date<="${format(endOfMonth(new Date()), 'yyyy-MM-dd')}"`, sort: '-created' }).then(r => r.items),
       ])
       setStaff(stf)
       setServices(svcs)
       setPayouts(pays)
       setAllSales(sales)
       setAdmins(adms)
+      setAttendance(att)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }
@@ -85,11 +93,70 @@ export default function StaffPage() {
     })
   }
 
+  // Attendance helpers
+  const toPbDate = (d) => d.toISOString().replace('T', ' ').slice(0, 23) + 'Z'
+  const getTodayRecord = (staffId) => attendance.find(a => a.staff_id === staffId && a.date === todayStr && a.status === 'clocked_in')
+  const getStaffAttendanceRecords = (staffId) => attendance.filter(a => a.staff_id === staffId)
+  const hoursWorked = (rec) => {
+    if (!rec.clock_in || !rec.clock_out) return 0
+    return (new Date(rec.clock_out) - new Date(rec.clock_in)) / 3600000
+  }
+  const handleClockToggle = async (staffMember) => {
+    setClockingId(staffMember.id)
+    try {
+      const today = format(new Date(), 'yyyy-MM-dd')
+      const fresh = await pb.collection(C.ATTENDANCE).getList(1, 10, {
+        filter: `shop_id="${shop.id}" && staff_id="${staffMember.id}" && date="${today}" && status="clocked_in"`,
+        sort: '-created',
+      })
+      const open = fresh.items[0] || null
+      if (open) {
+        await pb.collection(C.ATTENDANCE).update(open.id, {
+          clock_out: toPbDate(new Date()),
+          status: 'clocked_out',
+        })
+        toast.success(`${staffMember.name} clocked out ⏰`)
+      } else {
+        await pb.collection(C.ATTENDANCE).create({
+          shop_id: shop.id,
+          staff_id: staffMember.id,
+          date: today,
+          clock_in: toPbDate(new Date()),
+          status: 'clocked_in',
+          recorded_by: pb.authStore.model?.id,
+        })
+        toast.success(`${staffMember.name} clocked in ⏰`)
+      }
+      loadAll()
+    } catch (e) { toast.error('Failed: ' + (e?.data?.message || e.message)) }
+    finally { setClockingId(null) }
+  }
+
+  // WhatsApp commission receipt
+  const toWaPhone = (phone) => {
+    if (!phone) return ''
+    let p = phone.replace(/[^\d+]/g, '')
+    if (p.startsWith('+')) p = p.slice(1)
+    if (p.startsWith('0')) p = '254' + p.slice(1)
+    if (!p.startsWith('254') && p.length === 9) p = '254' + p
+    return p
+  }
+  const buildPayoutWaMessage = (payout, staffMember) => {
+    const methodLabel = payout.payment_method === 'cash' ? 'Cash' : payout.payment_method === 'mpesa' ? 'M-Pesa' : 'Bank Transfer'
+    return `🧾 *Commission Payment Receipt*\n\nStaff\n*${staffMember.name}*\n\nPeriod\n*${payout.period_from} → ${payout.period_to}*\n\nSales Handled\n*${fmtKES(payout.total_sales_kes || 0)}*\n\nCommission Paid\n*${fmtKES(payout.commission_kes)}*\n\nPayment Method\n*${methodLabel}*\n\nDate Paid\n*${payout.paid_date || todayStr}*\n\n_${shop.name} · Powered by SalesTrack_`
+  }
+  const sendPayoutWhatsApp = (payout, staffMember) => {
+    const phone = toWaPhone(staffMember?.phone)
+    if (!phone) return toast.error('No phone number on file for this staff member')
+    const msg = encodeURIComponent(buildPayoutWaMessage(payout, staffMember))
+    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank')
+  }
+
   // Staff modal
   const openAddStaff = () => { setEditStaffId(null); setStaffForm(emptyStaffForm); setShowStaffModal(true) }
   const openEditStaff = (s) => {
     setEditStaffId(s.id)
-    setStaffForm({ name: s.name, phone: s.phone || '', role: s.role || 'stylist', commission_type: s.commission_type || 'none', commission_value: s.commission_value || 0, admin_id: s.admin_id || '', hire_date: s.hire_date?.split('T')[0] || '', notes: s.notes || '', is_active: s.is_active !== false })
+    setStaffForm({ name: s.name, phone: s.phone || '', role: s.role || 'stylist', commission_type: s.commission_type || 'none', commission_value: s.commission_value || 0, monthly_target_kes: s.monthly_target_kes || 0, admin_id: s.admin_id || '', hire_date: s.hire_date?.split('T')[0] || '', notes: s.notes || '', is_active: s.is_active !== false })
     setShowStaffModal(true)
   }
   const saveStaff = async () => {
@@ -143,7 +210,7 @@ export default function StaffPage() {
     if (!payoutStaff) return
     try {
       const sales = getSalesForStaff(payoutStaff, payoutForm.period_from, payoutForm.period_to)
-      await pb.collection(C.COMMISSION_PAYOUTS).create({
+      const created = await pb.collection(C.COMMISSION_PAYOUTS).create({
         shop_id: shop.id,
         staff_id: payoutStaff.id,
         ...payoutForm,
@@ -154,7 +221,9 @@ export default function StaffPage() {
         created_by: pb.authStore.model?.id,
       })
       toast.success(`Commission of ${fmtKES(payoutForm.commission_kes)} paid to ${payoutStaff.name} ✅`)
-      setShowPayoutModal(false); loadAll()
+      setShowPayoutModal(false)
+      if (payoutStaff.phone) sendPayoutWhatsApp(created, payoutStaff)
+      loadAll()
     } catch (e) { toast.error('Failed: ' + e.message) }
   }
 
@@ -197,7 +266,7 @@ export default function StaffPage() {
 
       {/* Tabs */}
       <div className="tab-nav" style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
-        {['👩‍💼 Staff', '💅 Services', '💸 Commission Payouts'].map((t, i) => (
+        {['👩‍💼 Staff', '💅 Services', '💸 Commission Payouts', '⏰ Attendance'].map((t, i) => (
           <button key={i} onClick={() => setTab(i)} style={{ padding: '9px 18px', borderRadius: 10, border: tab !== i ? '1px solid #f0e4e8' : 'none', background: tab === i ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: tab === i ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', boxShadow: tab === i ? '0 4px 14px #c8456a44' : '0 1px 4px #0001', fontFamily: 'Nunito,sans-serif' }}>
             {t}
           </button>
@@ -275,6 +344,19 @@ export default function StaffPage() {
                         </div>
                       ))}
                     </div>
+
+                    {/* Target progress bar — only shown when monthly_target_kes > 0 */}
+                    {s.monthly_target_kes > 0 && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#9b6070', marginBottom: 4 }}>
+                          <span>🎯 Target: {fmtKES(s.monthly_target_kes)}</span>
+                          <span style={{ fontWeight: 700, color: revenue >= s.monthly_target_kes ? '#059669' : '#9b6070' }}>{Math.round((revenue / s.monthly_target_kes) * 100)}%</span>
+                        </div>
+                        <div style={{ height: 8, borderRadius: 6, background: '#f0e4e8', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${Math.min(100, (revenue / s.monthly_target_kes) * 100)}%`, borderRadius: 6, background: revenue >= s.monthly_target_kes ? 'linear-gradient(90deg,#059669,#10b981)' : (revenue / s.monthly_target_kes) >= 0.5 ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#c8456a,#8b2550)' }} />
+                        </div>
+                      </div>
+                    )}
 
                     {/* Outstanding commission */}
                     {outstanding > 0 && (
@@ -355,7 +437,7 @@ export default function StaffPage() {
                   <table>
                     <thead>
                       <tr>
-                        <th>Staff</th><th>Period</th><th>Sales</th><th>Commission</th><th>Method</th><th>Date Paid</th><th>Status</th>
+                        <th>Staff</th><th>Period</th><th>Sales</th><th>Commission</th><th>Method</th><th>Date Paid</th><th>Status</th><th>Receipt</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -368,12 +450,81 @@ export default function StaffPage() {
                           <td style={{ fontSize: 12 }}>{p.payment_method === 'cash' ? '💵' : p.payment_method === 'mpesa' ? '📱' : '🏦'} {p.payment_method}</td>
                           <td style={{ fontSize: 12, color: '#9b6070' }}>{p.paid_date || '—'}</td>
                           <td><span style={{ background: '#f0fdf4', color: '#059669', padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>✅ Paid</span></td>
+                          <td>
+                            <button onClick={() => { setReceiptPayout(p); setShowReceiptModal(true) }} style={{ padding: '5px 10px', borderRadius: 8, border: 'none', background: '#f5edf0', color: '#8b2550', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>🧾 View</button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ═══ TAB 3: ATTENDANCE ═══ */}
+          {tab === 3 && (
+            <div>
+              <div className="card" style={{ marginBottom: 18 }}>
+                <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 16, color: '#3d1020', margin: '0 0 14px' }}>⏰ Today's Clock In / Out</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+                  {staff.filter(s => s.is_active).length === 0 && <div style={{ color: '#9b6070', fontSize: 13 }}>No active staff to clock in.</div>}
+                  {staff.filter(s => s.is_active).map(s => {
+                    const open = getTodayRecord(s.id)
+                    return (
+                      <div key={s.id} style={{ background: open ? '#f0fdf4' : '#fafafa', border: open ? '1px solid #bbf7d0' : '1px solid #f0e4e8', borderRadius: 12, padding: 12 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: '#1a1a1f' }}>{s.name}</div>
+                        <div style={{ fontSize: 11, color: '#9b6070', marginBottom: 8 }}>
+                          {open ? `🟢 Clocked in ${format(new Date(open.clock_in), 'HH:mm')}` : '⚪ Not clocked in'}
+                        </div>
+                        <button onClick={() => handleClockToggle(s)} disabled={clockingId === s.id}
+                          style={{ width: '100%', minHeight: 44, borderRadius: 10, border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer', color: '#fff', background: open ? 'linear-gradient(135deg,#dc2626,#991b1b)' : 'linear-gradient(135deg,#059669,#047857)', opacity: clockingId === s.id ? 0.6 : 1 }}>
+                          {clockingId === s.id ? 'Saving…' : open ? '⏹ Clock Out' : '▶️ Clock In'}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="card" style={{ padding: 0 }}>
+                <div style={{ padding: '14px 20px', borderBottom: '1px solid #f5edf0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                  <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 16, color: '#3d1020', margin: 0 }}>Attendance Log</h3>
+                  <input className="input" type="date" value={viewDate} onChange={e => setViewDate(e.target.value)} style={{ maxWidth: 160 }} />
+                </div>
+                {attendance.filter(a => a.date === viewDate).length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 48, color: '#9b6070' }}>
+                    <div style={{ fontSize: 32, marginBottom: 8 }}>⏰</div>
+                    <div>No attendance records for this date.</div>
+                  </div>
+                ) : (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr><th>Staff</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Status</th></tr>
+                      </thead>
+                      <tbody>
+                        {attendance.filter(a => a.date === viewDate).sort((a, b) => new Date(b.clock_in) - new Date(a.clock_in)).map(a => {
+                          const sMember = staff.find(x => x.id === a.staff_id)
+                          return (
+                            <tr key={a.id}>
+                              <td style={{ fontWeight: 600 }}>{sMember?.name || '—'}</td>
+                              <td style={{ fontSize: 12 }}>{a.clock_in ? format(new Date(a.clock_in), 'HH:mm') : '—'}</td>
+                              <td style={{ fontSize: 12 }}>{a.clock_out ? format(new Date(a.clock_out), 'HH:mm') : '—'}</td>
+                              <td style={{ fontSize: 12 }}>{a.clock_out ? hoursWorked(a).toFixed(1) + 'h' : '—'}</td>
+                              <td>
+                                <span style={{ background: a.status === 'clocked_in' ? '#fef3c7' : '#f0fdf4', color: a.status === 'clocked_in' ? '#92400e' : '#059669', padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+                                  {a.status === 'clocked_in' ? '🟢 On Duty' : '✅ Done'}
+                                </span>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </>
@@ -422,6 +573,12 @@ export default function StaffPage() {
                     placeholder={staffForm.commission_type.includes('percent') ? 'e.g. 10 for 10%' : 'e.g. 200'} />
                 </div>
               )}
+              <div>
+                <label className="label">Monthly Revenue Target (KES)</label>
+                <input className="input" type="number" min={0} value={staffForm.monthly_target_kes}
+                  onChange={e => setStaffForm(f => ({ ...f, monthly_target_kes: parseFloat(e.target.value) || 0 }))}
+                  placeholder="e.g. 50000 — leave 0 to hide the progress bar" />
+              </div>
               <div>
                 <label className="label">Link to System Account (optional)</label>
                 <select className="input" value={staffForm.admin_id} onChange={e => setStaffForm(f => ({ ...f, admin_id: e.target.value }))}>
@@ -549,6 +706,33 @@ export default function StaffPage() {
                   ✅ Confirm Payout {fmtKES(payoutForm.commission_kes)}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Commission Payout Receipt Modal */}
+      {showReceiptModal && receiptPayout && (
+        <div style={{ position: 'fixed', inset: 0, background: '#00000055', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={e => e.target === e.currentTarget && setShowReceiptModal(false)}>
+          <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 400, boxShadow: '0 20px 60px #0003' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f0e4e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>🧾 Commission Receipt</h2>
+              <button onClick={() => setShowReceiptModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} color="#9b6070" /></button>
+            </div>
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ background: '#fef5f7', borderRadius: 12, padding: 16, textAlign: 'center' }}>
+                <div style={{ fontSize: 12, color: '#9b6070' }}>{receiptPayout.expand?.staff_id?.name || '—'}</div>
+                <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 26, fontWeight: 700, color: '#c8456a', margin: '6px 0' }}>{fmtKES(receiptPayout.commission_kes)}</div>
+                <div style={{ fontSize: 11, color: '#9b6070' }}>{receiptPayout.period_from} → {receiptPayout.period_to}</div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#5a3540' }}><span>Sales handled</span><span style={{ fontWeight: 700 }}>{fmtKES(receiptPayout.total_sales_kes || 0)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#5a3540' }}><span>Payment method</span><span style={{ fontWeight: 700, textTransform: 'capitalize' }}>{receiptPayout.payment_method}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#5a3540' }}><span>Date paid</span><span style={{ fontWeight: 700 }}>{receiptPayout.paid_date || '—'}</span></div>
+              <button onClick={() => sendPayoutWhatsApp(receiptPayout, receiptPayout.expand?.staff_id)} disabled={!receiptPayout.expand?.staff_id?.phone}
+                style={{ marginTop: 8, width: '100%', padding: 10, borderRadius: 10, border: 'none', background: receiptPayout.expand?.staff_id?.phone ? 'linear-gradient(135deg,#25D366,#128C7E)' : '#e5e5e5', color: receiptPayout.expand?.staff_id?.phone ? '#fff' : '#9b6070', fontWeight: 700, fontSize: 13, cursor: receiptPayout.expand?.staff_id?.phone ? 'pointer' : 'not-allowed' }}>
+                📲 {receiptPayout.expand?.staff_id?.phone ? 'Send via WhatsApp' : 'No phone on file'}
+              </button>
             </div>
           </div>
         </div>

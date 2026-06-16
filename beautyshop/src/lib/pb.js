@@ -22,6 +22,7 @@ export const C = {
   STAFF:          'bs_staff',
   APPOINTMENTS:   'bs_appointments',
   COMMISSION_PAYOUTS: 'bs_commission_payouts',
+  ATTENDANCE:     'bs_attendance',
   INSIGHTS:       'bs_insights',
 }
 

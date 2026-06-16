@@ -530,6 +530,147 @@
         "system": false
     },
     {
+        "id": "bscol_attnd0001",
+        "listRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
+        "viewRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
+        "createRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
+        "updateRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
+        "deleteRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id && @request.auth.role = 'owner'",
+        "name": "bs_attendance",
+        "type": "base",
+        "fields": [
+            {
+                "autogeneratePattern": "[a-z0-9]{15}",
+                "hidden": false,
+                "id": "text3208210256",
+                "max": 15,
+                "min": 15,
+                "name": "id",
+                "pattern": "^[a-z0-9]+$",
+                "presentable": false,
+                "primaryKey": true,
+                "required": true,
+                "system": true,
+                "type": "text"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "bscol_shops00001",
+                "hidden": false,
+                "id": "bsat_shopid",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "shop_id",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "bscol_staff0001",
+                "hidden": false,
+                "id": "bsat_stfid0",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "staff_id",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsat_date00",
+                "max": 0,
+                "min": 0,
+                "name": "date",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "bsat_cin000",
+                "max": "",
+                "min": "",
+                "name": "clock_in",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "date"
+            },
+            {
+                "hidden": false,
+                "id": "bsat_cout00",
+                "max": "",
+                "min": "",
+                "name": "clock_out",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "date"
+            },
+            {
+                "hidden": false,
+                "id": "bsat_stat00",
+                "maxSelect": 1,
+                "name": "status",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "select",
+                "values": [
+                    "clocked_in",
+                    "clocked_out"
+                ]
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "bscol_admins0001",
+                "hidden": false,
+                "id": "bsat_recby0",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "recorded_by",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "hidden": false,
+                "id": "autodate2990389176",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            },
+            {
+                "hidden": false,
+                "id": "autodate3332085495",
+                "name": "updated",
+                "onCreate": true,
+                "onUpdate": true,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            }
+        ],
+        "indexes": [
+            "CREATE INDEX idx_bs_attendance_shop ON bs_attendance (shop_id)",
+            "CREATE INDEX idx_bs_attendance_staff ON bs_attendance (staff_id)",
+            "CREATE INDEX idx_bs_attendance_date ON bs_attendance (date)"
+        ],
+        "system": false
+    },
+    {
         "id": "bscol_categ0001",
         "listRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
         "viewRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
@@ -3066,6 +3207,18 @@
                 "max": 100,
                 "min": 0,
                 "name": "commission_value",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "bsst_mtgt0",
+                "max": null,
+                "min": 0,
+                "name": "monthly_target_kes",
                 "onlyInt": false,
                 "presentable": false,
                 "required": false,
