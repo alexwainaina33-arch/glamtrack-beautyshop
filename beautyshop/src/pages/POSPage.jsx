@@ -396,7 +396,9 @@ export default function POSPage() {
   }
 
   const filtered = products.filter(p => {
-    const mc = activeCategory === 'all' || p.category_id === activeCategory
+    const mc = activeCategory === 'all'
+      || (activeCategory === '__services__' && p.is_service)
+      || (activeCategory !== '__services__' && activeCategory !== 'all' && p.category_id === activeCategory)
     const ms = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search) || p.sku?.includes(search)
     return mc && ms
   })
@@ -460,7 +462,7 @@ export default function POSPage() {
             </button>
           </div>
           <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
-            {[{ id: 'all', name: 'All', icon: '🛍️' }, ...categories].map(cat => (
+            {[{ id: 'all', name: 'All', icon: '🛍️' }, { id: '__services__', name: 'Services', icon: '✂️' }, ...categories].map(cat => (
               <button key={cat.id} onClick={() => setActiveCategory(cat.id)} style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${activeCategory === cat.id ? '#c8456a' : '#f0e4e8'}`, background: activeCategory === cat.id ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: activeCategory === cat.id ? '#fff' : '#6b1e38', fontWeight: 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'Nunito,sans-serif' }}>
                 {cat.icon} {cat.name}
               </button>
