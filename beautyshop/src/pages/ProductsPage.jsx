@@ -283,34 +283,45 @@ export default function ProductsPage() {
         </div>
         <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
           <button className="btn-secondary" onClick={() => { setShowBulk(true); setBulkStep(1) }}><Upload size={15}/> Bulk Import</button>
-          <button className="btn-secondary" onClick={async () => {
+          <button className="btn-secondary" onClick={() => {
             if (!filtered.length) { toast.error('No products to share'); return }
-            try {
-              const { default: html2canvas } = await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')
-              const el = document.getElementById('pricelist-capture')
-              if (!el) return
-              el.style.display = 'block'
-              const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
-              el.style.display = 'none'
-              canvas.toBlob(async (blob) => {
-                const file = new File([blob], 'pricelist.png', { type: 'image/png' })
-                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                  await navigator.share({ files: [file], title: 'Our Pricelist' })
-                } else {
+            const el = document.getElementById('pricelist-capture')
+            if (!el) return
+            el.style.display = 'block'
+            el.style.position = 'fixed'
+            el.style.top = '-9999px'
+            el.style.left = '-9999px'
+            toast.loading('Generating pricelist…', { id: 'pricelist' })
+            setTimeout(async () => {
+              try {
+                const { default: html2canvas } = await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')
+                const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false })
+                el.style.display = 'none'
+                toast.dismiss('pricelist')
+                canvas.toBlob((blob) => {
+                  if (!blob) { toast.error('Could not generate image'); return }
                   const url = URL.createObjectURL(blob)
                   const a = document.createElement('a')
-                  a.href = url; a.download = 'pricelist.png'; a.click()
+                  a.href = url
+                  a.download = 'pricelist.png'
+                  document.body.appendChild(a)
+                  a.click()
+                  document.body.removeChild(a)
                   URL.revokeObjectURL(url)
-                  toast.success('Pricelist saved — share it to WhatsApp! 📲', { duration: 5000 })
-                }
-              }, 'image/png')
-            } catch { toast.error('Could not generate pricelist image') }
+                  toast.success('Pricelist saved! Open your Downloads and share to WhatsApp 📲', { duration: 6000 })
+                }, 'image/png')
+              } catch (err) {
+                el.style.display = 'none'
+                toast.dismiss('pricelist')
+                toast.error('Could not generate pricelist image')
+              }
+            }, 100)
           }}>📋 Share Pricelist</button>
           <button className="btn-primary" onClick={openNew}><Plus size={15}/> Add Product</button>
         </div>
 
         {/* Hidden pricelist card for html2canvas capture */}
-        <div id="pricelist-capture" style={{ display:'none', position:'fixed', top:0, left:0, width:600, background:'#fff', padding:32, fontFamily:'Nunito,sans-serif', zIndex:-1 }}>
+        <div id="pricelist-capture" style={{ display:'none', position:'fixed', top:'-9999px', left:'-9999px', width:600, background:'#fff', padding:32, fontFamily:'Nunito,sans-serif', zIndex:-1 }}>
           <div style={{ background:'linear-gradient(135deg,#c8456a,#8b2550)', borderRadius:16, padding:'24px 28px', marginBottom:20, textAlign:'center' }}>
             <div style={{ color:'#fff', fontSize:26, fontWeight:800 }}>{shop?.name || 'Our Shop'}</div>
             <div style={{ color:'rgba(255,255,255,0.8)', fontSize:13, marginTop:4 }}>📋 Pricelist · {new Date().toLocaleDateString('en-KE', { day:'numeric', month:'long', year:'numeric' })}</div>
