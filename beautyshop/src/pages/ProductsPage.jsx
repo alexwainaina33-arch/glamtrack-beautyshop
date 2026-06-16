@@ -283,7 +283,50 @@ export default function ProductsPage() {
         </div>
         <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
           <button className="btn-secondary" onClick={() => { setShowBulk(true); setBulkStep(1) }}><Upload size={15}/> Bulk Import</button>
+          <button className="btn-secondary" onClick={async () => {
+            if (!filtered.length) { toast.error('No products to share'); return }
+            try {
+              const { default: html2canvas } = await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')
+              const el = document.getElementById('pricelist-capture')
+              if (!el) return
+              el.style.display = 'block'
+              const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
+              el.style.display = 'none'
+              canvas.toBlob(async (blob) => {
+                const file = new File([blob], 'pricelist.png', { type: 'image/png' })
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                  await navigator.share({ files: [file], title: 'Our Pricelist' })
+                } else {
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url; a.download = 'pricelist.png'; a.click()
+                  URL.revokeObjectURL(url)
+                  toast.success('Pricelist saved — share it to WhatsApp! 📲', { duration: 5000 })
+                }
+              }, 'image/png')
+            } catch { toast.error('Could not generate pricelist image') }
+          }}>📋 Share Pricelist</button>
           <button className="btn-primary" onClick={openNew}><Plus size={15}/> Add Product</button>
+        </div>
+
+        {/* Hidden pricelist card for html2canvas capture */}
+        <div id="pricelist-capture" style={{ display:'none', position:'fixed', top:0, left:0, width:600, background:'#fff', padding:32, fontFamily:'Nunito,sans-serif', zIndex:-1 }}>
+          <div style={{ background:'linear-gradient(135deg,#c8456a,#8b2550)', borderRadius:16, padding:'24px 28px', marginBottom:20, textAlign:'center' }}>
+            <div style={{ color:'#fff', fontSize:26, fontWeight:800 }}>{shop?.name || 'Our Shop'}</div>
+            <div style={{ color:'rgba(255,255,255,0.8)', fontSize:13, marginTop:4 }}>📋 Pricelist · {new Date().toLocaleDateString('en-KE', { day:'numeric', month:'long', year:'numeric' })}</div>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {filtered.slice(0, 20).map(p => (
+              <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 16px', background:'#fdf5f7', borderRadius:10, border:'1px solid #f0e4e8' }}>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:14, color:'#1a1a1f' }}>{p.name}</div>
+                  {p.brand && <div style={{ fontSize:11, color:'#9b6070' }}>{p.brand}</div>}
+                </div>
+                <div style={{ fontWeight:800, fontSize:15, color:'#c8456a' }}>KES {Number(p.price_kes).toLocaleString('en-KE')}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign:'center', marginTop:20, fontSize:11, color:'#c8b0b8' }}>Powered by SalesTrack · Run your business from your phone</div>
         </div>
       </div>
 

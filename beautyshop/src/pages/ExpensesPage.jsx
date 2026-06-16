@@ -243,9 +243,12 @@ export default function ExpensesPage() {
                   <label className="label">Receipt Upload</label>
                   <div onClick={() => fileRef.current?.click()} style={{ border: '2px dashed #e8c0cc', borderRadius: 10, padding: '14px', textAlign: 'center', cursor: 'pointer', background: '#fff5f7', fontSize: 13, color: '#9b6070' }}>
                     <Upload size={18} style={{ margin: '0 auto 4px', display: 'block', color: '#c8456a' }} />
-                    {receiptFile ? receiptFile.name : 'Upload receipt photo or PDF'}
+                    {receiptFile
+                      ? <span style={{ color: '#059669', fontWeight: 700 }}>✅ {receiptFile.name}</span>
+                      : <><div>📷 Snap receipt photo or upload PDF</div><div style={{ fontSize: 11, marginTop: 3, color: '#c8b0b8' }}>On mobile — opens camera directly</div></>
+                    }
                   </div>
-                  <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => setReceiptFile(e.target.files[0])} />
+                  <input ref={fileRef} type="file" accept="image/*,application/pdf" capture="environment" style={{ display: 'none' }} onChange={e => setReceiptFile(e.target.files[0])} />
                 </div>
                 <div>
                   <label className="label">Notes</label>

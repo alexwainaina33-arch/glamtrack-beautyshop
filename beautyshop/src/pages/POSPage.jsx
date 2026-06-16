@@ -357,6 +357,40 @@ export default function POSPage() {
       setCompletedSale({ ...sale, items: cart, customer, change, pointsEarned })
       setShowReceipt(true); clearCart(); loadData()
       toast.success(`Sale done! ${receiptNo}`, { icon: '🎉', duration: 4000 })
+
+      // G8-A — Best Customer thank-you prompt on every 5th visit
+      if (customer && shop?.phone) {
+        const newVisitCount = (customer.visit_count || 0) + 1
+        if (newVisitCount > 0 && newVisitCount % 5 === 0) {
+          const vipMsg = encodeURIComponent(
+            'Hi ' + customer.name + '! 🌟\n\n' +
+            'You just made your *' + newVisitCount + 'th visit* to ' + shop.name + ' — you are officially one of our VIP customers! 💄✨\n\n' +
+            'Thank you so much for your loyalty. It means the world to us. 🙏\n\n' +
+            '_' + shop.name + ' · Powered by SalesTrack_'
+          )
+          const vipPhone = customer.phone?.replace(/[^0-9]/g, '')
+          if (vipPhone) {
+            setTimeout(() => {
+              toast((t) => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>🌟 {customer.name} just hit visit #{newVisitCount}!</div>
+                  <div style={{ fontSize: 12, color: '#6b4050' }}>Send them a VIP thank-you on WhatsApp?</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => { window.open('https://wa.me/' + vipPhone + '?text=' + vipMsg, '_blank', 'noopener,noreferrer'); toast.dismiss(t.id) }}
+                      style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+                      💝 Send Thank-You
+                    </button>
+                    <button onClick={() => toast.dismiss(t.id)}
+                      style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #f0e4e8', background: '#fff', color: '#9b6070', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+                      Skip
+                    </button>
+                  </div>
+                </div>
+              ), { duration: 12000, style: { maxWidth: 320 } })
+            }, 2000)
+          }
+        }
+      }
     } catch (err) { toast.error('Failed: ' + (err?.message || 'Unknown')) }
     finally { setProcessing(false) }
   }

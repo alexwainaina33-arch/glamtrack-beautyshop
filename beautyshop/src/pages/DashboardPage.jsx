@@ -157,12 +157,12 @@ function EmailVerificationBanner() {
 }
 
 // ─── DEAD HOURS MAP ──────────────────────────────────────────────
-function DeadHoursMap({ hourData }) {
+function DeadHoursMap({ hourData, shop }) {
   if (!hourData || hourData.length === 0) return null
   const max = Math.max(...hourData.map(h => h.count), 1)
   const deadHours = [...hourData].sort((a, b) => a.count - b.count).slice(0, 3)
   const deadStart = deadHours.reduce((min, h) => h.hour < min ? h.hour : min, deadHours[0]?.hour ?? 0)
-  const fmt = h => `${String(h).padStart(2,'0')}:00`
+  const fmt = h => `${String(h).padStart(2,'00')}:00`
 
   return (
     <div className="card" style={{ marginBottom: 24 }}>
@@ -209,6 +209,22 @@ function DeadHoursMap({ hourData }) {
           <div style={{ fontSize: 11, color: '#b45309', marginTop: 3, lineHeight: 1.5 }}>
             Send a WhatsApp flash promo at {fmt(Math.max(0, deadStart - 1))} to fill those slow hours. Dead time = paid rent with zero sales.
           </div>
+          {shop?.phone && (
+            <a
+              href={'https://wa.me/' + shop.phone.replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent(
+                '📢 *Flash Offer — ' + fmt(deadStart) + ' Special!*\n\n' +
+                'We have slots open right now at ' + (shop.name || 'our shop') + '!\n\n' +
+                '✨ Walk in this hour and get priority service — no waiting.\n\n' +
+                'Limited spots — first come, first served! 🏃‍♀️💨\n\n' +
+                '_' + (shop.name || 'Us') + ' · Powered by SalesTrack_'
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, padding: '8px 16px', borderRadius: 10, background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}
+            >
+              📢 Post Flash Promo on WhatsApp
+            </a>
+          )}
         </div>
       ) : (
         <div style={{ fontSize: 12, color: '#9b6070', textAlign: 'center', padding: '6px 0' }}>
@@ -489,7 +505,7 @@ function OnboardingChecklist({ shop, onDismiss }) {
   )
 }
 
-// ─── TOMORROWS APPOINTMENTS BANNER (GOLDMINE G2) ─────────────────
+// ─── TOMORROWS APPOINTMENTS BANNER ───────────────────────────────
 function TomorrowsBanner({ shop, onViewAppointments }) {
   const [tomorrowCount, setTomorrowCount] = useState(0)
   const [dismissed, setDismissed] = useState(false)
@@ -499,7 +515,6 @@ function TomorrowsBanner({ shop, onViewAppointments }) {
     const tomorrow = new Date()
     tomorrow.setDate(tomorrow.getDate() + 1)
     const dateStr = tomorrow.toISOString().split('T')[0]
-
     pb.collection(C.APPOINTMENTS).getList(1, 200, {
       filter: `shop_id="${shop.id}" && appt_date="${dateStr}" && status!="cancelled"`,
       '$autoCancel': false,
@@ -513,13 +528,8 @@ function TomorrowsBanner({ shop, onViewAppointments }) {
     <div style={{
       background: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
       border: '1.5px solid #93c5fd',
-      borderRadius: 14,
-      padding: '14px 20px',
-      marginBottom: 20,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 14,
-      flexWrap: 'wrap',
+      borderRadius: 14, padding: '14px 20px', marginBottom: 20,
+      display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
     }}>
       <div style={{ fontSize: 26, flexShrink: 0 }}>📅</div>
       <div style={{ flex: 1, minWidth: 200 }}>
@@ -531,24 +541,10 @@ function TomorrowsBanner({ shop, onViewAppointments }) {
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-        <button
-          onClick={onViewAppointments}
-          style={{
-            padding: '8px 16px', borderRadius: 10, border: 'none',
-            background: '#2563eb', color: '#fff', fontWeight: 700,
-            fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif',
-          }}
-        >
+        <button onClick={onViewAppointments} style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
           📲 Send Reminders →
         </button>
-        <button
-          onClick={() => setDismissed(true)}
-          style={{
-            padding: '8px 10px', borderRadius: 10, border: '1px solid #93c5fd',
-            background: 'transparent', color: '#3b82f6', fontWeight: 700,
-            fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif',
-          }}
-        >✕</button>
+        <button onClick={() => setDismissed(true)} style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #93c5fd', background: 'transparent', color: '#3b82f6', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>✕</button>
       </div>
     </div>
   )
@@ -576,18 +572,12 @@ function AIInsightWidget({ stats, hourData, shop, period, memory, onRecord }) {
   const c = colors[insight.type] || colors.tip
 
   return (
-    <div style={{
-      background: c.bg, border: `1.5px solid ${c.border}`,
-      borderRadius: 14, padding: '14px 18px', marginBottom: 20,
-      display: 'flex', alignItems: 'flex-start', gap: 14,
-    }}>
+    <div style={{ background: c.bg, border: `1.5px solid ${c.border}`, borderRadius: 14, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
       <div style={{ fontSize: 26, flexShrink: 0, marginTop: 2 }}>{insight.emoji}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13, fontWeight: 800, color: c.title }}>{insight.title}</span>
-          <span style={{ fontSize: 10, background: c.badge, color: c.badgeTxt, padding: '2px 8px', borderRadius: 20, fontWeight: 700, flexShrink: 0 }}>
-            Smart Insight
-          </span>
+          <span style={{ fontSize: 10, background: c.badge, color: c.badgeTxt, padding: '2px 8px', borderRadius: 20, fontWeight: 700, flexShrink: 0 }}>Smart Insight</span>
         </div>
         <div style={{ fontSize: 12, color: c.body, lineHeight: 1.6 }}>{insight.body}</div>
       </div>
@@ -602,11 +592,7 @@ function SalesAssistantWidget({ shop, assistantData }) {
   const { lapsedCustomers } = assistantData
 
   return (
-    <div style={{
-      background: 'linear-gradient(135deg,#fdf5f7,#fff)',
-      border: '1.5px solid #f0e4e8',
-      borderRadius: 14, padding: '14px 18px', marginBottom: 20,
-    }}>
+    <div style={{ background: 'linear-gradient(135deg,#fdf5f7,#fff)', border: '1.5px solid #f0e4e8', borderRadius: 14, padding: '14px 18px', marginBottom: 20 }}>
       <div style={{ fontSize: 13, fontWeight: 800, color: '#8b2550', marginBottom: 10 }}>
         🤝 Sales Assistant — {lapsedCustomers.length} customer{lapsedCustomers.length !== 1 ? 's' : ''} haven't visited in 14+ days
       </div>
@@ -777,11 +763,7 @@ function DailyShareCard({ stats, shop, period }) {
   return (
     <>
       <canvas ref={canvasRef} style={{ display: 'none' }} />
-      <div style={{
-        background: 'linear-gradient(135deg,#3d1020,#8b2550)',
-        borderRadius: 14, padding: '14px 18px', marginBottom: 20,
-        display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
-      }}>
+      <div style={{ background: 'linear-gradient(135deg,#3d1020,#8b2550)', borderRadius: 14, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 26 }}>📊</div>
         <div style={{ flex: 1, minWidth: 180 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>Daily Summary Card</div>
@@ -819,6 +801,7 @@ export default function DashboardPage() {
       navigate('/app/pos', { replace: true })
     }
   }, [role])
+
   const [stats, setStats]             = useState(null)
   const [salesChart, setSalesChart]   = useState([])
   const [recentSales, setRecentSales] = useState([])
@@ -903,19 +886,21 @@ export default function DashboardPage() {
         setBirthdayCustomers(upcoming)
       } catch { setBirthdayCustomers([]) }
 
-      // Goldmine B — Dead Hours Map
+      // Dead Hours Map data
       try {
         const allSalesRes = await pb.collection(C.SALES).getList(1, 500, {
           filter: `shop_id="${shop.id}" && status="completed"`,
-          fields: 'created',
           '$autoCancel': false, '$cancelKey': 'dash-hours'
         })
         const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }))
-        allSalesRes.items.forEach(s => { buckets[new Date(s.created).getHours()].count++ })
+        allSalesRes.items.forEach(s => {
+          const hr = new Date(s.created).getHours()
+          if (buckets[hr]) buckets[hr].count++
+        })
         setHourData(buckets)
-      } catch { setHourData([]) }
+      } catch (err) { console.error('Dead Hours Map fetch failed:', err?.message || err); setHourData([]) }
 
-      // Goldmine C — Avg daily revenue (last 30 days)
+      // Avg daily revenue (last 30 days)
       try {
         const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000)
         const recentAll = await pb.collection(C.SALES).getList(1, 500, {
@@ -943,11 +928,12 @@ export default function DashboardPage() {
           return { label, revenue: ds.reduce((a,s) => a+s.total_kes, 0), count: ds.length }
         }))
       }
-    // Load AI memory and sales assistant in parallel (non-blocking)
-    await Promise.all([
-      loadShopBaseline(shop.id).then(setInsightMemory).catch(() => {}),
-      loadSalesAssistant(shop.id, shop).then(setAssistantData).catch(() => {}),
-    ])
+
+      // Load AI memory and sales assistant in parallel (non-blocking)
+      await Promise.all([
+        loadShopBaseline(shop.id).then(setInsightMemory).catch(() => {}),
+        loadSalesAssistant(shop.id, shop).then(setAssistantData).catch(() => {}),
+      ])
 
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
@@ -988,8 +974,8 @@ export default function DashboardPage() {
   if (needsShop) return <ShopSetupWizard />
 
   const statCards = stats ? (isCashier ? [
-    { label: 'My Sales Today', value: stats.salesCount,         sub: 'Transactions you processed', icon: '🧾', cls: 'blue',  trend: true },
-    { label: 'My Revenue',     value: fmtKES(stats.revenue),   sub: 'Your sales total',            icon: '💰', cls: 'rose',  trend: stats.revenue > 0 },
+    { label: 'My Sales Today', value: stats.salesCount,       sub: 'Transactions you processed', icon: '🧾', cls: 'blue', trend: true },
+    { label: 'My Revenue',     value: fmtKES(stats.revenue), sub: 'Your sales total',            icon: '💰', cls: 'rose', trend: stats.revenue > 0 },
   ] : [
     { label: 'Revenue',      value: fmtKES(stats.revenue),     sub: `${pctChange(stats.revenue, stats.prevRevenue)}% vs prev`, icon: '💰', cls: 'rose', trend: stats.revenue >= stats.prevRevenue },
     { label: 'Gross Profit', value: fmtKES(stats.grossProfit), sub: `Margin ${stats.revenue ? ((stats.grossProfit/stats.revenue)*100).toFixed(1) : 0}%`, icon: '📈', cls: 'gold', trend: stats.grossProfit > 0 },
@@ -1006,9 +992,11 @@ export default function DashboardPage() {
           <div className="page-subtitle">{shop?.name} · {fmtDate(new Date())}{isCashier ? ' · My sales only' : ''}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
-          {!isLimited && <button onClick={sendWhatsAppSummary} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center', gap: 6, minHeight: 40 }}>
-            📲 WhatsApp Summary
-          </button>}
+          {!isLimited && (
+            <button onClick={sendWhatsAppSummary} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center', gap: 6, minHeight: 40 }}>
+              📲 WhatsApp Summary
+            </button>
+          )}
           {['today','7d','month'].map(p => (
             <button key={p} onClick={() => setPeriod(p)} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: period === p ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: period === p ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', boxShadow: period === p ? '0 4px 14px #c8456a44' : '0 1px 4px #0001', fontFamily: 'Nunito,sans-serif', minHeight: 40 }}>
               {p === 'today' ? 'Today' : p === '7d' ? '7 Days' : 'Month'}
@@ -1017,25 +1005,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Goldmine C — Subscription Payback Day */}
       <SubscriptionPaybackDay shop={shop} avgDailyRevenue={avgDailyRevenue} />
-
-      {/* Goldmine E — Renewal Regret Preventer */}
       <RenewalRegretCard shop={shop} stats={stats} onClick={() => navigate('/pricing')} />
-
-      {/* Email verification banner */}
       <EmailVerificationBanner />
-
-      {/* GOLDMINE G2 — Tomorrow's appointments banner */}
-      <TomorrowsBanner
-        shop={shop}
-        onViewAppointments={() => {
-          navigate('/app/appointments')
-          toast.success('Pre-filtered to tomorrow — hit Remind All!')
-        }}
-      />
-
-      {/* Onboarding checklist */}
+      <TomorrowsBanner shop={shop} onViewAppointments={() => { navigate('/app/appointments'); toast.success('Pre-filtered to tomorrow — hit Remind All!') }} />
       {showChecklist && shop && <OnboardingChecklist shop={shop} onDismiss={() => setShowChecklist(false)} />}
 
       {loading ? (
@@ -1059,64 +1032,52 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Smart Insight Widget — owner/manager only */}
-          {!isLimited && <AIInsightWidget
-            stats={stats}
-            hourData={hourData}
-            shop={shop}
-            period={period}
-            memory={insightMemory}
-            onRecord={(insight) => recordInsightShown(shop.id, insight, stats)}
-          />}
-
-          {/* Sales Assistant Widget — owner/manager only */}
+          {!isLimited && <AIInsightWidget stats={stats} hourData={hourData} shop={shop} period={period} memory={insightMemory} onRecord={(insight) => recordInsightShown(shop.id, insight, stats)} />}
           {!isLimited && <SalesAssistantWidget shop={shop} assistantData={assistantData} />}
-
-          {/* Daily Share Card — owner/manager only */}
           {!isLimited && <DailyShareCard stats={stats} shop={shop} period={period} />}
 
-          {/* Charts row — owner/manager only */}
-          {!isLimited && <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
-            <div className="card">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>Revenue Overview</h3>
-              </div>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={salesChart} barSize={28}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0e4e8" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
-                  <Tooltip formatter={v => fmtKES(v)} contentStyle={{ borderRadius: 10, border: '1px solid #f0e4e8', fontFamily: 'Nunito,sans-serif' }} />
-                  <Bar dataKey="revenue" fill="url(#roseGrad)" radius={[6,6,0,0]} />
-                  <defs>
-                    <linearGradient id="roseGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#c8456a" />
-                      <stop offset="100%" stopColor="#8b2550" />
-                    </linearGradient>
-                  </defs>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="card">
-              <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 20px' }}>P&L Summary</h3>
-              {stats && [
-                { label: 'Revenue',         value: stats.revenue,                     color: '#059669' },
-                { label: '− Cost of Sales', value: stats.revenue - stats.grossProfit, color: '#dc2626' },
-                { label: '= Gross Profit',  value: stats.grossProfit,                 color: '#1a1a1f', bold: true, border: true },
-                { label: '− Expenses',      value: stats.totalExpenses,               color: '#dc2626' },
-                { label: '= Net Profit',    value: stats.netProfit,                   color: stats.netProfit >= 0 ? '#059669' : '#dc2626', bold: true, border: true },
-              ].map((r, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderTop: r.border ? '1.5px solid #f0e4e8' : 'none', marginTop: r.border ? 4 : 0 }}>
-                  <span style={{ fontSize: 13, color: '#6b4050', fontWeight: r.bold ? 700 : 400 }}>{r.label}</span>
-                  <span style={{ fontSize: 13, fontWeight: r.bold ? 700 : 600, color: r.color, fontFamily: 'Playfair Display,serif' }}>{fmtKES(r.value)}</span>
+          {!isLimited && (
+            <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
+              <div className="card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>Revenue Overview</h3>
                 </div>
-              ))}
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={salesChart} barSize={28}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0e4e8" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+                    <Tooltip formatter={v => fmtKES(v)} contentStyle={{ borderRadius: 10, border: '1px solid #f0e4e8', fontFamily: 'Nunito,sans-serif' }} />
+                    <Bar dataKey="revenue" fill="url(#roseGrad)" radius={[6,6,0,0]} />
+                    <defs>
+                      <linearGradient id="roseGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#c8456a" />
+                        <stop offset="100%" stopColor="#8b2550" />
+                      </linearGradient>
+                    </defs>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="card">
+                <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 20px' }}>P&L Summary</h3>
+                {stats && [
+                  { label: 'Revenue',         value: stats.revenue,                     color: '#059669' },
+                  { label: '− Cost of Sales', value: stats.revenue - stats.grossProfit, color: '#dc2626' },
+                  { label: '= Gross Profit',  value: stats.grossProfit,                 color: '#1a1a1f', bold: true, border: true },
+                  { label: '− Expenses',      value: stats.totalExpenses,               color: '#dc2626' },
+                  { label: '= Net Profit',    value: stats.netProfit,                   color: stats.netProfit >= 0 ? '#059669' : '#dc2626', bold: true, border: true },
+                ].map((r, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderTop: r.border ? '1.5px solid #f0e4e8' : 'none', marginTop: r.border ? 4 : 0 }}>
+                    <span style={{ fontSize: 13, color: '#6b4050', fontWeight: r.bold ? 700 : 400 }}>{r.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: r.bold ? 700 : 600, color: r.color, fontFamily: 'Playfair Display,serif' }}>{fmtKES(r.value)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>}
+          )}
 
-          {/* Goldmine B — Dead Hours Map — owner/manager only */}
-          {!isLimited && hourData.length > 0 && <DeadHoursMap hourData={hourData} />}
+          {/* Dead Hours Map + G8-C flash promo */}
+          {!isLimited && hourData.length > 0 && <DeadHoursMap hourData={hourData} shop={shop} />}
 
           {/* Bottom row */}
           <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: isCashier ? '1fr' : '1fr 1fr 1fr 1fr', gap: 16 }}>
@@ -1196,7 +1157,6 @@ export default function DashboardPage() {
               }
             </div>
 
-            {/* Goldmine F — Business Health Score — owner/manager only */}
             {!isLimited && <BusinessHealthScore stats={stats} shop={shop} />}
           </div>
         </>
