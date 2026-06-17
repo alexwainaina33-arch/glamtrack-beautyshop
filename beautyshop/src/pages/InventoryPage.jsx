@@ -17,8 +17,13 @@ export default function InventoryPage() {
   const [adjustQty, setAdjustQty] = useState('')
   const [adjustNote, setAdjustNote] = useState('')
   const [adjustCost, setAdjustCost] = useState('')
+  const [adjustSupplier, setAdjustSupplier] = useState('')
   const [saving, setSaving] = useState(false)
   const [filterAlert, setFilterAlert] = useState(false)
+  const [valFrom, setValFrom] = useState(() => {
+    const d = new Date(); d.setDate(1); return d.toISOString().slice(0,10)
+  })
+  const [valTo, setValTo] = useState(() => new Date().toISOString().slice(0,10))
 
   useEffect(() => { if (shop && !authLoading) loadData() }, [shop, authLoading])
 
@@ -39,7 +44,8 @@ export default function InventoryPage() {
     setAdjustType(type)
     setAdjustQty('')
     setAdjustNote('')
-    setAdjustCost(product.cost_price_kes || '')
+    setAdjustCost(product?.cost_price_kes || '')
+    setAdjustSupplier('')
     setShowAdjust(true)
   }
 
@@ -54,19 +60,26 @@ export default function InventoryPage() {
       const newQty = Math.max(0, (adjustProduct.stock_qty || 0) + deltaQty)
 
       await pb.collection(C.PRODUCTS).update(adjustProduct.id, { stock_qty: newQty })
+      const isInbound = ['stock_in', 'return', 'opening_stock'].includes(adjustType)
       await pb.collection(C.INV_MOVEMENTS).create({
         shop_id: shop.id,
         product_id: adjustProduct.id,
         type: adjustType,
-        qty: adjustType === 'stock_in' || adjustType === 'return' ? qty : -qty,
+        qty: isInbound ? qty : -qty,
         before_qty: adjustProduct.stock_qty || 0,
         after_qty: newQty,
-        cost_per_unit: adjustType === 'stock_in' ? Number(adjustCost) || 0 : null,
+        cost_per_unit: isInbound ? Number(adjustCost) || 0 : null,
+        supplier_name: adjustSupplier || null,
         notes: adjustNote,
+        reference: adjustNote,
         created_by: pb.authStore.model?.id
       })
 
-      toast.success(`Stock ${adjustType === 'stock_in' ? 'added' : 'adjusted'}!`)
+      toast.success(
+        adjustType === 'opening_stock' ? '✅ Opening stock recorded!' :
+        adjustType === 'damage' ? '📋 Damage recorded' :
+        adjustType === 'stock_in' ? '📦 Stock received!' : '✅ Adjustment saved'
+      )
       setShowAdjust(false)
       loadData()
     } catch (err) { toast.error(err?.message || 'Failed') }
@@ -81,6 +94,35 @@ export default function InventoryPage() {
   const totalRetailValue = products.reduce((s, p) => s + ((p.stock_qty || 0) * (p.price_kes || 0)), 0)
   const lowCount = products.filter(p => p.stock_qty <= (p.reorder_point || 5)).length
   const outCount = products.filter(p => p.stock_qty <= 0).length
+
+  // Stock Valuation Report — computed from movements in date range
+  const valReport = products.map(p => {
+    const pMovs = movements.filter(m => m.product_id === p.id || m.expand?.product_id?.id === p.id)
+    const inRange = pMovs.filter(m => {
+      const d = m.created?.slice(0,10)
+      return d >= valFrom && d <= valTo
+    })
+    const opening = pMovs.filter(m => m.created?.slice(0,10) < valFrom)
+      .reduce((s, m) => s + (m.qty || 0), 0)
+    const received = inRange.filter(m => ['stock_in','opening_stock','return'].includes(m.type))
+      .reduce((s, m) => s + Math.abs(m.qty || 0), 0)
+    const damaged = inRange.filter(m => m.type === 'damage')
+      .reduce((s, m) => s + Math.abs(m.qty || 0), 0)
+    const sold = inRange.filter(m => ['sale','stock_out'].includes(m.type))
+      .reduce((s, m) => s + Math.abs(m.qty || 0), 0)
+    const closing = opening + received - damaged - sold
+    const closingValue = closing * (p.cost_price_kes || 0)
+    return { ...p, opening, received, damaged, sold, closing, closingValue }
+  }).filter(p => p.opening > 0 || p.received > 0 || p.closing > 0)
+
+  const valTotals = valReport.reduce((t, p) => ({
+    opening: t.opening + p.opening,
+    received: t.received + p.received,
+    damaged: t.damaged + p.damaged,
+    sold: t.sold + p.sold,
+    closing: t.closing + p.closing,
+    closingValue: t.closingValue + p.closingValue,
+  }), { opening: 0, received: 0, damaged: 0, sold: 0, closing: 0, closingValue: 0 })
 
   return (
     <div>
@@ -110,7 +152,7 @@ export default function InventoryPage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, background: '#fce8ed', borderRadius: 12, padding: 4, width: 'fit-content' }}>
-        {[['stock', '📊 Stock Levels'], ['movements', '🔄 Movements']].map(([v, l]) => (
+        {[['stock', '📊 Stock Levels'], ['movements', '🔄 Movements'], ['valuation', '📋 Stock Report']].map(([v, l]) => (
           <button key={v} onClick={() => setTab(v)} style={{ padding: '7px 20px', borderRadius: 8, border: 'none', background: tab === v ? 'linear-gradient(135deg,#c8456a,#8b2550)' : 'transparent', color: tab === v ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
             {l}
           </button>
@@ -214,6 +256,104 @@ export default function InventoryPage() {
         </div>
       )}
 
+      {tab === 'valuation' && (
+        <div>
+          {/* Date range picker */}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div>
+                <label className="label">Period From</label>
+                <input className="input" type="date" value={valFrom} onChange={e => setValFrom(e.target.value)} style={{ maxWidth: 160 }} />
+              </div>
+              <div>
+                <label className="label">Period To</label>
+                <input className="input" type="date" value={valTo} onChange={e => setValTo(e.target.value)} style={{ maxWidth: 160 }} />
+              </div>
+              <button className="btn-primary" style={{ marginBottom: 2 }} onClick={() => {
+                const lines = valReport.map(p =>
+                  `*${p.name}*\nOpen: ${p.opening} | +Received: ${p.received} | −Damaged: ${p.damaged} | −Sold: ${p.sold} | Closing: ${p.closing} @ ${fmtKES(p.cost_price_kes || 0)}/unit = *${fmtKES(p.closingValue)}*`
+                ).join('\n\n')
+                const msg = `📋 *Stock Valuation Report*\n*${shop.name}*\nPeriod: ${valFrom} → ${valTo}\n\n${lines}\n\n────────────────\n*TOTAL CLOSING STOCK VALUE*\n*${fmtKES(valTotals.closingValue)}*\n\n_Valued at cost price · SalesTrack_`
+                const phone = shop.phone?.replace(/\D/g,'').replace(/^0/,'254') || ''
+                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
+              }}>
+                📲 Share Report
+              </button>
+            </div>
+          </div>
+
+          {/* Summary cards */}
+          <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
+            {[
+              { label: 'Opening Stock', value: valTotals.opening + ' units', color: '#3b82f6', icon: '📂' },
+              { label: 'Stock Received', value: '+' + valTotals.received + ' units', color: '#059669', icon: '📦' },
+              { label: 'Damaged / Sold', value: '−' + (valTotals.damaged + valTotals.sold) + ' units', color: '#dc2626', icon: '📤' },
+              { label: 'Closing Value (Cost)', value: fmtKES(valTotals.closingValue), color: '#c8456a', icon: '💰' },
+            ].map((s, i) => (
+              <div key={i} className="stat-card">
+                <div style={{ fontSize: 24 }}>{s.icon}</div>
+                <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="card" style={{ padding: 0 }}>
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid #f5edf0' }}>
+              <div style={{ fontWeight: 700, color: '#3d1020', fontSize: 14 }}>Stock Movement Statement — valued at cost</div>
+              <div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Opening + Received − Damaged − Sold = Closing</div>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th style={{ textAlign: 'right' }}>Opening</th>
+                    <th style={{ textAlign: 'right', color: '#059669' }}>+Received</th>
+                    <th style={{ textAlign: 'right', color: '#ef4444' }}>−Damaged</th>
+                    <th style={{ textAlign: 'right', color: '#c8456a' }}>−Sold</th>
+                    <th style={{ textAlign: 'right' }}>Closing Qty</th>
+                    <th style={{ textAlign: 'right' }}>Cost/Unit</th>
+                    <th style={{ textAlign: 'right', fontWeight: 800 }}>Closing Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {valReport.length === 0 ? (
+                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: '#9b6070' }}>No stock movements in this period. Record opening stock or stock received first.</td></tr>
+                  ) : valReport.map(p => (
+                    <tr key={p.id}>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{p.name}</div>
+                        {p.brand && <div style={{ fontSize: 11, color: '#9b6070' }}>{p.brand}</div>}
+                      </td>
+                      <td style={{ textAlign: 'right', color: '#3b82f6', fontWeight: 600 }}>{p.opening}</td>
+                      <td style={{ textAlign: 'right', color: '#059669', fontWeight: 600 }}>+{p.received}</td>
+                      <td style={{ textAlign: 'right', color: '#ef4444', fontWeight: 600 }}>{p.damaged > 0 ? '−' + p.damaged : '—'}</td>
+                      <td style={{ textAlign: 'right', color: '#c8456a', fontWeight: 600 }}>−{p.sold}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 15 }}>{p.closing}</td>
+                      <td style={{ textAlign: 'right', color: '#9b6070', fontSize: 12 }}>{fmtKES(p.cost_price_kes || 0)}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#3d1020', fontSize: 14 }}>{fmtKES(p.closingValue)}</td>
+                    </tr>
+                  ))}
+                  {valReport.length > 0 && (
+                    <tr style={{ background: 'linear-gradient(135deg,#fce8ed,#fdf5f7)', borderTop: '2px solid #f0e4e8' }}>
+                      <td style={{ fontWeight: 800, color: '#3d1020' }}>TOTAL</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#3b82f6' }}>{valTotals.opening}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#059669' }}>+{valTotals.received}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#ef4444' }}>{valTotals.damaged > 0 ? '−' + valTotals.damaged : '—'}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#c8456a' }}>−{valTotals.sold}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 16 }}>{valTotals.closing}</td>
+                      <td></td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 16, color: '#c8456a' }}>{fmtKES(valTotals.closingValue)}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {tab === 'movements' && (
         <div className="card" style={{ padding: 0 }}>
           <div className="table-wrap">
@@ -268,10 +408,11 @@ export default function InventoryPage() {
                 <div>
                   <label className="label">Movement Type</label>
                   <select className="input" value={adjustType} onChange={e => setAdjustType(e.target.value)}>
-                    <option value="stock_in">📦 Stock In (Received)</option>
+                    <option value="opening_stock">🏁 Opening Stock (Day 1 entry)</option>
+                    <option value="stock_in">📦 Stock Received (GRN)</option>
                     <option value="stock_out">📤 Stock Out (Removed)</option>
-                    <option value="return">🔄 Return / Refund</option>
-                    <option value="damage">💔 Damaged / Lost</option>
+                    <option value="return">🔄 Customer Return</option>
+                    <option value="damage">💔 Damaged / Written Off</option>
                     <option value="adjustment">✏️ Manual Adjustment</option>
                   </select>
                 </div>
@@ -279,11 +420,17 @@ export default function InventoryPage() {
                   <label className="label">Quantity *</label>
                   <input className="input" type="number" min={1} required value={adjustQty} onChange={e => setAdjustQty(e.target.value)} placeholder="Enter quantity" />
                 </div>
-                {adjustType === 'stock_in' && (
-                  <div>
-                    <label className="label">Cost per Unit (KES)</label>
-                    <input className="input" type="number" min={0} step="0.01" value={adjustCost} onChange={e => setAdjustCost(e.target.value)} />
-                  </div>
+                {['stock_in', 'opening_stock'].includes(adjustType) && (
+                  <>
+                    <div>
+                      <label className="label">Cost per Unit (KES) *</label>
+                      <input className="input" type="number" min={0} step="0.01" value={adjustCost} onChange={e => setAdjustCost(e.target.value)} placeholder="What did you pay per unit?" />
+                    </div>
+                    <div>
+                      <label className="label">Supplier Name</label>
+                      <input className="input" value={adjustSupplier} onChange={e => setAdjustSupplier(e.target.value)} placeholder="e.g. Safaricom Devices, Jumia, Mr. Hassan…" />
+                    </div>
+                  </>
                 )}
                 <div>
                   <label className="label">Notes / Reference</label>

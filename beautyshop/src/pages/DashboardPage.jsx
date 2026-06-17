@@ -550,6 +550,173 @@ function TomorrowsBanner({ shop, onViewAppointments }) {
   )
 }
 
+// ─── REVENUE FORECAST WIDGET ─────────────────────────────────────
+function RevenueForecastWidget({ shop }) {
+  const [forecast, setForecast] = useState(null)
+
+  useEffect(() => {
+    if (!shop) return
+    const load = async () => {
+      try {
+        const today = new Date()
+        const weekEnd = new Date(today)
+        weekEnd.setDate(today.getDate() + 7)
+        const todayStr   = today.toISOString().slice(0, 10)
+        const weekEndStr = weekEnd.toISOString().slice(0, 10)
+
+        const res = await pb.collection(C.APPOINTMENTS).getList(1, 200, {
+          filter: `shop_id="${shop.id}" && appt_date>="${todayStr}" && appt_date<="${weekEndStr}" && (status="scheduled" || status="confirmed")`,
+          '$cancelKey': 'forecast-appts',
+        })
+        const appts = res.items
+
+        if (appts.length === 0) { setForecast(null); return }
+
+        const totalForecast = appts.reduce((s, a) => s + (a.price_kes || 0), 0)
+
+        // Group by day for breakdown
+        const byDay = {}
+        appts.forEach(a => {
+          const d = a.appt_date
+          if (!byDay[d]) byDay[d] = { date: d, count: 0, total: 0 }
+          byDay[d].count++
+          byDay[d].total += a.price_kes || 0
+        })
+        const days = Object.values(byDay).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5)
+
+        setForecast({ total: totalForecast, apptCount: appts.length, days })
+      } catch { setForecast(null) }
+    }
+    load()
+  }, [shop])
+
+  if (!forecast || forecast.total === 0) return null
+
+  const dayLabel = (dateStr) => {
+    const d = new Date(dateStr + 'T12:00:00')
+    const today = new Date()
+    const diff = Math.round((d - today) / 86400000)
+    if (diff === 0) return 'Today'
+    if (diff === 1) return 'Tomorrow'
+    return d.toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short' })
+  }
+
+  return (
+    <div style={{ background: 'linear-gradient(135deg,#eff6ff,#dbeafe)', border: '1.5px solid #93c5fd', borderRadius: 14, padding: '14px 18px', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 28, flexShrink: 0 }}>🔮</div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 2 }}>
+            Projected Revenue This Week
+          </div>
+          <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 22, fontWeight: 700, color: '#1e40af', marginBottom: 6 }}>
+            {fmtKES(forecast.total)}
+          </div>
+          <div style={{ fontSize: 11, color: '#3b82f6', marginBottom: 10 }}>
+            From {forecast.apptCount} confirmed appointment{forecast.apptCount !== 1 ? 's' : ''} · already in your calendar
+          </div>
+          {/* Day breakdown */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {forecast.days.map(d => (
+              <div key={d.date} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: '#1e40af' }}>
+                <span style={{ fontWeight: 600 }}>{dayLabel(d.date)}</span>
+                <span>{d.count} appt{d.count !== 1 ? 's' : ''} · <strong>{fmtKES(d.total)}</strong></span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ background: '#2563eb', color: '#fff', borderRadius: 10, padding: '6px 12px', fontSize: 10, fontWeight: 800, flexShrink: 0, alignSelf: 'flex-start' }}>
+          PRE-SOLD
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── SILENT CHURN PREDICTOR ───────────────────────────────────────
+function ChurnPredictorWidget({ shop }) {
+  const [atRisk, setAtRisk] = useState([])
+
+  useEffect(() => {
+    if (!shop) return
+    const load = async () => {
+      try {
+        const custs = await pb.collection(C.CUSTOMERS).getList(1, 500, {
+          filter: `shop_id="${shop.id}" && visit_count > 1`,
+          '$cancelKey': 'churn-custs',
+        }).then(r => r.items)
+
+        const now = new Date()
+        const riskyOnes = custs
+          .filter(c => {
+            if (!c.updated || !c.visit_count || c.visit_count < 2) return false
+            const lastVisit = new Date(c.updated)
+            const daysSince = Math.floor((now - lastVisit) / 86400000)
+            // Rough avg gap: if they visited N times over their lifetime, avg gap ≈ daysSinceCreated / visit_count
+            const created = new Date(c.created)
+            const lifetimeDays = Math.max(1, Math.floor((now - created) / 86400000))
+            const avgGapDays = Math.round(lifetimeDays / c.visit_count)
+            if (avgGapDays < 7) return false // too-frequent visitors skew the signal
+            const overdueFactor = daysSince / avgGapDays
+            c._daysSince = daysSince
+            c._avgGap = avgGapDays
+            c._overdueFactor = overdueFactor
+            return overdueFactor >= 1.4 && overdueFactor < 6 // 40% overdue but not fully lapsed
+          })
+          .sort((a, b) => b._overdueFactor - a._overdueFactor)
+          .slice(0, 3) // show top 3 most at-risk
+
+        setAtRisk(riskyOnes)
+      } catch { setAtRisk([]) }
+    }
+    load()
+  }, [shop])
+
+  if (atRisk.length === 0) return null
+
+  const toWaPhone = (phone) => {
+    if (!phone) return ''
+    let p = phone.replace(/[^\d+]/g, '')
+    if (p.startsWith('+')) p = p.slice(1)
+    if (p.startsWith('0')) p = '254' + p.slice(1)
+    if (!p.startsWith('254') && p.length === 9) p = '254' + p
+    return p
+  }
+
+  return (
+    <div style={{ background: 'linear-gradient(135deg,#fff7ed,#ffedd5)', border: '1.5px solid #fdba74', borderRadius: 14, padding: '14px 18px', marginBottom: 20 }}>
+      <div style={{ fontSize: 13, fontWeight: 800, color: '#9a3412', marginBottom: 10 }}>
+        ⚠️ {atRisk.length} customer{atRisk.length !== 1 ? 's' : ''} at risk of churning — act now
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {atRisk.map(c => (
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', borderRadius: 10, padding: '10px 12px', border: '1px solid #fed7aa' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1f' }}>{c.name}</div>
+              <div style={{ fontSize: 11, color: '#c2410c', marginTop: 1 }}>
+                Usually visits every {c._avgGap} days · it's been <strong>{c._daysSince} days</strong> — {Math.round(c._overdueFactor * 10) / 10}× overdue
+              </div>
+            </div>
+            {c.phone ? (
+              <button onClick={() => {
+                const msg = `Hi ${c.name}! 👋 We've been thinking about you at ${shop?.name}. It's been a while — we'd love to see you again soon! Come in this week and we'll take great care of you. 💄✨\n\n_${shop?.name} · Powered by SalesTrack_`
+                window.open(`https://wa.me/${toWaPhone(c.phone)}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer')
+              }} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                📲 Win back
+              </button>
+            ) : (
+              <span style={{ fontSize: 11, color: '#9b6070', flexShrink: 0 }}>No phone</span>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 10, color: '#c2410c', marginTop: 8 }}>
+        Based on each customer's personal visit rhythm · customers fully lapsed (&gt;6× overdue) are shown in Customers page
+      </div>
+    </div>
+  )
+}
+
 // ─── AI INSIGHT WIDGET ───────────────────────────────────────────
 function AIInsightWidget({ stats, hourData, shop, period, memory, onRecord }) {
   const [insight, setInsight] = useState(null)
@@ -1009,6 +1176,8 @@ export default function DashboardPage() {
       <RenewalRegretCard shop={shop} stats={stats} onClick={() => navigate('/pricing')} />
       <EmailVerificationBanner />
       <TomorrowsBanner shop={shop} onViewAppointments={() => { navigate('/app/appointments'); toast.success('Pre-filtered to tomorrow — hit Remind All!') }} />
+      {!isLimited && <RevenueForecastWidget shop={shop} />}
+      {!isLimited && <ChurnPredictorWidget shop={shop} />}
       {showChecklist && shop && <OnboardingChecklist shop={shop} onDismiss={() => setShowChecklist(false)} />}
 
       {loading ? (

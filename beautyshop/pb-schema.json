@@ -1578,6 +1578,7 @@
                 "system": false,
                 "type": "select",
                 "values": [
+                    "opening_stock",
                     "stock_in",
                     "stock_out",
                     "sale",
@@ -1633,6 +1634,20 @@
                 "required": false,
                 "system": false,
                 "type": "number"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsim_supnm",
+                "max": 0,
+                "min": 0,
+                "name": "supplier_name",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
             },
             {
                 "autogeneratePattern": "",
@@ -3094,6 +3109,97 @@
                 "required": false,
                 "system": false,
                 "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bss_tagli",
+                "max": 0,
+                "min": 0,
+                "name": "tagline",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bss_about",
+                "max": 0,
+                "min": 0,
+                "name": "about_text",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "bss_cover",
+                "maxSelect": 1,
+                "maxSize": 5242880,
+                "mimeTypes": [
+                    "image/jpeg",
+                    "image/png",
+                    "image/webp"
+                ],
+                "name": "cover_image",
+                "presentable": false,
+                "protected": false,
+                "required": false,
+                "system": false,
+                "thumbs": [
+                    "1200x400",
+                    "800x300"
+                ],
+                "type": "file"
+            },
+            {
+                "hidden": false,
+                "id": "bss_bhours",
+                "maxSize": 0,
+                "name": "business_hours",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "json"
+            },
+            {
+                "hidden": false,
+                "id": "bss_fyear",
+                "max": 2100,
+                "min": 1900,
+                "name": "founded_year",
+                "onlyInt": true,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "autodate2990389176",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            },
+            {
+                "hidden": false,
+                "id": "autodate3332085495",
+                "name": "updated",
+                "onCreate": true,
+                "onUpdate": true,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
             }
         ],
         "indexes": [
@@ -3103,8 +3209,8 @@
     },
     {
         "id": "bscol_staff0001",
-        "listRule": "",
-        "viewRule": "",
+        "listRule": "is_active = true || (@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id)",
+        "viewRule": "is_active = true || (@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id)",
         "createRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
         "updateRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
         "deleteRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id && @request.auth.role = 'owner'",
@@ -3204,7 +3310,7 @@
             {
                 "hidden": false,
                 "id": "bsst_cval0",
-                "max": 100,
+                "max": null,
                 "min": 0,
                 "name": "commission_value",
                 "onlyInt": false,

@@ -27,9 +27,35 @@ const calcCommission = (staff, sales) => {
   return 0
 }
 
+// ─── Exported helper: send WhatsApp notification to a staff member ───────────
+// Called from AppointmentsPage when a booking is created or reassigned.
+// staffMember = bs_staff record (must have .phone and .name)
+// appointment = { customer_name, service_name, appt_date, start_time }
+// shopName = shop.name string
+export const notifyStaffWhatsApp = (staffMember, appointment, shopName) => {
+  if (!staffMember?.phone) return // no phone = silent, never crash
+  const toWa = (p) => {
+    let n = p.replace(/[^\d+]/g, '')
+    if (n.startsWith('+')) n = n.slice(1)
+    if (n.startsWith('0')) n = '254' + n.slice(1)
+    if (!n.startsWith('254') && n.length === 9) n = '254' + n
+    return n
+  }
+  const phone = toWa(staffMember.phone)
+  if (!phone) return
+  const msg = encodeURIComponent(
+    `👋 Hi *${staffMember.name}*!\n\nNew booking assigned to you:\n\n` +
+    `Service\n*${appointment.service_name || 'N/A'}*\n\n` +
+    `Customer\n*${appointment.customer_name}*\n\n` +
+    `Date & Time\n*${appointment.appt_date} at ${appointment.start_time}*\n\n` +
+    `_${shopName} · Powered by SalesTrack_`
+  )
+  window.open(`https://wa.me/${phone}?text=${msg}`, '_blank')
+}
+
 export default function StaffPage() {
   const { shop } = useAuth()
-  const [tab, setTab] = useState(0) // 0=Staff, 1=Services, 2=Payouts, 3=Attendance
+  const [tab, setTab] = useState(0) // 0=Staff, 1=Leaderboard, 2=Services, 3=Payouts, 4=Attendance
   const [staff, setStaff] = useState([])
   const [services, setServices] = useState([])
   const [payouts, setPayouts] = useState([])
@@ -62,19 +88,24 @@ export default function StaffPage() {
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [stf, svcs, pays, sales, adms, att] = await Promise.all([
-        pb.collection(C.STAFF).getList(1, 200, { filter: `shop_id="${shop.id}"`, sort: 'name' }).then(r => r.items),
-        pb.collection(C.SERVICES).getList(1, 200, { filter: `shop_id="${shop.id}"`, sort: 'category,name' }).then(r => r.items),
-        pb.collection(C.COMMISSION_PAYOUTS).getList(1, 200, { filter: `shop_id="${shop.id}"`, expand: 'staff_id', sort: '-created' }).then(r => r.items),
-        pb.collection(C.SALES).getList(1, 500, { filter: `shop_id="${shop.id}" && status="completed"`, expand: 'served_by' }).then(r => r.items),
-        pb.collection(C.ADMINS).getList(1, 100).then(r => r.items),
-        pb.collection(C.ATTENDANCE).getList(1, 500, { filter: `shop_id="${shop.id}" && date>="${format(startOfMonth(new Date()), 'yyyy-MM-dd')}" && date<="${format(endOfMonth(new Date()), 'yyyy-MM-dd')}"`, sort: '-created' }).then(r => r.items),
+      const [stf, svcs, pays, sales, shopAdmins, att] = await Promise.all([
+        pb.collection(C.STAFF).getList(1, 200, { filter: `shop_id="${shop.id}"`, sort: 'name', '$cancelKey': 'staff-list' }).then(r => r.items),
+        pb.collection(C.SERVICES).getList(1, 200, { filter: `shop_id="${shop.id}"`, sort: 'category,name', '$cancelKey': 'staff-svcs' }).then(r => r.items),
+        pb.collection(C.COMMISSION_PAYOUTS).getList(1, 200, { filter: `shop_id="${shop.id}"`, expand: 'staff_id', sort: '-created', '$cancelKey': 'staff-pays' }).then(r => r.items),
+        pb.collection(C.SALES).getList(1, 500, { filter: `shop_id="${shop.id}" && status="completed"`, '$cancelKey': 'staff-sales' }).then(r => r.items),
+        // SECURITY FIX: only show admins who belong to THIS shop — never fetch global bs_admins
+        pb.collection(C.SHOP_ADMINS).getList(1, 100, {
+          filter: `shop_id="${shop.id}"`,
+          expand: 'admin_id',
+          '$cancelKey': 'staff-adms',
+        }).then(r => r.items.map(sa => sa.expand?.admin_id).filter(Boolean)),
+        pb.collection(C.ATTENDANCE).getList(1, 500, { filter: `shop_id="${shop.id}" && date>="${format(startOfMonth(new Date()), 'yyyy-MM-dd')}" && date<="${format(endOfMonth(new Date()), 'yyyy-MM-dd')}"`, sort: '-created', '$cancelKey': 'staff-att' }).then(r => r.items),
       ])
       setStaff(stf)
       setServices(svcs)
       setPayouts(pays)
       setAllSales(sales)
-      setAdmins(adms)
+      setAdmins(shopAdmins)
       setAttendance(att)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
@@ -85,10 +116,8 @@ export default function StaffPage() {
     if (!staffMember.admin_id) return []
     return allSales.filter(s => {
       if (s.served_by !== staffMember.admin_id) return false
-      const m = s.receipt_no?.match(/-(\d{6})-/)
-      if (!m) return true
-      const c = m[1]
-      const d = `20${c.slice(0,2)}-${c.slice(2,4)}-${c.slice(4,6)}`
+      const d = s.created ? s.created.slice(0, 10) : null
+      if (!d) return true
       return d >= from && d <= to
     })
   }
@@ -229,11 +258,10 @@ export default function StaffPage() {
 
   const totalMonthlyCommission = staff.reduce((sum, s) => sum + calcCommission(s, getSalesForStaff(s)), 0)
   const totalMonthlyRevenue = allSales.filter(s => {
-    const m = s.receipt_no?.match(/-(\d{6})-/)
-    if (!m) return false
-    const c = m[1]; const d = `20${c.slice(0,2)}-${c.slice(2,4)}-${c.slice(4,6)}`
+    const d = s.created ? s.created.slice(0, 10) : null
+    if (!d) return false
     return d >= thisMonth.from && d <= thisMonth.to
-  }).reduce((s, x) => s + x.total_kes, 0)
+  }).reduce((s, x) => s + (x.total_kes || 0), 0)
 
   return (
     <div>
@@ -244,7 +272,7 @@ export default function StaffPage() {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           {tab === 0 && <button className="btn-primary" onClick={openAddStaff}><Plus size={16} /> Add Staff</button>}
-          {tab === 1 && <button className="btn-primary" onClick={openAddService}><Plus size={16} /> Add Service</button>}
+          {tab === 2 && <button className="btn-primary" onClick={openAddService}><Plus size={16} /> Add Service</button>}
         </div>
       </div>
 
@@ -266,7 +294,7 @@ export default function StaffPage() {
 
       {/* Tabs */}
       <div className="tab-nav" style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
-        {['👩‍💼 Staff', '💅 Services', '💸 Commission Payouts', '⏰ Attendance'].map((t, i) => (
+        {['👩‍💼 Staff', '🏆 Leaderboard', '💅 Services', '💸 Commission Payouts', '⏰ Attendance'].map((t, i) => (
           <button key={i} onClick={() => setTab(i)} style={{ padding: '9px 18px', borderRadius: 10, border: tab !== i ? '1px solid #f0e4e8' : 'none', background: tab === i ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: tab === i ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', boxShadow: tab === i ? '0 4px 14px #c8456a44' : '0 1px 4px #0001', fontFamily: 'Nunito,sans-serif' }}>
             {t}
           </button>
@@ -377,8 +405,118 @@ export default function StaffPage() {
             </div>
           )}
 
-          {/* ═══ TAB 1: SERVICES ═══ */}
-          {tab === 1 && (
+          {/* ═══ TAB 1: LEADERBOARD ═══ */}
+          {tab === 1 && (() => {
+            const ranked = staff
+              .filter(s => s.is_active)
+              .map(s => {
+                const sales = getSalesForStaff(s)
+                const revenue = sales.reduce((sum, x) => sum + (x.total_kes || 0), 0)
+                const commission = calcCommission(s, sales)
+                const pct = s.monthly_target_kes > 0 ? Math.round((revenue / s.monthly_target_kes) * 100) : null
+                return { ...s, revenue, commission, salesCount: sales.length, pct }
+              })
+              .sort((a, b) => b.revenue - a.revenue)
+            const topRevenue = ranked[0]?.revenue || 1
+            return (
+              <div>
+                {ranked.length === 0 ? (
+                  <div className="card" style={{ textAlign: 'center', padding: 48 }}>
+                    <div style={{ fontSize: 48, marginBottom: 12 }}>🏆</div>
+                    <p style={{ color: '#9b6070' }}>Add staff and link them to system accounts to see the leaderboard.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {/* Month label */}
+                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9b6070', padding: '0 4px' }}>
+                      {format(new Date(), 'MMMM yyyy')} · ranked by revenue
+                    </div>
+
+                    {ranked.map((s, idx) => {
+                      const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`
+                      const barWidth = topRevenue > 0 ? (s.revenue / topRevenue) * 100 : 0
+                      const isLeader = idx === 0 && s.revenue > 0
+                      return (
+                        <div key={s.id} className="card" style={{
+                          border: isLeader ? '2px solid #d97706' : undefined,
+                          background: isLeader ? 'linear-gradient(135deg,#fffbeb,#fff)' : undefined,
+                          position: 'relative',
+                          overflow: 'hidden',
+                        }}>
+                          {isLeader && (
+                            <div style={{ position: 'absolute', top: 0, right: 0, background: 'linear-gradient(135deg,#d97706,#92400e)', color: '#fff', fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: '0 0 0 10px' }}>
+                              👑 TOP PERFORMER
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+                            {/* Rank */}
+                            <div style={{ fontSize: isLeader ? 28 : 20, fontWeight: 700, minWidth: 36, textAlign: 'center', flexShrink: 0 }}>{medal}</div>
+                            {/* Avatar */}
+                            <div style={{ width: 44, height: 44, borderRadius: '50%', background: isLeader ? 'linear-gradient(135deg,#d97706,#92400e)' : 'linear-gradient(135deg,#c8456a,#8b2550)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>
+                              {s.name[0].toUpperCase()}
+                            </div>
+                            {/* Name + role */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a1f' }}>{s.name}</div>
+                              <div style={{ fontSize: 11, color: '#9b6070' }}>{ROLE_EMOJI[s.role] || '👤'} {s.role?.replace(/_/g, ' ')}</div>
+                            </div>
+                            {/* Revenue */}
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                              <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: isLeader ? '#d97706' : '#c8456a' }}>{fmtKES(s.revenue)}</div>
+                              <div style={{ fontSize: 11, color: '#9b6070' }}>{s.salesCount} sale{s.salesCount !== 1 ? 's' : ''}</div>
+                            </div>
+                          </div>
+
+                          {/* Revenue bar */}
+                          <div style={{ height: 8, borderRadius: 6, background: '#f0e4e8', overflow: 'hidden', marginBottom: 10 }}>
+                            <div style={{ height: '100%', width: `${barWidth}%`, borderRadius: 6, background: isLeader ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#c8456a,#8b2550)', transition: 'width 0.8s ease' }} />
+                          </div>
+
+                          {/* Stats row */}
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {s.commission > 0 && (
+                              <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '4px 10px', fontSize: 11, color: '#92400e', fontWeight: 700 }}>
+                                💸 {fmtKES(s.commission)} commission
+                              </div>
+                            )}
+                            {s.pct !== null && (
+                              <div style={{ background: s.pct >= 100 ? '#f0fdf4' : '#fef5f7', border: `1px solid ${s.pct >= 100 ? '#bbf7d0' : '#f0e4e8'}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, color: s.pct >= 100 ? '#059669' : '#9b6070', fontWeight: 700 }}>
+                                🎯 {s.pct}% of target
+                              </div>
+                            )}
+                            {s.revenue === 0 && (
+                              <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '4px 10px', fontSize: 11, color: '#92400e' }}>
+                                ⚠️ No sales this month
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {/* Summary footer */}
+                    <div style={{ background: 'linear-gradient(135deg,#fdf5f7,#fff)', border: '1.5px solid #f0e4e8', borderRadius: 14, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#c8456a' }}>{fmtKES(ranked.reduce((s, x) => s + x.revenue, 0))}</div>
+                        <div style={{ fontSize: 11, color: '#9b6070' }}>Total team revenue</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#d97706' }}>{fmtKES(ranked.reduce((s, x) => s + x.commission, 0))}</div>
+                        <div style={{ fontSize: 11, color: '#9b6070' }}>Total commissions due</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#3b82f6' }}>{ranked.reduce((s, x) => s + x.salesCount, 0)}</div>
+                        <div style={{ fontSize: 11, color: '#9b6070' }}>Total team sales</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* ═══ TAB 2: SERVICES ═══ */}
+          {tab === 2 && (
             <div>
               {services.length === 0 ? (
                 <div className="card" style={{ textAlign: 'center', padding: 48 }}>
@@ -421,8 +559,8 @@ export default function StaffPage() {
             </div>
           )}
 
-          {/* ═══ TAB 2: PAYOUTS ═══ */}
-          {tab === 2 && (
+          {/* ═══ TAB 3: PAYOUTS ═══ */}
+          {tab === 3 && (
             <div className="card" style={{ padding: 0 }}>
               <div style={{ padding: '14px 20px', borderBottom: '1px solid #f5edf0' }}>
                 <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 16, color: '#3d1020', margin: 0 }}>Commission Payout History</h3>
@@ -462,8 +600,8 @@ export default function StaffPage() {
             </div>
           )}
 
-          {/* ═══ TAB 3: ATTENDANCE ═══ */}
-          {tab === 3 && (
+          {/* ═══ TAB 4: ATTENDANCE ═══ */}
+          {tab === 4 && (
             <div>
               <div className="card" style={{ marginBottom: 18 }}>
                 <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 16, color: '#3d1020', margin: '0 0 14px' }}>⏰ Today's Clock In / Out</h3>
@@ -580,12 +718,16 @@ export default function StaffPage() {
                   placeholder="e.g. 50000 — leave 0 to hide the progress bar" />
               </div>
               <div>
-                <label className="label">Link to System Account (optional)</label>
+                <label className="label">Link to App Login Account (optional)</label>
                 <select className="input" value={staffForm.admin_id} onChange={e => setStaffForm(f => ({ ...f, admin_id: e.target.value }))}>
-                  <option value="">— Not linked —</option>
+                  <option value="">— No login account linked —</option>
                   {admins.map(a => <option key={a.id} value={a.id}>{a.name} ({a.email})</option>)}
                 </select>
-                <div style={{ fontSize: 11, color: '#9b6070', marginTop: 4 }}>Links this staff profile to a login account for commission tracking from POS sales</div>
+                <div style={{ fontSize: 11, color: '#9b6070', marginTop: 4 }}>
+                  Only needed if this person also logs into SalesTrack (e.g. as a cashier).
+                  Linking lets the system match their POS sales to their commission automatically.
+                  Most service providers don't need a login — they get notified via WhatsApp only.
+                </div>
               </div>
               <div>
                 <label className="label">Hire Date</label>
