@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
-        name: 'GlamTrack — Salon POS',
-        short_name: 'GlamTrack',
-        description: 'POS, Inventory, Appointments & more for your salon',
+        name: 'SalesTrack — Business POS',
+        short_name: 'SalesTrack',
+        description: 'POS, Inventory, Appointments, Analytics & CRM for African businesses',
         theme_color: '#8b2550',
         background_color: '#fdf5f7',
         display: 'standalone',
