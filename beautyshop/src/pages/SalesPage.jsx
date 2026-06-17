@@ -31,20 +31,20 @@ export default function SalesPage() {
       if (isCashier) filters.push(`served_by="${pb.authStore.model?.id}"`)
       if (statusFilter === 'credit') filters.push(`payment_status="pending"`)
       else if (statusFilter) filters.push(`status="${statusFilter}"`)
+      // Date filter via PocketBase using created field bounds
+      // We use start-of-day and end-of-day to make same-date ranges work correctly
+      if (dateFrom) {
+        filters.push(`created >= "${dateFrom} 00:00:00.000Z"`)
+      }
+      if (dateTo) {
+        filters.push(`created <= "${dateTo} 23:59:59.999Z"`)
+      }
       const res = await pb.collection(C.SALES).getList(page, PER_PAGE, {
         filter: filters.join(' && '),
+        sort: '-created',
         expand: 'customer_id,served_by'
       })
-      const dateFiltered = res.items.filter(s => {
-        const m = s.receipt_no?.match(/-(\d{6})-/)
-        if (!m) return true // show if no receipt date parseable
-        const c = m[1]
-        const saleDate = `20${c.slice(0,2)}-${c.slice(2,4)}-${c.slice(4,6)}`
-        if (dateFrom && saleDate < dateFrom) return false
-        if (dateTo && saleDate > dateTo) return false
-        return true
-      })
-      setSales(dateFiltered)
+      setSales(res.items)
       setTotal(res.totalItems)
     } finally { setLoading(false) }
   }

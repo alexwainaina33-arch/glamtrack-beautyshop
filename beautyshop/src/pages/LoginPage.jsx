@@ -19,6 +19,7 @@ const BUSINESS_TYPES = [
   { value: 'boutique',   label: 'Boutique & Fashion', emoji: '👗', categories: ['Ladies Wear', 'Mens Wear', 'Kids Wear', 'Accessories', 'Shoes', 'Bags'] },
   { value: 'hardware',   label: 'Hardware & Auto',    emoji: '🔧', categories: ['Building Materials', 'Electrical', 'Plumbing', 'Tools', 'Auto Parts', 'Paint'] },
   { value: 'beauty',     label: 'Beauty Supply',      emoji: '💄', categories: ['Skincare', 'Haircare', 'Makeup', 'Fragrance', 'Tools & Accessories', 'Wigs'] },
+  { value: 'electronics', label: 'Phone & Electronics', emoji: '📱', categories: ['Smartphones', 'Feature Phones', 'Chargers & Cables', 'Cases & Screen Protectors', 'Earphones & Headphones', 'Power Banks', 'Memory & Storage', 'Smartwatches & Bands', 'Phone Accessories', 'Laptops & Tablets', 'Repairs & Services'] },
   { value: 'other',      label: 'Other Business',     emoji: '🏪', categories: ['Products', 'Services', 'General'] },
 ]
 
@@ -95,9 +96,16 @@ const DEMO_PRODUCTS = {
     { name: 'Foundation (Medium)', selling_price_kes: 1200, cost_price_kes: 450, stock_qty: 20, unit: 'bottle' },
     { name: 'Lip Gloss', selling_price_kes: 350, cost_price_kes: 120, stock_qty: 50, unit: 'piece' },
   ],
+  electronics: [
+    { name: 'Samsung Galaxy A15 128GB', selling_price_kes: 21999, cost_price_kes: 17500, stock_qty: 10, unit: 'piece' },
+    { name: 'Infinix Hot 40i 128GB', selling_price_kes: 14999, cost_price_kes: 11500, stock_qty: 8, unit: 'piece' },
+    { name: 'USB-C Charging Cable 1m', selling_price_kes: 350, cost_price_kes: 120, stock_qty: 50, unit: 'piece' },
+    { name: 'Phone Case (Universal)', selling_price_kes: 500, cost_price_kes: 150, stock_qty: 30, unit: 'piece' },
+    { name: 'Screen Replacement - Samsung (Service)', selling_price_kes: 3500, cost_price_kes: 800, stock_qty: 999, unit: 'service' },
+  ],
   other: [
     { name: 'Sample Product 1', selling_price_kes: 500, cost_price_kes: 200, stock_qty: 50, unit: 'piece' },
-    { name: 'Sample Product 2', selling_price_kes: 750, cost_price_kes: 300, stock_qty: 30, unit: 'piece' },
+    { name: 'Sample Product 2', selling_price_kes: 750, cost_price_kes: 300, stock_qty: 20, unit: 'piece' },
     { name: 'Sample Product 3', selling_price_kes: 1000, cost_price_kes: 400, stock_qty: 20, unit: 'piece' },
   ],
 }
