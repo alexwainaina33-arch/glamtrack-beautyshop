@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
+import { notifyStaffWhatsApp } from './StaffPage'
 import { fmtKES } from '../lib/utils'
 import { format, addDays, subDays, isToday } from 'date-fns'
 import { Plus, ChevronLeft, ChevronRight, Clock, X, Check } from 'lucide-react'
@@ -140,11 +141,22 @@ export default function AppointmentsPage() {
       const end_time = addMinutesToTime(form.start_time, form.duration_minutes)
       const payload  = { ...form, end_time, shop_id: shop.id, created_by: pb.authStore.model?.id }
       if (editId) {
+        const prev = appointments.find(a => a.id === editId)
         await pb.collection(C.APPOINTMENTS).update(editId, payload)
         toast.success('Appointment updated!')
+        // Notify staff only if staff assignment changed
+        if (form.staff_id && form.staff_id !== prev?.staff_id) {
+          const assignedStaff = staff.find(s => s.id === form.staff_id)
+          if (assignedStaff) notifyStaffWhatsApp(assignedStaff, { service_name: form.service_name, customer_name: form.customer_name, appt_date: form.appt_date, start_time: form.start_time }, shop.name)
+        }
       } else {
         await pb.collection(C.APPOINTMENTS).create(payload)
         toast.success('Appointment booked! 📅')
+        // Notify assigned staff on new booking
+        if (form.staff_id) {
+          const assignedStaff = staff.find(s => s.id === form.staff_id)
+          if (assignedStaff) notifyStaffWhatsApp(assignedStaff, { service_name: form.service_name, customer_name: form.customer_name, appt_date: form.appt_date, start_time: form.start_time }, shop.name)
+        }
       }
       setShowModal(false)
       loadAll()

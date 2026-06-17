@@ -102,6 +102,10 @@ export default function ShopPage() {
   const [tab,        setTab]        = useState('services') // services | products | about | hours
   const [cart,       setCart]       = useState([])
   const [cartOpen,   setCartOpen]   = useState(false)
+  const [productSearch,    setProductSearch]    = useState('')
+  const [productCatFilter, setProductCatFilter] = useState('')
+  const [serviceSearch,    setServiceSearch]    = useState('')
+  const [serviceCatFilter, setServiceCatFilter] = useState('')
   const [copied,     setCopied]     = useState(false)
   const [imgModal,   setImgModal]   = useState(null)   // full-screen product image
   const heroRef = useRef(null)
@@ -120,7 +124,7 @@ export default function ShopPage() {
           }).then(r => r.items),
           pb.collection(C.PRODUCTS).getList(1, 200, {
             filter: `shop_id="${shopRes.id}" && status="active"`,
-            sort: 'name', '$autoCancel': false,
+            sort: 'name', expand: 'category_id', '$autoCancel': false,
           }).then(r => r.items),
           pb.collection(C.SALES).getList(1, 1, {
             filter: `shop_id="${shopRes.id}" && status="completed"`,
@@ -159,6 +163,13 @@ export default function ShopPage() {
   )
   const cartTotal  = cart.reduce((s, i) => s + i.price_kes * i.qty, 0)
   const cartCount  = cart.reduce((s, i) => s + i.qty, 0)
+
+  const productCategories = [...new Set(products.map(p => p.expand?.category_id?.name).filter(Boolean))]
+  const filteredProducts = products.filter(p => {
+    const matchSearch = !productSearch || p.name?.toLowerCase().includes(productSearch.toLowerCase()) || (p.brand || '').toLowerCase().includes(productSearch.toLowerCase())
+    const matchCat = !productCatFilter || p.expand?.category_id?.name === productCatFilter
+    return matchSearch && matchCat
+  })
 
   const shareShopLink = () => {
     const url = window.location.href
@@ -211,7 +222,13 @@ export default function ShopPage() {
   const openStatus = getOpenStatus(shop.business_hours)
   const mapQuery   = encodeURIComponent(shop.address || shop.name)
 
-  const groupedServices = services.reduce((acc, svc) => {
+  const serviceCategories = Object.keys(CAT_EMOJI).filter(c => services.some(s => (s.category || 'other') === c))
+  const filteredServices = services.filter(s => {
+    const matchSearch = !serviceSearch || s.name?.toLowerCase().includes(serviceSearch.toLowerCase())
+    const matchCat = !serviceCatFilter || (s.category || 'other') === serviceCatFilter
+    return matchSearch && matchCat
+  })
+  const groupedServices = filteredServices.reduce((acc, svc) => {
     const cat = svc.category || 'other'
     if (!acc[cat]) acc[cat] = []
     acc[cat].push(svc)
@@ -371,7 +388,7 @@ export default function ShopPage() {
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
           {tabs.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} className="tab-pill"
-              style={{ padding: '9px 16px', borderRadius: 24, border: 'none', background: tab === t.key ? `linear-gradient(135deg,${brand},${brand}cc)` : '#fff', color: tab === t.key ? '#fff' : '#6b4050', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', boxShadow: tab === t.key ? `0 3px 12px ${brand}44` : '0 1px 4px rgba(0,0,0,.06)', border: tab !== t.key ? '1.5px solid #f0e4e8' : 'none', flexShrink: 0 }}>
+              style={{ padding: '9px 16px', borderRadius: 24, background: tab === t.key ? `linear-gradient(135deg,${brand},${brand}cc)` : '#fff', color: tab === t.key ? '#fff' : '#6b4050', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', boxShadow: tab === t.key ? `0 3px 12px ${brand}44` : '0 1px 4px rgba(0,0,0,.06)', border: tab !== t.key ? '1.5px solid #f0e4e8' : 'none', flexShrink: 0 }}>
               {t.label}{t.count !== null ? ` (${t.count})` : ''}
             </button>
           ))}
@@ -391,6 +408,39 @@ export default function ShopPage() {
                 {shop.phone && <a href={`tel:${shop.phone}`} style={{ color: brand, fontWeight: 700 }}>{shop.phone}</a>}
               </div>
             ) : (
+              <>
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{ position: 'relative', marginBottom: serviceCategories.length > 0 ? 10 : 0 }}>
+                    <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 15, color: '#9b6070' }}>🔍</span>
+                    <input
+                      value={serviceSearch}
+                      onChange={e => setServiceSearch(e.target.value)}
+                      placeholder="Search services…"
+                      style={{ width: '100%', padding: '11px 14px 11px 38px', borderRadius: 12, border: '1.5px solid #f0e4e8', fontSize: 14, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none', background: '#fff' }}
+                    />
+                  </div>
+                  {serviceCategories.length > 0 && (
+                    <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
+                      <button onClick={() => setServiceCatFilter('')}
+                        style={{ padding: '6px 14px', borderRadius: 20, border: serviceCatFilter === '' ? 'none' : '1.5px solid #f0e4e8', background: serviceCatFilter === '' ? brand : '#fff', color: serviceCatFilter === '' ? '#fff' : '#6b4050', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
+                        All
+                      </button>
+                      {serviceCategories.map(cat => (
+                        <button key={cat} onClick={() => setServiceCatFilter(cat)}
+                          style={{ padding: '6px 14px', borderRadius: 20, border: serviceCatFilter === cat ? 'none' : '1.5px solid #f0e4e8', background: serviceCatFilter === cat ? brand : '#fff', color: serviceCatFilter === cat ? '#fff' : '#6b4050', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
+                          {CAT_EMOJI[cat]} {cat}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {filteredServices.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8' }}>
+                    <div style={{ fontSize: 40, marginBottom: 10 }}>🔍</div>
+                    <p style={{ color: '#9b6070', margin: 0 }}>No services match your search.</p>
+                  </div>
+                ) : (
               Object.entries(groupedServices).map(([cat, svcs]) => (
                 <div key={cat} style={{ marginBottom: 28 }}>
                   {/* Category header */}
@@ -429,6 +479,8 @@ export default function ShopPage() {
                 </div>
               ))
             )}
+              </>
+            )}
 
             {/* Book all CTA */}
             {services.length > 3 && (
@@ -456,8 +508,41 @@ export default function ShopPage() {
               </div>
             )}
 
+            {/* Search + category filter */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ position: 'relative', marginBottom: productCategories.length > 0 ? 10 : 0 }}>
+                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 15, color: '#9b6070' }}>🔍</span>
+                <input
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                  placeholder="Search products…"
+                  style={{ width: '100%', padding: '11px 14px 11px 38px', borderRadius: 12, border: '1.5px solid #f0e4e8', fontSize: 14, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none', background: '#fff' }}
+                />
+              </div>
+              {productCategories.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
+                  <button onClick={() => setProductCatFilter('')}
+                    style={{ padding: '6px 14px', borderRadius: 20, border: productCatFilter === '' ? 'none' : '1.5px solid #f0e4e8', background: productCatFilter === '' ? brand : '#fff', color: productCatFilter === '' ? '#fff' : '#6b4050', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
+                    All
+                  </button>
+                  {productCategories.map(cat => (
+                    <button key={cat} onClick={() => setProductCatFilter(cat)}
+                      style={{ padding: '6px 14px', borderRadius: 20, border: productCatFilter === cat ? 'none' : '1.5px solid #f0e4e8', background: productCatFilter === cat ? brand : '#fff', color: productCatFilter === cat ? '#fff' : '#6b4050', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {filteredProducts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8' }}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>🔍</div>
+                <p style={{ color: '#9b6070', margin: 0 }}>No products match your search.</p>
+              </div>
+            ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
-              {products.map(p => {
+              {filteredProducts.map(p => {
                 const inCart    = cart.find(i => i.id === p.id)
                 const imgUrl    = p.images?.length
                   ? `${PB_URL}/api/files/${p.collectionId}/${p.id}/${p.images[0]}?thumb=400x400`
@@ -513,6 +598,7 @@ export default function ShopPage() {
                 )
               })}
             </div>
+            )}
 
             {/* Order via WhatsApp note */}
             <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 14, padding: '14px 16px', marginTop: 16, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -625,7 +711,7 @@ export default function ShopPage() {
                   const todayKey = DAYS[dowJS === 0 ? 6 : dowJS - 1]
                   const isToday  = todayKey === day
                   return (
-                    <div key={day} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 0', borderBottom: idx < DAYS.length - 1 ? '1px solid #fdf5f7' : 'none', background: isToday ? `${brand}08` : 'transparent', margin: isToday ? '0 -4px' : 0, padding: isToday ? '11px 4px' : '11px 0', borderRadius: isToday ? 8 : 0 }}>
+                    <div key={day} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: idx < DAYS.length - 1 ? '1px solid #fdf5f7' : 'none', background: isToday ? `${brand}08` : 'transparent', margin: isToday ? '0 -4px' : 0, padding: isToday ? '11px 4px' : '11px 0', borderRadius: isToday ? 8 : 0 }}>
                       <span style={{ fontSize: 14, fontWeight: isToday ? 800 : 500, color: isToday ? brand : '#3d1020' }}>
                         {day}{isToday ? ' · Today' : ''}
                       </span>

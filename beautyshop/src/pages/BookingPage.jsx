@@ -84,7 +84,7 @@ export default function BookingPage() {
   const smartDefaults = smartDefaultTime()
   const [step, setStep]     = useState(1)
   const [selected, setSelected] = useState({
-    service: null, staff_id: '', date: smartDefaults.date,
+    services: [], staff_id: '', date: smartDefaults.date,
     time: smartDefaults.time, name: '', phone: '', notes: ''
   })
   const [submitting, setSubmitting] = useState(false)
@@ -135,7 +135,7 @@ export default function BookingPage() {
         const serviceParam = searchParams.get('service')
         if (serviceParam && svcs.length > 0) {
           const match = svcs.find(s => s.name.toLowerCase() === serviceParam.toLowerCase().trim())
-          if (match) { setSelected(s => ({ ...s, service: match })); setStep(2) }
+          if (match) { setSelected(s => ({ ...s, services: [match] })); setStep(2) }
         }
 
       } catch {
@@ -152,43 +152,48 @@ export default function BookingPage() {
 
   // GOLDMINE G4 — WhatsApp message (used both for auto-open and the manual button)
   const buildWaMessage = (shopData, sel) => {
-    if (!shopData || !sel.service) return ''
-    const svcName = sel.service.name
-    const svcDesc = sel.service.description ? ` (${sel.service.description})` : ''
+    if (!shopData || !sel.services?.length) return ''
     const fmtDate = new Date(sel.date + 'T12:00:00').toLocaleDateString('en-KE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    const svcLines = sel.services.map(s => `   • ${s.name} (${s.duration_minutes} min)`).join('\n')
+    const total = sel.services.reduce((sum, s) => sum + (s.price_kes || 0), 0)
     return encodeURIComponent(
-      `💅 *Booking Request — ${shopData.name}*\n\nHi! I'd like to confirm my appointment:\n\n▸ *Name:* ${sel.name}\n▸ *Service:* ${svcName}${svcDesc}\n▸ *Date:* ${fmtDate}\n▸ *Time:* ${sel.time}\n▸ *Phone:* ${sel.phone}\n\nPlease confirm. Thank you! 🙏`
+      `💅 *Booking Request — ${shopData.name}*\n\nHi! I'd like to confirm my appointment:\n\n▸ *Name:* ${sel.name}\n▸ *Date:* ${fmtDate}\n▸ *Time:* ${sel.time}\n▸ *Phone:* ${sel.phone}\n\n*Services:*\n${svcLines}\n\n▸ *Total:* ${fmtPrice(total, shopData.currency)}\n\nPlease confirm. Thank you! 🙏`
     )
   }
 
   const handleSubmit = async () => {
     setError('')
-    if (!selected.name.trim())  return setError('Please enter your name.')
-    if (!selected.phone.trim()) return setError('Please enter your phone number.')
-    if (!selected.service)      return setError('Please select a service.')
-    if (!selected.date)         return setError('Please select a date.')
-    if (!selected.time)         return setError('Please select a time.')
+    if (!selected.name.trim())       return setError('Please enter your name.')
+    if (!selected.phone.trim())      return setError('Please enter your phone number.')
+    if (!selected.services?.length)  return setError('Please select at least one service.')
+    if (!selected.date)              return setError('Please select a date.')
+    if (!selected.time)              return setError('Please select a time.')
 
     setSubmitting(true)
     try {
-      const end_time = addMinutes(selected.time, selected.service.duration_minutes || 60)
-      await pb.collection(C.APPOINTMENTS).create({
-        shop_id:          shop.id,
-        customer_name:    selected.name.trim(),
-        customer_phone:   selected.phone.trim(),
-        service_id:       selected.service.id,
-        service_name:     selected.service.name,
-        staff_id:         selected.staff_id || '',
-        appt_date:        selected.date,
-        start_time:       selected.time,
-        end_time,
-        duration_minutes: selected.service.duration_minutes || 60,
-        price_kes:        selected.service.price_kes || 0,
-        deposit_paid:     0,
-        status:           'scheduled',
-        notes:            selected.notes.trim(),
-        reminder_sent:    false,
-      })
+      // Chain appointments sequentially — end time of service N = start time of service N+1
+      let currentStart = selected.time
+      for (const svc of selected.services) {
+        const end_time = addMinutes(currentStart, svc.duration_minutes || 60)
+        await pb.collection(C.APPOINTMENTS).create({
+          shop_id:          shop.id,
+          customer_name:    selected.name.trim(),
+          customer_phone:   selected.phone.trim(),
+          service_id:       svc.id,
+          service_name:     svc.name,
+          staff_id:         selected.staff_id || '',
+          appt_date:        selected.date,
+          start_time:       currentStart,
+          end_time,
+          duration_minutes: svc.duration_minutes || 60,
+          price_kes:        svc.price_kes || 0,
+          deposit_paid:     0,
+          status:           'scheduled',
+          notes:            selected.notes.trim(),
+          reminder_sent:    false,
+        })
+        currentStart = end_time
+      }
       // GOLDMINE #2 — save for next visit
       try { localStorage.setItem(`booking_${slug}`, JSON.stringify({ name: selected.name.trim(), phone: selected.phone.trim() })) } catch {}
 
@@ -289,10 +294,11 @@ export default function BookingPage() {
 
       <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px 60px' }}>
 
-        {/* STEP 1 — Service selection */}
+        {/* STEP 1 — Service selection (multi-select cart) */}
         {step === 1 && (
           <div className="fade-up">
-            <h2 style={{ fontFamily: 'Playfair Display,serif', color: '#3d1020', fontSize: 20, marginBottom: 16 }}>Choose a service</h2>
+            <h2 style={{ fontFamily: 'Playfair Display,serif', color: '#3d1020', fontSize: 20, marginBottom: 4 }}>Choose your services</h2>
+            <p style={{ fontSize: 13, color: '#9b6070', marginBottom: 16 }}>Tap to add — you can book multiple services in one appointment.</p>
             {services.length === 0 ? (
               <div style={{ background: '#fff', borderRadius: 14, padding: 24, textAlign: 'center', color: '#9b6070' }}>
                 <div style={{ fontSize: 32, marginBottom: 8 }}>💅</div>
@@ -300,26 +306,61 @@ export default function BookingPage() {
                 {shop.phone && <a href={`tel:${shop.phone}`} style={{ color: brand, fontWeight: 700 }}>{shop.phone}</a>}
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {services.map(svc => (
-                  <div key={svc.id}
-                    onClick={() => { setSelected(s => ({ ...s, service: svc })); setStep(2) }}
-                    style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', border: `2px solid ${selected.service?.id === svc.id ? brand : '#f0e4e8'}`, cursor: 'pointer', transition: 'all 0.15s', boxShadow: selected.service?.id === svc.id ? `0 4px 16px ${brand}22` : '0 1px 4px #0001' }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 24 }}>{CAT_EMOJI[svc.category] || '💅'}</span>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a1f' }}>{svc.name}</div>
-                          {svc.description && <div style={{ fontSize: 12, color: '#9b6070', marginTop: 2 }}>{svc.description}</div>}
-                          <div style={{ fontSize: 12, color: '#9b6070', marginTop: 4 }}>⏱ {svc.duration_minutes} min</div>
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {services.map(svc => {
+                    const inCart = selected.services.some(s => s.id === svc.id)
+                    return (
+                      <div key={svc.id}
+                        onClick={() => setSelected(s => ({
+                          ...s,
+                          services: inCart
+                            ? s.services.filter(x => x.id !== svc.id)
+                            : [...s.services, svc]
+                        }))}
+                        style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', border: `2px solid ${inCart ? brand : '#f0e4e8'}`, cursor: 'pointer', transition: 'all 0.15s', boxShadow: inCart ? `0 4px 16px ${brand}22` : '0 1px 4px #0001', position: 'relative' }}
+                      >
+                        {inCart && (
+                          <div style={{ position: 'absolute', top: 10, right: 10, width: 22, height: 22, borderRadius: '50%', background: brand, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#fff', fontWeight: 800 }}>✓</div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 24 }}>{CAT_EMOJI[svc.category] || '💅'}</span>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a1f' }}>{svc.name}</div>
+                              {svc.description && <div style={{ fontSize: 12, color: '#9b6070', marginTop: 2 }}>{svc.description}</div>}
+                              <div style={{ fontSize: 12, color: '#9b6070', marginTop: 4 }}>⏱ {svc.duration_minutes} min</div>
+                            </div>
+                          </div>
+                          <div style={{ fontWeight: 800, fontSize: 16, color: brand, flexShrink: 0, marginLeft: 8 }}>{fmtPrice(svc.price_kes, currency)}</div>
                         </div>
                       </div>
-                      <div style={{ fontWeight: 800, fontSize: 16, color: brand, flexShrink: 0, marginLeft: 8 }}>{fmtPrice(svc.price_kes, currency)}</div>
+                    )
+                  })}
+                </div>
+
+                {/* Cart summary + proceed button */}
+                {selected.services.length > 0 && (
+                  <div style={{ position: 'sticky', bottom: 16, marginTop: 16, background: '#fff', borderRadius: 16, padding: '16px 18px', boxShadow: `0 8px 32px ${brand}33`, border: `2px solid ${brand}` }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9b6070', marginBottom: 8 }}>Your selection</div>
+                    {selected.services.map(s => (
+                      <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}>
+                        <span style={{ color: '#1a1a1f' }}>{CAT_EMOJI[s.category] || '💅'} {s.name}</span>
+                        <span style={{ fontWeight: 700, color: brand }}>{fmtPrice(s.price_kes, currency)}</span>
+                      </div>
+                    ))}
+                    <div style={{ borderTop: `1px solid ${brand}22`, marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: 12, color: '#9b6070' }}>Total · {selected.services.reduce((t, s) => t + (s.duration_minutes || 60), 0)} min</div>
+                        <div style={{ fontWeight: 800, fontSize: 18, color: brand }}>{fmtPrice(selected.services.reduce((t, s) => t + (s.price_kes || 0), 0), currency)}</div>
+                      </div>
+                      <button onClick={() => setStep(2)}
+                        style={{ padding: '12px 24px', borderRadius: 12, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', border: 'none', fontWeight: 800, fontSize: 15, cursor: 'pointer', boxShadow: `0 4px 14px ${brand}44` }}
+                      >Continue →</button>
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -330,9 +371,17 @@ export default function BookingPage() {
             <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: brand, fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 16, padding: 0 }}>← Back</button>
             <h2 style={{ fontFamily: 'Playfair Display,serif', color: '#3d1020', fontSize: 20, marginBottom: 16 }}>Pick date & time</h2>
 
-            <div style={{ background: '#fff', borderRadius: 12, padding: '12px 16px', marginBottom: 20, border: `1px solid ${brand}33`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1f' }}>{CAT_EMOJI[selected.service?.category] || '💅'} {selected.service?.name}</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: brand }}>{fmtPrice(selected.service?.price_kes, currency)}</div>
+            <div style={{ background: '#fff', borderRadius: 12, padding: '12px 16px', marginBottom: 20, border: `1px solid ${brand}33` }}>
+              {selected.services.map(s => (
+                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1f' }}>{CAT_EMOJI[s.category] || '💅'} {s.name} <span style={{ fontWeight: 400, color: '#9b6070' }}>· {s.duration_minutes} min</span></div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: brand, marginLeft: 8 }}>{fmtPrice(s.price_kes, currency)}</div>
+                </div>
+              ))}
+              <div style={{ borderTop: `1px solid ${brand}22`, marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 12, color: '#9b6070' }}>Total · {selected.services.reduce((t, s) => t + (s.duration_minutes || 60), 0)} min</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: brand }}>{fmtPrice(selected.services.reduce((t, s) => t + (s.price_kes || 0), 0), currency)}</div>
+              </div>
             </div>
 
             <div style={{ marginBottom: 16 }}>
@@ -385,11 +434,11 @@ export default function BookingPage() {
             <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', marginBottom: 20, border: '1px solid #f0e4e8' }}>
               <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9b6070', marginBottom: 10 }}>Booking summary</div>
               {[
-                { label: 'Service',  value: `${CAT_EMOJI[selected.service?.category] || '💅'} ${selected.service?.name}` },
+                { label: 'Services', value: selected.services.map(s => s.name).join(', ') },
                 { label: 'Date',     value: selected.date },
                 { label: 'Time',     value: selected.time },
-                { label: 'Duration', value: `${selected.service?.duration_minutes} min` },
-                { label: 'Price',    value: fmtPrice(selected.service?.price_kes, currency) },
+                { label: 'Duration', value: `${selected.services.reduce((t, s) => t + (s.duration_minutes || 60), 0)} min total` },
+                { label: 'Total',    value: fmtPrice(selected.services.reduce((t, s) => t + (s.price_kes || 0), 0), currency) },
               ].map((r, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: i < 4 ? '1px solid #f5edf0' : 'none', fontSize: 13 }}>
                   <span style={{ color: '#9b6070' }}>{r.label}</span>
@@ -452,10 +501,10 @@ export default function BookingPage() {
             <div style={{ background: '#fff', borderRadius: 14, padding: '20px', marginBottom: 24, border: '1px solid #f0e4e8', textAlign: 'left' }}>
               <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9b6070', marginBottom: 12 }}>Appointment details</div>
               {[
-                { label: 'Service', value: selected.service?.name },
+                { label: 'Services', value: selected.services.map(s => s.name).join(', ') },
                 { label: 'Date',    value: selected.date },
                 { label: 'Time',    value: selected.time },
-                { label: 'Price',   value: fmtPrice(selected.service?.price_kes, currency) },
+                { label: 'Total',   value: fmtPrice(selected.services.reduce((t, s) => t + (s.price_kes || 0), 0), currency) },
                 { label: 'Name',    value: selected.name },
                 { label: 'Phone',   value: selected.phone },
               ].map((r, i) => (

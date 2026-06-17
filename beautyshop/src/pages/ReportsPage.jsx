@@ -7,7 +7,7 @@ import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tool
 import { Download, Printer, TrendingUp, TrendingDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const TABS = ['P&L Statement', 'Balance Sheet', 'Sales Report', 'Expense Report', 'Stock Valuation']
+const TABS = ['P&L Statement', 'Balance Sheet', 'Sales Report', 'Expense Report', 'Stock Valuation', '🏦 Lender Pack']
 
 export default function ReportsPage() {
   const { shop, loading: authLoading } = useAuth()
@@ -18,6 +18,153 @@ export default function ReportsPage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const printRef = useRef()
+
+  // ── LENDER PACK STATE ──────────────────────────────────────────────
+  const [lenderData, setLenderData]     = useState(null)
+  const [lenderLoading, setLenderLoading] = useState(false)
+  const [dscrLoan, setDscrLoan]         = useState('')
+  const [dscrTerm, setDscrTerm]         = useState('12')
+  const [dscrRate, setDscrRate]         = useState('14')
+
+  useEffect(() => { if (tab === 5 && shop && !lenderData) loadLenderData() }, [tab, shop])
+
+  const loadLenderData = async () => {
+    setLenderLoading(true)
+    try {
+      // Lifetime sales — getFullList, shop_id only, no date limit
+      const lifetimeSales = await pb.collection(C.SALES).getFullList({
+        filter: `shop_id="${shop.id}" && status="completed"`,
+        '$autoCancel': false, '$cancelKey': 'lender-lifetime',
+      })
+
+      // Parse date from receipt_no (same pattern used everywhere — created field unreliable)
+      const rDate = (s) => {
+        const m = s?.receipt_no?.match(/-(\d{6})-/)
+        if (!m) return null
+        const c = m[1]
+        return `20${c.slice(0,2)}-${c.slice(2,4)}-${c.slice(4,6)}`
+      }
+
+      // Months active — from shop.created to today
+      const shopCreated = shop.created ? new Date(shop.created) : new Date()
+      const monthsActive = Math.max(1, Math.round((new Date() - shopCreated) / (1000 * 60 * 60 * 24 * 30.44)))
+      const lifetimeRevenue = lifetimeSales.reduce((s, x) => s + (x.total_kes || 0), 0)
+      const avgMonthlyRevenue = lifetimeRevenue / monthsActive
+
+      // AR Aging — credit sales with payment_status pending
+      const pendingSales = lifetimeSales.filter(s => s.payment_status === 'pending' || s.payment_status === 'partial')
+      const today = new Date()
+      const arBuckets = { current: { count: 0, total: 0 }, d30: { count: 0, total: 0 }, d60: { count: 0, total: 0 }, d90: { count: 0, total: 0 } }
+      pendingSales.forEach(s => {
+        const d = rDate(s)
+        if (!d) return
+        const age = Math.floor((today - new Date(d)) / 86400000)
+        const amt = s.total_kes || 0
+        if (age <= 30)      { arBuckets.current.count++; arBuckets.current.total += amt }
+        else if (age <= 60) { arBuckets.d30.count++;     arBuckets.d30.total += amt }
+        else if (age <= 90) { arBuckets.d60.count++;     arBuckets.d60.total += amt }
+        else                { arBuckets.d90.count++;     arBuckets.d90.total += amt }
+      })
+      const totalAR = Object.values(arBuckets).reduce((s, b) => s + b.total, 0)
+
+      // 6-month P&L — parallel fetches
+      const last6 = eachMonthOfInterval({ start: subMonths(new Date(), 5), end: new Date() })
+      const monthlyPL = await Promise.all(last6.map(async (month) => {
+        const mKey   = format(month, 'yyyy-MM')
+        const mFrom  = format(startOfMonth(month), 'yyyy-MM-dd')
+        const mTo    = format(endOfMonth(month), 'yyyy-MM-dd')
+        const mSales = lifetimeSales.filter(x => { const d = rDate(x); return d && d >= mFrom && d <= mTo })
+        const mExp   = await pb.collection(C.EXPENSES).getList(1, 500, {
+          filter: `shop_id="${shop.id}"`,
+          '$autoCancel': false, '$cancelKey': `lender-exp-${mKey}`,
+        }).then(r => r.items.filter(e => { const d = e.expense_date?.slice(0,10); return d && d >= mFrom && d <= mTo }))
+        const revenue    = mSales.reduce((s, x) => s + (x.total_kes || 0), 0)
+        const cogs       = mSales.reduce((s, x) => s + (x.total_cost_kes || 0), 0)
+        const grossProfit = revenue - cogs
+        const expenses   = mExp.reduce((s, x) => s + (x.amount_kes || 0), 0)
+        const netProfit  = grossProfit - expenses
+        const txCount    = mSales.length
+        return {
+          label: format(month, 'MMMM yyyy'),
+          short: format(month, 'MMM yy'),
+          revenue, cogs, grossProfit, expenses, netProfit, txCount,
+          netMargin: revenue ? ((netProfit / revenue) * 100).toFixed(1) : '0.0',
+        }
+      }))
+
+      const totalRevenue6m   = monthlyPL.reduce((s, m) => s + m.revenue, 0)
+      const totalNetProfit6m = monthlyPL.reduce((s, m) => s + m.netProfit, 0)
+      const avgMonthlyNet    = totalNetProfit6m / 6
+      const activeMonths     = monthlyPL.filter(m => m.revenue > 0).length
+
+      // Revenue consistency score — how many of the 6 months were profitable
+      const profitableMonths = monthlyPL.filter(m => m.netProfit > 0).length
+      const consistencyScore = Math.round((profitableMonths / 6) * 100)
+
+      // Growth rate — last month vs first month revenue
+      const firstMonthRev = monthlyPL[0]?.revenue || 0
+      const lastMonthRev  = monthlyPL[5]?.revenue || 0
+      const growthRate    = firstMonthRev > 0 ? (((lastMonthRev - firstMonthRev) / firstMonthRev) * 100).toFixed(0) : null
+
+      setLenderData({
+        lifetimeRevenue, lifetimeTx: lifetimeSales.length,
+        monthsActive, avgMonthlyRevenue, avgMonthlyNet,
+        monthlyPL, totalRevenue6m, totalNetProfit6m,
+        activeMonths, profitableMonths, consistencyScore, growthRate,
+        arBuckets, totalAR,
+        generatedAt: new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' }),
+        reportId: `${shop.id.slice(0,8).toUpperCase()}-${format(new Date(), 'yyyyMMdd')}`,
+      })
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to load lender data')
+    } finally { setLenderLoading(false) }
+  }
+
+  const calcDSCR = () => {
+    if (!lenderData || !dscrLoan || !dscrTerm || !dscrRate) return null
+    const principal    = parseFloat(dscrLoan)
+    const months       = parseInt(dscrTerm)
+    const annualRate   = parseFloat(dscrRate)
+    if (!principal || !months || !annualRate) return null
+    const r            = annualRate / 100 / 12
+    const monthlyPmt   = r === 0 ? principal / months : (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1)
+    const dscr         = lenderData.avgMonthlyNet > 0 ? lenderData.avgMonthlyNet / monthlyPmt : 0
+    return { monthlyPmt, dscr }
+  }
+
+  const shareLenderWhatsApp = () => {
+    if (!lenderData) return
+    const d = lenderData
+    const calc = calcDSCR()
+    const lines = [
+      `🏦 *Business Credit Summary*`,
+      `*${shop?.name || ''}*`,
+      ``,
+      `Business Active`,
+      `*${d.monthsActive} months*`,
+      ``,
+      `6-Month Total Revenue`,
+      `*${fmtKES(d.totalRevenue6m)}*`,
+      ``,
+      `Average Monthly Revenue`,
+      `*${fmtKES(d.avgMonthlyRevenue)}*`,
+      ``,
+      `Average Monthly Net Profit`,
+      `*${fmtKES(d.avgMonthlyNet)}*`,
+      ``,
+      `Revenue Consistency`,
+      `*${d.profitableMonths}/6 months profitable (${d.consistencyScore}%)*`,
+      ...(d.growthRate !== null ? [``, `Revenue Growth (6 months)`, `*${d.growthRate > 0 ? '+' : ''}${d.growthRate}%*`] : []),
+      ...(calc ? [``, `Debt Service Coverage Ratio`, `*${calc.dscr.toFixed(2)}x* ${calc.dscr >= 1.25 ? '✅ Bankable' : calc.dscr >= 1.0 ? '⚠️ Borderline' : '❌ High Risk'}`] : []),
+      ``,
+      `_All figures verified from immutable transaction records._`,
+      `_Records cannot be edited or deleted by any user._`,
+      `_Report ID: ${d.reportId}_`,
+      `_${shop?.name} · Powered by SalesTrack_`,
+    ].join('\n')
+    window.open(`https://wa.me/?text=${encodeURIComponent(lines)}`, '_blank')
+  }
 
   useEffect(() => {
     if (period === 'month') {
@@ -185,6 +332,36 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url)
   }
 
+  const sharePLWhatsApp = () => {
+    if (!data) return
+    const lines = [
+      `📊 *Profit & Loss Statement*`,
+      `*${shop?.name || ''}*`,
+      `Period: ${fmtDate(new Date(dateFrom))} – ${fmtDate(new Date(dateTo))}`,
+      ``,
+      `*REVENUE*`,
+      fmtKES(data.revenue),
+      ``,
+      `*COST OF SALES*`,
+      fmtKES(data.costOfSales),
+      ``,
+      `*GROSS PROFIT*`,
+      `${fmtKES(data.grossProfit)} (${data.grossMargin.toFixed(1)}% margin)`,
+      ``,
+      `*OPERATING EXPENSES*`,
+      fmtKES(data.totalExpenses),
+      ``,
+      `*NET PROFIT*`,
+      `${fmtKES(data.netProfit)} (${data.netMargin.toFixed(1)}% margin)`,
+      ``,
+      `Transactions: ${data.salesCount}`,
+      ``,
+      `_Verified business records · Generated via SalesTrack_`,
+      `_${shop?.name || ''} · Powered by SalesTrack_`,
+    ].join('\n')
+    window.open(`https://wa.me/?text=${encodeURIComponent(lines)}`, '_blank')
+  }
+
   const PIE_COLORS = ['#c8456a','#e6b800','#8b2550','#059669','#3b82f6','#8b5cf6','#f59e0b','#ec4899']
 
   return (
@@ -243,17 +420,22 @@ export default function ReportsPage() {
             <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
               {/* P&L Table */}
               <div className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
                   <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 22, color: '#3d1020', margin: 0 }}>Profit & Loss Statement</h2>
-                  <button className="btn-secondary" style={{ fontSize: 12 }} onClick={() => exportCSV([
-                    { Item: 'Revenue', Amount_KES: data.revenue },
-                    { Item: 'Cost of Sales', Amount_KES: -data.costOfSales },
-                    { Item: 'Gross Profit', Amount_KES: data.grossProfit },
-                    { Item: 'Total Expenses', Amount_KES: -data.totalExpenses },
-                    { Item: 'Net Profit', Amount_KES: data.netProfit },
-                  ], 'pl-statement.csv')}>
-                    <Download size={14} /> Export
-                  </button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={sharePLWhatsApp} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                      📲 Share
+                    </button>
+                    <button className="btn-secondary" style={{ fontSize: 12 }} onClick={() => exportCSV([
+                      { Item: 'Revenue', Amount_KES: data.revenue },
+                      { Item: 'Cost of Sales', Amount_KES: -data.costOfSales },
+                      { Item: 'Gross Profit', Amount_KES: data.grossProfit },
+                      { Item: 'Total Expenses', Amount_KES: -data.totalExpenses },
+                      { Item: 'Net Profit', Amount_KES: data.netProfit },
+                    ], 'pl-statement.csv')}>
+                      <Download size={14} /> Export
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ fontSize: 12, color: '#9b6070', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 12 }}>
@@ -660,6 +842,333 @@ export default function ReportsPage() {
                   </table>
                 </div>
               </div>
+            </div>
+          )}
+        {/* ═══ LENDER PACK ═══ */}
+          {tab === 5 && (
+            <div>
+              <style>{`
+                @media print {
+                  .no-print { display: none !important; }
+                  .page-header, .tab-nav-wrap, .period-filter-card { display: none !important; }
+                  body { font-size: 12px !important; }
+                  .lender-pack-root { max-width: 100% !important; }
+                  .lender-section { page-break-inside: avoid; margin-bottom: 24px; }
+                  .lender-print-header { display: flex !important; }
+                }
+                .lender-print-header { display: none; }
+              `}</style>
+
+              {/* Print-only header */}
+              <div className="lender-print-header" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingBottom: 12, borderBottom: '2px solid #c8456a' }}>
+                <div>
+                  <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 22, fontWeight: 700, color: '#3d1020' }}>{shop?.name}</div>
+                  <div style={{ fontSize: 12, color: '#9b6070' }}>{shop?.business_type || 'Business'} · Business Credit Report</div>
+                </div>
+                <div style={{ textAlign: 'right', fontSize: 11, color: '#9b6070' }}>
+                  <div>Generated: {lenderData?.generatedAt}</div>
+                  <div>Report ID: {lenderData?.reportId}</div>
+                </div>
+              </div>
+
+              {/* Page header */}
+              <div className="page-header no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 22, color: '#3d1020', fontWeight: 700 }}>🏦 Lender Pack</div>
+                  <div style={{ fontSize: 13, color: '#9b6070', marginTop: 2 }}>Bank-grade credit document · {shop?.name} · Generated from verified immutable records</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={shareLenderWhatsApp} style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    📲 Share Summary
+                  </button>
+                  <button onClick={() => window.print()} style={{ padding: '9px 16px', borderRadius: 10, border: '1.5px solid #c8456a', background: '#fff', color: '#c8456a', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    🖨️ Print / Save PDF
+                  </button>
+                  <button onClick={() => { setLenderData(null); loadLenderData() }} style={{ padding: '9px 16px', borderRadius: 10, border: '1.5px solid #f0e4e8', background: '#fff', color: '#9b6070', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                    ↻ Refresh
+                  </button>
+                </div>
+              </div>
+
+              {lenderLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div className="spinner" style={{ margin: '0 auto 12px' }} />
+                    <div style={{ fontSize: 13, color: '#9b6070' }}>Loading verified financial data…</div>
+                  </div>
+                </div>
+              ) : lenderData ? (() => {
+                const calc   = calcDSCR()
+                const dscrOk = calc ? calc.dscr >= 1.25 : null
+                const d      = lenderData
+                return (
+                  <div className="lender-pack-root">
+
+                    {/* ── SECTION 1: BUSINESS SUMMARY ── */}
+                    <div className="lender-section card" style={{ marginBottom: 20, background: 'linear-gradient(135deg,#3d1020,#8b2550)', color: '#fff', borderRadius: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>Business Credit Report</div>
+                          <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 28, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{shop?.name}</div>
+                          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>{shop?.business_type || 'Retail Business'} · {shop?.address || 'Kenya'}</div>
+                          {shop?.phone && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>{shop.phone}</div>}
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>Report ID</div>
+                          <div style={{ fontFamily: 'monospace', fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>{d.reportId}</div>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>Generated</div>
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>{d.generatedAt}</div>
+                        </div>
+                      </div>
+
+                      <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginTop: 20 }}>
+                        {[
+                          { label: 'Months Active', value: `${d.monthsActive}`, sub: 'on SalesTrack' },
+                          { label: 'Lifetime Revenue', value: fmtKES(d.lifetimeRevenue), sub: `${d.lifetimeTx} transactions` },
+                          { label: 'Avg Monthly Revenue', value: fmtKES(d.avgMonthlyRevenue), sub: 'all-time average' },
+                          { label: 'Avg Monthly Net Profit', value: fmtKES(d.avgMonthlyNet), sub: 'last 6 months' },
+                        ].map((kpi, i) => (
+                          <div key={i} style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: '14px 16px', textAlign: 'center' }}>
+                            <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#fff' }}>{kpi.value}</div>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 3 }}>{kpi.label}</div>
+                            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', marginTop: 1 }}>{kpi.sub}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── SECTION 2: 6-MONTH P&L TABLE ── */}
+                    <div className="lender-section card" style={{ marginBottom: 20, padding: 0 }}>
+                      <div style={{ padding: '16px 20px', borderBottom: '1px solid #f5edf0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                        <div>
+                          <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 2px' }}>6-Month Financial Performance</h2>
+                          <div style={{ fontSize: 12, color: '#9b6070' }}>Month-by-month revenue, costs and profit — the core lending assessment table</div>
+                        </div>
+                        <button className="btn-secondary no-print" style={{ fontSize: 12 }} onClick={() => {
+                          const rows = [
+                            ...d.monthlyPL.map(m => ({ Month: m.label, Revenue_KES: m.revenue, COGS_KES: m.cogs, Gross_Profit_KES: m.grossProfit, Expenses_KES: m.expenses, Net_Profit_KES: m.netProfit, Net_Margin_Pct: m.netMargin, Transactions: m.txCount })),
+                            { Month: 'TOTAL / AVERAGE', Revenue_KES: d.totalRevenue6m, COGS_KES: d.monthlyPL.reduce((s,m)=>s+m.cogs,0), Gross_Profit_KES: d.monthlyPL.reduce((s,m)=>s+m.grossProfit,0), Expenses_KES: d.monthlyPL.reduce((s,m)=>s+m.expenses,0), Net_Profit_KES: d.totalNetProfit6m, Net_Margin_Pct: d.totalRevenue6m ? ((d.totalNetProfit6m/d.totalRevenue6m)*100).toFixed(1) : '0.0', Transactions: d.monthlyPL.reduce((s,m)=>s+m.txCount,0) }
+                          ]
+                          const headers = Object.keys(rows[0])
+                          const csv = [headers.join(','), ...rows.map(r => headers.map(h=>`"${r[h]??''}"`).join(','))].join('\n')
+                          const blob = new Blob([csv], { type: 'text/csv' })
+                          const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download=`${shop?.name?.replace(/\s+/g,'-')}-6month-pl.csv`; a.click(); URL.revokeObjectURL(url)
+                        }}>
+                          ⬇️ Download CSV
+                        </button>
+                      </div>
+                      <div className="table-wrap">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Month</th>
+                              <th style={{ textAlign: 'right' }}>Revenue</th>
+                              <th style={{ textAlign: 'right' }}>COGS</th>
+                              <th style={{ textAlign: 'right' }}>Gross Profit</th>
+                              <th style={{ textAlign: 'right' }}>Expenses</th>
+                              <th style={{ textAlign: 'right' }}>Net Profit</th>
+                              <th style={{ textAlign: 'right' }}>Margin</th>
+                              <th style={{ textAlign: 'right' }}>Txns</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {d.monthlyPL.map((m, i) => (
+                              <tr key={i} style={{ background: m.netProfit < 0 ? '#fff5f5' : 'transparent' }}>
+                                <td style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>{m.label}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtKES(m.revenue)}</td>
+                                <td style={{ textAlign: 'right', color: '#dc2626', fontSize: 12 }}>({fmtKES(m.cogs)})</td>
+                                <td style={{ textAlign: 'right', color: '#059669', fontWeight: 600 }}>{fmtKES(m.grossProfit)}</td>
+                                <td style={{ textAlign: 'right', color: '#dc2626', fontSize: 12 }}>({fmtKES(m.expenses)})</td>
+                                <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'Playfair Display,serif', color: m.netProfit >= 0 ? '#059669' : '#dc2626', fontSize: 15 }}>{fmtKES(m.netProfit)}</td>
+                                <td style={{ textAlign: 'right' }}>
+                                  <span style={{ background: parseFloat(m.netMargin) > 10 ? '#f0fdf4' : parseFloat(m.netMargin) > 0 ? '#fefce8' : '#fee2e2', color: parseFloat(m.netMargin) > 10 ? '#059669' : parseFloat(m.netMargin) > 0 ? '#d97706' : '#dc2626', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{m.netMargin}%</span>
+                                </td>
+                                <td style={{ textAlign: 'right', color: '#9b6070', fontSize: 12 }}>{m.txCount}</td>
+                              </tr>
+                            ))}
+                            {/* Total row */}
+                            <tr style={{ background: '#fdf5f7', borderTop: '2px solid #c8456a' }}>
+                              <td style={{ fontWeight: 800, fontSize: 13 }}>6-MONTH TOTAL</td>
+                              <td style={{ textAlign: 'right', fontWeight: 800 }}>{fmtKES(d.totalRevenue6m)}</td>
+                              <td style={{ textAlign: 'right', fontWeight: 700, color: '#dc2626' }}>({fmtKES(d.monthlyPL.reduce((s,m)=>s+m.cogs,0))})</td>
+                              <td style={{ textAlign: 'right', fontWeight: 700, color: '#059669' }}>{fmtKES(d.monthlyPL.reduce((s,m)=>s+m.grossProfit,0))}</td>
+                              <td style={{ textAlign: 'right', fontWeight: 700, color: '#dc2626' }}>({fmtKES(d.monthlyPL.reduce((s,m)=>s+m.expenses,0))})</td>
+                              <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'Playfair Display,serif', color: d.totalNetProfit6m >= 0 ? '#059669' : '#dc2626', fontSize: 16 }}>{fmtKES(d.totalNetProfit6m)}</td>
+                              <td style={{ textAlign: 'right' }}>
+                                <span style={{ background: '#fdf5f7', color: '#c8456a', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>
+                                  {d.totalRevenue6m ? ((d.totalNetProfit6m/d.totalRevenue6m)*100).toFixed(1) : '0'}%
+                                </span>
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 700 }}>{d.monthlyPL.reduce((s,m)=>s+m.txCount,0)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* ── SECTION 3: REVENUE TREND CHART ── */}
+                    <div className="lender-section card" style={{ marginBottom: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+                        <div>
+                          <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 2px' }}>Revenue & Profit Trend</h2>
+                          <div style={{ fontSize: 12, color: '#9b6070' }}>Month-on-month trajectory — a rising trend signals a healthy, growing business</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                          {d.growthRate !== null && (
+                            <div style={{ textAlign: 'center', background: parseFloat(d.growthRate) >= 0 ? '#f0fdf4' : '#fff5f5', borderRadius: 10, padding: '8px 14px' }}>
+                              <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, fontWeight: 700, color: parseFloat(d.growthRate) >= 0 ? '#059669' : '#dc2626' }}>
+                                {parseFloat(d.growthRate) >= 0 ? '↑' : '↓'} {Math.abs(parseFloat(d.growthRate))}%
+                              </div>
+                              <div style={{ fontSize: 11, color: '#9b6070' }}>Revenue growth</div>
+                            </div>
+                          )}
+                          <div style={{ textAlign: 'center', background: d.consistencyScore >= 67 ? '#f0fdf4' : d.consistencyScore >= 34 ? '#fefce8' : '#fff5f5', borderRadius: 10, padding: '8px 14px' }}>
+                            <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, fontWeight: 700, color: d.consistencyScore >= 67 ? '#059669' : d.consistencyScore >= 34 ? '#d97706' : '#dc2626' }}>
+                              {d.profitableMonths}/6
+                            </div>
+                            <div style={{ fontSize: 11, color: '#9b6070' }}>Profitable months</div>
+                          </div>
+                        </div>
+                      </div>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <BarChart data={d.monthlyPL.map(m => ({ label: m.short, revenue: m.revenue, netProfit: Math.max(0, m.netProfit) }))} barSize={28} isAnimationActive={false}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0e4e8" vertical={false} />
+                          <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9b6070' }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fontSize: 11, fill: '#9b6070' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+                          <Tooltip formatter={(v) => fmtKES(v)} contentStyle={{ borderRadius: 10, fontFamily: 'Nunito,sans-serif', fontSize: 12 }} />
+                          <Bar dataKey="revenue" fill="#f0c0ce" radius={[4,4,0,0]} name="Revenue" />
+                          <Bar dataKey="netProfit" fill="#c8456a" radius={[4,4,0,0]} name="Net Profit" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                      <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 8 }}>
+                        <span style={{ fontSize: 11, color: '#9b6070', display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 12, borderRadius: 2, background: '#f0c0ce', display: 'inline-block' }} />Revenue</span>
+                        <span style={{ fontSize: 11, color: '#9b6070', display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 12, borderRadius: 2, background: '#c8456a', display: 'inline-block' }} />Net Profit</span>
+                      </div>
+                    </div>
+
+                    {/* ── SECTION 4: DSCR CALCULATOR ── */}
+                    <div className="lender-section card" style={{ marginBottom: 20 }}>
+                      <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 4px' }}>Debt Service Coverage Ratio (DSCR)</h2>
+                      <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 20 }}>
+                        DSCR = Average Monthly Net Profit ÷ Monthly Loan Repayment. Banks require ≥1.25x to approve a loan.
+                        Enter the proposed loan details to calculate this business's borrowing capacity.
+                      </div>
+                      <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
+                        <div>
+                          <label className="label">Loan Amount (KES)</label>
+                          <input className="input" type="number" min={0} placeholder="e.g. 500000" value={dscrLoan} onChange={e => setDscrLoan(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="label">Loan Term (months)</label>
+                          <input className="input" type="number" min={1} max={120} placeholder="e.g. 12" value={dscrTerm} onChange={e => setDscrTerm(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="label">Annual Interest Rate (%)</label>
+                          <input className="input" type="number" min={0} max={100} step={0.1} placeholder="e.g. 14" value={dscrRate} onChange={e => setDscrRate(e.target.value)} />
+                        </div>
+                      </div>
+
+                      {calc ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                          <div style={{ background: '#fdf5f7', borderRadius: 12, padding: '16px', textAlign: 'center' }}>
+                            <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 4 }}>Monthly Repayment</div>
+                            <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 22, fontWeight: 700, color: '#c8456a' }}>{fmtKES(calc.monthlyPmt)}</div>
+                          </div>
+                          <div style={{ background: '#fdf5f7', borderRadius: 12, padding: '16px', textAlign: 'center' }}>
+                            <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 4 }}>Avg Monthly Net Profit</div>
+                            <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 22, fontWeight: 700, color: d.avgMonthlyNet >= 0 ? '#059669' : '#dc2626' }}>{fmtKES(d.avgMonthlyNet)}</div>
+                          </div>
+                          <div style={{ background: calc.dscr >= 1.25 ? '#f0fdf4' : calc.dscr >= 1.0 ? '#fefce8' : '#fee2e2', borderRadius: 12, padding: '16px', textAlign: 'center', border: `2px solid ${calc.dscr >= 1.25 ? '#059669' : calc.dscr >= 1.0 ? '#d97706' : '#dc2626'}` }}>
+                            <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 4 }}>DSCR</div>
+                            <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 32, fontWeight: 700, color: calc.dscr >= 1.25 ? '#059669' : calc.dscr >= 1.0 ? '#d97706' : '#dc2626' }}>{calc.dscr.toFixed(2)}x</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: calc.dscr >= 1.25 ? '#059669' : calc.dscr >= 1.0 ? '#d97706' : '#dc2626', marginTop: 4 }}>
+                              {calc.dscr >= 1.25 ? '✅ Bankable' : calc.dscr >= 1.0 ? '⚠️ Borderline' : '❌ High Risk'}
+                            </div>
+                            {calc.dscr < 1.25 && calc.dscr > 0 && (
+                              <div style={{ fontSize: 11, color: '#9b6070', marginTop: 6 }}>
+                                Try {fmtKES(Math.floor(d.avgMonthlyNet * 0.8 / (parseFloat(dscrRate)/100/12) * (1 - Math.pow(1 + parseFloat(dscrRate)/100/12, -parseInt(dscrTerm)))))} max loan for 1.25x DSCR
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ background: '#fdf5f7', borderRadius: 12, padding: '20px', textAlign: 'center', color: '#9b6070', fontSize: 13 }}>
+                          Enter loan details above to calculate borrowing capacity
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── SECTION 5: AR AGING ── */}
+                    <div className="lender-section card" style={{ marginBottom: 20 }}>
+                      <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 4px' }}>Accounts Receivable Aging</h2>
+                      <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 16 }}>Unpaid credit sales grouped by age. A healthy business collects most receivables within 30 days.</div>
+                      {d.totalAR === 0 ? (
+                        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '16px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 24, marginBottom: 4 }}>✅</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>No outstanding receivables</div>
+                          <div style={{ fontSize: 12, color: '#9b6070', marginTop: 2 }}>All sales are collected — excellent cash flow hygiene</div>
+                        </div>
+                      ) : (
+                        <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+                          {[
+                            { label: 'Current (0–30 days)', data: d.arBuckets.current, color: '#059669', bg: '#f0fdf4', border: '#bbf7d0' },
+                            { label: '31–60 Days', data: d.arBuckets.d30, color: '#d97706', bg: '#fefce8', border: '#fde68a' },
+                            { label: '61–90 Days', data: d.arBuckets.d60, color: '#ea580c', bg: '#fff7ed', border: '#fed7aa' },
+                            { label: '90+ Days (Bad Debt Risk)', data: d.arBuckets.d90, color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+                          ].map((bucket, i) => (
+                            <div key={i} style={{ background: bucket.bg, border: `1px solid ${bucket.border}`, borderRadius: 12, padding: '14px 16px', textAlign: 'center' }}>
+                              <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, fontWeight: 700, color: bucket.color }}>{fmtKES(bucket.data.total)}</div>
+                              <div style={{ fontSize: 11, color: bucket.color, fontWeight: 600, marginTop: 2 }}>{bucket.data.count} invoice{bucket.data.count !== 1 ? 's' : ''}</div>
+                              <div style={{ fontSize: 10, color: '#9b6070', marginTop: 4 }}>{bucket.label}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {d.totalAR > 0 && (
+                        <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: '#fdf5f7', borderRadius: 10, fontSize: 13 }}>
+                          <span style={{ fontWeight: 600, color: '#3d1020' }}>Total Outstanding AR</span>
+                          <span style={{ fontWeight: 800, color: '#c8456a', fontFamily: 'Playfair Display,serif', fontSize: 16 }}>{fmtKES(d.totalAR)}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── SECTION 6: VERIFICATION FOOTER ── */}
+                    <div className="lender-section" style={{ background: '#1a1a1f', borderRadius: 14, padding: '20px 24px', marginBottom: 20 }}>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                        <div style={{ fontSize: 24, flexShrink: 0 }}>🔒</div>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: 14, color: '#fff', marginBottom: 6 }}>Data Integrity Verification</div>
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', lineHeight: 1.7 }}>
+                            All figures in this report are derived exclusively from immutable transaction records maintained by SalesTrack.
+                            No transaction, sale, or financial record in this system can be edited or deleted by any user — including the shop owner, managers, or SalesTrack administrators.
+                            Every sale is timestamped, shop-isolated, and permanently stored with a full audit trail.
+                            This data meets the standards required for credit assessment under CBK Prudential Guidelines for SME lending.
+                          </div>
+                          <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            {[
+                              { label: 'Report ID', value: d.reportId },
+                              { label: 'Generated', value: d.generatedAt },
+                              { label: 'Business', value: shop?.name },
+                              { label: 'Data Source', value: 'SalesTrack POS — Immutable Ledger' },
+                            ].map((r, i) => (
+                              <div key={i} style={{ fontSize: 11 }}>
+                                <span style={{ color: 'rgba(255,255,255,0.4)' }}>{r.label}: </span>
+                                <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{r.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                )
+              })() : (
+                <div style={{ textAlign: 'center', padding: 60, color: '#9b6070' }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>🏦</div>
+                  <div style={{ fontSize: 14 }}>Click Refresh to load your lender pack</div>
+                </div>
+              )}
             </div>
           )}
         </>

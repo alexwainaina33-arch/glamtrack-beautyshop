@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDateTime, fmtDate } from '../lib/utils'
-import { Eye, Search, RefreshCw, X } from 'lucide-react'
+import { Eye, Search, RefreshCw, X, Download } from 'lucide-react'
 import { format, startOfDay, endOfDay, subDays } from 'date-fns'
 import ReceiptModal from '../components/ReceiptModal'
 import toast from 'react-hot-toast'
@@ -110,6 +110,34 @@ export default function SalesPage() {
   const totalOutstanding = filtered.reduce((s, x) => s + (x.payment_status === 'pending' ? (x.total_kes || 0) : 0), 0)
   const avgSaleValue = filtered.length ? totalRevenue / Math.max(1, filtered.filter(s => s.status === 'completed' && s.payment_status !== 'pending').length) : 0
 
+  const exportSalesCSV = () => {
+    if (!filtered.length) return toast.error('No sales to export')
+    const rows = filtered.map(s => {
+      const base = {
+        Receipt_No: s.receipt_no,
+        Date: fmtDateTime(s.created),
+        Customer: s.expand?.customer_id?.name || 'Walk-in',
+        Subtotal_KES: s.subtotal_kes || 0,
+        Discount_KES: s.discount_kes || 0,
+        Total_KES: s.total_kes || 0,
+        Payment_Method: s.payment_method,
+        Payment_Status: s.payment_status,
+        Status: s.status,
+      }
+      if (!isCashier) {
+        base.Served_By = s.expand?.served_by?.name || ''
+        base.Profit_KES = s.gross_profit_kes || 0
+      }
+      return base
+    })
+    const headers = Object.keys(rows[0])
+    const csv = [headers.join(','), ...rows.map(r => headers.map(h => `"${r[h] ?? ''}"`).join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `sales-${dateFrom}-to-${dateTo}.csv`; a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
@@ -117,6 +145,7 @@ export default function SalesPage() {
           <div className="page-title">Sales 🧾</div>
           <div className="page-subtitle">{total} records found</div>
         </div>
+        <button className="btn-secondary" onClick={exportSalesCSV}><Download size={14} /> Export CSV</button>
       </div>
 
       {/* Filters */}

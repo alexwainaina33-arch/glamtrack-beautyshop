@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES } from '../lib/utils'
-import { Plus, Search, Upload, Edit2, Trash2, X, FileUp, Download, CheckCircle2, AlertCircle, ChevronRight } from 'lucide-react'
+import { Plus, Search, Upload, Edit2, Trash2, X, FileUp, Download, CheckCircle2, AlertCircle, ChevronRight, Copy, BarChart2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const EMPTY = { name:'', sku:'', barcode:'', category_id:'', description:'', unit:'piece', price_kes:'', cost_price_kes:'', compare_price_kes:'', stock_qty:'', reorder_point:5, track_inventory:true, is_service:false, is_taxable:true, brand:'', tags:'', status:'active' }
@@ -123,6 +123,8 @@ export default function ProductsPage() {
   const [bulkImporting, setBulkImporting]   = useState(false)
   const [bulkResult, setBulkResult]     = useState(null)
 
+  const [view, setView] = useState('table') // 'table' | 'margin'
+
   const fileInputRef = useRef()
   const csvInputRef  = useRef()
 
@@ -177,6 +179,22 @@ export default function ProductsPage() {
     if (!confirm('Delete this product?')) return
     try { await pb.collection(C.PRODUCTS).delete(id); toast.success('Deleted'); loadData() }
     catch { toast.error('Delete failed') }
+  }
+
+  const duplicateProduct = async (p) => {
+    try {
+      const { id, created, updated, collectionId, collectionName, expand, images, ...rest } = p
+      await pb.collection(C.PRODUCTS).create({
+        ...rest,
+        name: `Copy of ${p.name}`,
+        sku: p.sku ? `${p.sku}-COPY` : '',
+        barcode: '',
+        stock_qty: 0,
+        shop_id: shop.id,
+      })
+      toast.success(`"${p.name}" duplicated! Edit the copy to update price/size.`)
+      loadData()
+    } catch { toast.error('Duplicate failed') }
   }
 
   // ── Bulk import CSV upload ──
@@ -317,6 +335,10 @@ export default function ProductsPage() {
               }
             }, 100)
           }}>📋 Share Pricelist</button>
+          <button
+            className={view === 'margin' ? 'btn-primary' : 'btn-secondary'}
+            onClick={() => setView(v => v === 'table' ? 'margin' : 'table')}
+          ><BarChart2 size={15}/> {view === 'margin' ? 'Back to Table' : 'Margin Health'}</button>
           <button className="btn-primary" onClick={openNew}><Plus size={15}/> Add Product</button>
         </div>
 
@@ -353,8 +375,61 @@ export default function ProductsPage() {
         </select>
       </div>
 
+      {/* Margin Health View */}
+      {view === 'margin' && !loading && (
+        <div className="card" style={{ padding: '20px 24px' }}>
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', fontWeight: 700, marginBottom: 4 }}>Margin Health Dashboard</div>
+            <div style={{ fontSize: 13, color: '#9b6070' }}>Products sorted by margin — lowest first. Red = losing money or very low margin. Fix these first.</div>
+          </div>
+          {(() => {
+            const withMargin = filtered
+              .filter(p => p.price_kes > 0 && p.cost_price_kes > 0)
+              .map(p => ({ ...p, margin: ((p.price_kes - p.cost_price_kes) / p.price_kes) * 100 }))
+              .sort((a, b) => a.margin - b.margin)
+            const noMargin = filtered.filter(p => !p.cost_price_kes || p.cost_price_kes === 0)
+            if (withMargin.length === 0 && noMargin.length === 0) return (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: '#9b6070' }}>No products with cost prices set. Add cost prices to see margin health.</div>
+            )
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {withMargin.map(p => {
+                  const pct = Math.round(p.margin)
+                  const barColor = pct <= 0 ? '#dc2626' : pct <= 20 ? '#d97706' : pct <= 40 ? '#ca8a04' : '#059669'
+                  const bgColor  = pct <= 0 ? '#fee2e2' : pct <= 20 ? '#fef3c7' : pct <= 40 ? '#fefce8' : '#f0fdf4'
+                  const cat = categories.find(c => c.id === p.category_id)
+                  return (
+                    <div key={p.id} style={{ background: bgColor, borderRadius: 12, padding: '14px 16px', border: `1px solid ${barColor}22` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                          <div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>{cat?.name || '—'} · {fmtKES(p.price_kes)} sell · {fmtKES(p.cost_price_kes)} cost</div>
+                        </div>
+                        <div style={{ fontWeight: 800, fontSize: 18, color: barColor, marginLeft: 16, flexShrink: 0 }}>{pct}%</div>
+                      </div>
+                      <div style={{ background: 'rgba(0,0,0,0.08)', borderRadius: 6, height: 8, overflow: 'hidden' }}>
+                        <div style={{ width: `${Math.min(Math.max(pct, 0), 100)}%`, height: '100%', background: barColor, borderRadius: 6, transition: 'width 0.4s ease' }} />
+                      </div>
+                      {pct <= 0 && <div style={{ fontSize: 11, color: '#dc2626', fontWeight: 700, marginTop: 6 }}>⚠️ Selling below cost — you lose money on every sale of this item</div>}
+                      {pct > 0 && pct <= 20 && <div style={{ fontSize: 11, color: '#d97706', fontWeight: 600, marginTop: 6 }}>Low margin — consider raising price or negotiating cost with supplier</div>}
+                    </div>
+                  )
+                })}
+                {noMargin.length > 0 && (
+                  <div style={{ background: '#f8f6f2', borderRadius: 12, padding: '14px 16px', border: '1px solid #e5e2db' }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#6b7280', marginBottom: 4 }}>📝 {noMargin.length} product{noMargin.length > 1 ? 's' : ''} with no cost price set</div>
+                    <div style={{ fontSize: 12, color: '#9b6070' }}>{noMargin.map(p => p.name).join(', ')}</div>
+                    <div style={{ fontSize: 11, color: '#9b6070', marginTop: 6 }}>Add cost prices to these products to track their margin.</div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+        </div>
+      )}
+
       {/* Table */}
-      <div className="card" style={{ padding:0 }}>
+      <div className="card" style={{ padding:0, display: view === 'margin' ? 'none' : 'block' }}>
         {loading ? (
           <div style={{ textAlign:'center', padding:48 }}><div className="spinner" style={{ margin:'0 auto' }} /></div>
         ) : (
@@ -400,8 +475,9 @@ export default function ProductsPage() {
                       </td>
                       <td>
                         <div style={{ display:'flex', gap:5 }}>
-                          <button className="btn-ghost" style={{ padding:'4px 8px' }} onClick={()=>openEdit(p)}><Edit2 size={13}/></button>
-                          <button className="btn-ghost" style={{ padding:'4px 8px', color:'#dc2626' }} onClick={()=>handleDelete(p.id)}><Trash2 size={13}/></button>
+                          <button className="btn-ghost" style={{ padding:'4px 8px' }} title="Edit" onClick={()=>openEdit(p)}><Edit2 size={13}/></button>
+                          <button className="btn-ghost" style={{ padding:'4px 8px', color:'#3b82f6' }} title="Duplicate" onClick={()=>duplicateProduct(p)}><Copy size={13}/></button>
+                          <button className="btn-ghost" style={{ padding:'4px 8px', color:'#dc2626' }} title="Delete" onClick={()=>handleDelete(p.id)}><Trash2 size={13}/></button>
                         </div>
                       </td>
                     </tr>

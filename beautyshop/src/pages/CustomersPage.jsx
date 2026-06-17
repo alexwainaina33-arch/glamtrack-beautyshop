@@ -3,7 +3,7 @@ import toast from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDate, fmtDateTime } from '../lib/utils'
-import { Plus, Search, Edit2, Eye, X, User } from 'lucide-react'
+import { Plus, Search, Edit2, Eye, X, User, Download } from 'lucide-react'
 import { format } from 'date-fns'
 
 const EMPTY = { name: '', phone: '', email: '', birthday: '', notes: '' }
@@ -21,6 +21,8 @@ export default function CustomersPage() {
   const [customerSales, setCustomerSales] = useState([])
 
   const [creditSales, setCreditSales] = useState([])
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   useEffect(() => { if (shop && !authLoading) loadData() }, [shop, authLoading])
 
@@ -61,21 +63,48 @@ export default function CustomersPage() {
     finally { setSaving(false) }
   }
 
-  const filtered = customers.filter(c =>
-    !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.phone?.includes(search) || c.email?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = customers.filter(c => {
+    const matchSearch = !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.phone?.includes(search) || c.email?.toLowerCase().includes(search.toLowerCase())
+    const joined = c.created?.slice(0, 10)
+    const matchFrom = !dateFrom || (joined && joined >= dateFrom)
+    const matchTo = !dateTo || (joined && joined <= dateTo)
+    return matchSearch && matchFrom && matchTo
+  })
+
+  const exportCustomersCSV = () => {
+    if (!filtered.length) return toast.error('No customers to export')
+    const rows = filtered.map(c => ({
+      Name: c.name,
+      Phone: c.phone || '',
+      Email: c.email || '',
+      Total_Spent_KES: c.total_spent_kes || 0,
+      Visits: c.visit_count || 0,
+      Loyalty_Points: c.loyalty_points || 0,
+      Birthday: c.birthday ? c.birthday.slice(0, 10) : '',
+      Joined: c.created ? c.created.slice(0, 10) : '',
+    }))
+    const headers = Object.keys(rows[0])
+    const csv = [headers.join(','), ...rows.map(r => headers.map(h => `"${r[h] ?? ''}"`).join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = 'customers.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const totalSpend = customers.reduce((s, c) => s + (c.total_spent_kes || 0), 0)
   const totalVisits = customers.reduce((s, c) => s + (c.visit_count || 0), 0)
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div className="page-title">Customers 👥</div>
           <div className="page-subtitle">{customers.length} customers · {fmtKES(totalSpend)} total spent</div>
         </div>
-        <button className="btn-primary" onClick={() => { setEditing(null); setForm(EMPTY); setShowModal(true) }}><Plus size={16} /> Add Customer</button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn-secondary" onClick={exportCustomersCSV}><Download size={16} /> Export CSV</button>
+          <button className="btn-primary" onClick={() => { setEditing(null); setForm(EMPTY); setShowModal(true) }}><Plus size={16} /> Add Customer</button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -94,9 +123,19 @@ export default function CustomersPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', marginBottom: 12 }}>
           <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#9b6070' }} />
           <input className="input" style={{ paddingLeft: 40 }} placeholder="Search by name, phone, or email…" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label className="label">Joined From</label>
+            <input className="input" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Joined To</label>
+            <input className="input" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          </div>
         </div>
       </div>
 
