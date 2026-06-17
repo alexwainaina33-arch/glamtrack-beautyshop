@@ -63,11 +63,11 @@ export default function InstallBanner() {
         background: '#fff', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 22
-      }}>💅</div>
+      }}>📈</div>
 
       {/* Text */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 14 }}>Install GlamTrack</div>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>Install SalesTrack</div>
         <div style={{ fontSize: 12, opacity: 0.85, marginTop: 1 }}>
           Add to home screen — works without internet
         </div>
