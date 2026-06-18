@@ -1,7 +1,7 @@
 // Enhanced POS: Loyalty, Hold/Resume, Quick-add Customer, Split Payment
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
-import pb, { C } from '../lib/pb'
+import pb, { C, PB_URL } from '../lib/pb'
 import { fmtKES, generateReceiptNo } from '../lib/utils'
 import { calcPointsEarned, calcMaxRedeemable } from '../lib/loyalty'
 import { Search, ScanLine, Plus, Minus, Trash2, CreditCard, Smartphone, Banknote, ShoppingBag, X, User, Tag, PauseCircle, PlayCircle, UserPlus, Split } from 'lucide-react'
@@ -481,7 +481,13 @@ export default function POSPage() {
                   {bestSellerId === p.id && !inCart && (
                     <div style={{ position: 'absolute', top: 6, left: 6, background: 'linear-gradient(135deg,#e6b800,#f59e0b)', color: '#fff', borderRadius: 6, fontSize: 9, fontWeight: 800, padding: '2px 5px', letterSpacing: '0.04em', lineHeight: 1.3 }}>🔥 TOP</div>
                   )}
-                  <div style={{ fontSize: 26, textAlign: 'center' }}>{p.is_service ? '✂️' : '🧴'}</div>
+                  {p.images && p.images.length > 0
+  ? <img src={`${PB_URL}/api/files/${C.PRODUCTS}/${p.id}/${p.images[0]}?thumb=80x80`} alt={p.name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, display: 'block', margin: '0 auto' }} onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='block' }} />
+  : null
+}
+<div style={{ fontSize: 26, textAlign: 'center', display: p.images && p.images.length > 0 ? 'none' : 'block' }}>
+  {p.is_service ? '✂️' : categories.find(c => c.id === p.category_id)?.icon || '📦'}
+</div>
                   <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>{p.name}</div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#c8456a' }}>{fmtKES(p.price_kes)}</div>
                   {p.track_inventory && <div style={{ fontSize: 10, color: p.stock_qty <= 5 ? '#dc2626' : '#9b6070' }}>{out ? '❌ Out' : `${p.stock_qty} left`}</div>}

@@ -7,6 +7,7 @@ export default function MpesaModal({ plan, onClose, onSuccess }) {
   const [step,    setStep]    = useState('input')   // input | waiting | done
   const [checkoutId, setCheckoutId] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [tab,     setTab]     = useState('stk')     // stk | manual
 
   const fmt = (p) => {
     p = p.replace(/\s/g, '')
@@ -110,7 +111,70 @@ export default function MpesaModal({ plan, onClose, onSuccess }) {
           </div>
         </div>
 
-        {step === 'input' && (
+        {/* Tab switcher */}
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 4, marginBottom: 20, gap: 4 }}>
+          <button onClick={() => setTab('stk')} style={{ flex: 1, padding: '8px', borderRadius: 9, border: 'none', background: tab === 'stk' ? 'rgba(76,175,80,0.2)' : 'transparent', color: tab === 'stk' ? '#4caf50' : '#f7c5d055', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+            📲 STK Push
+          </button>
+          <button onClick={() => setTab('manual')} style={{ flex: 1, padding: '8px', borderRadius: 9, border: 'none', background: tab === 'manual' ? 'rgba(230,184,0,0.2)' : 'transparent', color: tab === 'manual' ? '#e6b800' : '#f7c5d055', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+            💸 Send Money
+          </button>
+        </div>
+
+        {tab === 'manual' && (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ background: 'rgba(230,184,0,0.08)', border: '1px solid rgba(230,184,0,0.2)', borderRadius: 14, padding: '20px 16px', marginBottom: 16 }}>
+              <div style={{ color: '#f7c5d066', fontSize: 12, marginBottom: 6 }}>Send M-Pesa to</div>
+              <div style={{ color: '#e6b800', fontWeight: 800, fontSize: 28, letterSpacing: 2, marginBottom: 4 }}>0716 555 043</div>
+              <div style={{ color: '#f7c5d066', fontSize: 12, marginBottom: 16 }}>Alex · SalesTrack</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
+                <span style={{ color: '#f7c5d066', fontSize: 13 }}>Amount</span>
+                <span style={{ color: '#fce8ed', fontWeight: 800, fontSize: 13 }}>KES {plan.price.toLocaleString('en-KE')}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '10px 14px' }}>
+                <span style={{ color: '#f7c5d066', fontSize: 13 }}>Reference</span>
+                <span style={{ color: '#fce8ed', fontWeight: 800, fontSize: 13 }}>{plan.name} Plan</span>
+              </div>
+            </div>
+            <div style={{ color: '#f7c5d055', fontSize: 12, lineHeight: 1.7, marginBottom: 20 }}>
+              After paying, WhatsApp us to activate your account instantly.
+            </div>
+            <button
+              onClick={() => {
+                const msg = encodeURIComponent(
+                  'Hi Alex! 👋\n\nI have paid for SalesTrack *' + plan.name + ' Plan* (' + plan.period + ').\n\n' +
+                  '*Amount:* KES ' + plan.price.toLocaleString('en-KE') + '\n' +
+                  '*My shop:* [your shop name]\n\n' +
+                  'Please activate my account. 🙏'
+                )
+                window.open('https://wa.me/254716555043?text=' + msg, '_blank', 'noopener,noreferrer')
+              }}
+              style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg,#25D366,#128C7E)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+              💬 WhatsApp to Activate →
+            </button>
+            <div style={{ color: '#f7c5d033', fontSize: 11, marginTop: 12 }}>
+              Activation within 30 minutes · Mon–Sat 8am–9pm
+            </div>
+          </div>
+        )}
+
+        {tab === 'stk' && (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🔧</div>
+            <div style={{ color: '#fce8ed', fontWeight: 700, fontSize: 15, marginBottom: 8 }}>
+              STK Push coming soon
+            </div>
+            <div style={{ color: '#f7c5d066', fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>
+              Automatic M-Pesa prompt will be available shortly.<br />
+              Use <strong style={{ color: '#e6b800' }}>Send Money</strong> tab to pay now — activation within 30 minutes.
+            </div>
+            <button onClick={() => setTab('manual')} style={{ padding: '12px 28px', background: 'linear-gradient(135deg,#e6b800,#b45309)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+              💸 Switch to Send Money →
+            </button>
+          </div>
+        )}
+
+        {false && step === 'input' && (
           <>
             <div style={{ marginBottom: 20 }}>
               <label style={{ color: '#f7c5d0aa', fontSize: 13, display: 'block', marginBottom: 8 }}>
@@ -162,7 +226,7 @@ export default function MpesaModal({ plan, onClose, onSuccess }) {
           </>
         )}
 
-        {step === 'waiting' && (
+        {tab === 'stk' && step === 'waiting' && (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{
               width: 56, height: 56, border: '3px solid rgba(76,175,80,0.2)',
@@ -183,7 +247,7 @@ export default function MpesaModal({ plan, onClose, onSuccess }) {
           </div>
         )}
 
-        {step === 'done' && (
+        {tab === 'stk' && step === 'done' && (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
             <div style={{ color: '#4caf50', fontWeight: 800, fontSize: 18, marginBottom: 8 }}>
