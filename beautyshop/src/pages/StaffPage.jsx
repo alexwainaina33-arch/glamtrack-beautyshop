@@ -14,7 +14,8 @@ const COMMISSION_TYPES = [
   { value: 'percent_of_profit', label: '% of Gross Profit' },
   { value: 'flat_per_service', label: 'Flat KES per Service' },
 ]
-const CAT_EMOJI = { hair: '💇', nails: '💅', skin: '✨', body: '💆', lashes: '👁️', makeup: '💄', other: '🌸' }
+const CAT_EMOJI = { hair: '💇', nails: '💅', skin: '✨', body: '💆', lashes: '👁️', makeup: '💄', repairs: '🔧', electronics: '📱', retail: '🛍️', food: '🍽️', other: '🌸' }
+const SERVICE_CATEGORIES = ['hair','nails','skin','body','lashes','makeup','repairs','electronics','retail','food','other']
 
 const calcCommission = (staff, sales) => {
   if (!staff.commission_type || staff.commission_type === 'none') return 0
@@ -62,6 +63,7 @@ export default function StaffPage() {
   const [allSales, setAllSales] = useState([])
   const [admins, setAdmins] = useState([])
   const [attendance, setAttendance] = useState([])
+  const [lastMonthSales, setLastMonthSales] = useState([])
   const [loading, setLoading] = useState(true)
   const [showStaffModal, setShowStaffModal] = useState(false)
   const [showServiceModal, setShowServiceModal] = useState(false)
@@ -101,12 +103,23 @@ export default function StaffPage() {
         }).then(r => r.items.map(sa => sa.expand?.admin_id).filter(Boolean)),
         pb.collection(C.ATTENDANCE).getList(1, 500, { filter: `shop_id="${shop.id}" && date>="${format(startOfMonth(new Date()), 'yyyy-MM-dd')}" && date<="${format(endOfMonth(new Date()), 'yyyy-MM-dd')}"`, sort: '-created', '$cancelKey': 'staff-att' }).then(r => r.items),
       ])
+      // Last month sales for trend arrows
+      const lastMonthStart = format(startOfMonth(new Date(new Date().setMonth(new Date().getMonth() - 1))), 'yyyy-MM-dd')
+      const lastMonthEnd = format(endOfMonth(new Date(new Date().setMonth(new Date().getMonth() - 1))), 'yyyy-MM-dd')
+      let lms = []
+      try {
+        lms = await pb.collection(C.SALES).getList(1, 500, {
+          filter: `shop_id="${shop.id}" && status="completed" && created>="${lastMonthStart} 00:00:00.000Z" && created<="${lastMonthEnd} 23:59:59.999Z"`,
+          '$cancelKey': 'staff-lmsales'
+        }).then(r => r.items)
+      } catch { lms = [] }
       setStaff(stf)
       setServices(svcs)
       setPayouts(pays)
       setAllSales(sales)
       setAdmins(shopAdmins)
       setAttendance(att)
+      setLastMonthSales(lms)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }
@@ -257,6 +270,63 @@ export default function StaffPage() {
   }
 
   const totalMonthlyCommission = staff.reduce((sum, s) => sum + calcCommission(s, getSalesForStaff(s)), 0)
+
+  // Last month sales for a staff member (for trend arrow)
+  const getLastMonthSalesForStaff = (staffMember) => {
+    if (!staffMember.admin_id) return []
+    const lastMonthStart = format(startOfMonth(new Date(new Date().setMonth(new Date().getMonth() - 1))), 'yyyy-MM-dd')
+    const lastMonthEnd = format(endOfMonth(new Date(new Date().setMonth(new Date().getMonth() - 1))), 'yyyy-MM-dd')
+    return lastMonthSales.filter(s => {
+      if (s.served_by !== staffMember.admin_id) return false
+      const d = s.created ? s.created.slice(0, 10) : null
+      if (!d) return true
+      return d >= lastMonthStart && d <= lastMonthEnd
+    })
+  }
+
+  // Broadcast WhatsApp to all active staff
+  const broadcastWhatsApp = () => {
+    const activeWithPhone = staff.filter(s => s.is_active && s.phone)
+    if (activeWithPhone.length === 0) return toast.error('No active staff with phone numbers on file')
+    const msg = encodeURIComponent(
+      `👋 Hi team!\n\n` +
+      `A message from *${shop.name}*:\n\n` +
+      `[Type your message here before sending]\n\n` +
+      `_${shop.name} · Powered by SalesTrack_`
+    )
+    let opened = 0
+    activeWithPhone.forEach((s, i) => {
+      const phone = toWaPhone(s.phone)
+      if (!phone) return
+      setTimeout(() => window.open(`https://wa.me/${phone}?text=${msg}`, '_blank'), i * 600)
+      opened++
+    })
+    toast.success(`Opening WhatsApp for ${opened} staff member${opened !== 1 ? 's' : ''} 📲`)
+  }
+
+  // Staff of the Month — top performer by revenue
+  const staffOfTheMonth = (() => {
+    const ranked = staff.filter(s => s.is_active && s.admin_id).map(s => {
+      const sales = getSalesForStaff(s)
+      return { ...s, revenue: sales.reduce((sum, x) => sum + (x.total_kes || 0), 0) }
+    }).sort((a, b) => b.revenue - a.revenue)
+    return ranked[0]?.revenue > 0 ? ranked[0] : null
+  })()
+
+  const sendStaffOfMonthWhatsApp = () => {
+    if (!staffOfTheMonth) return toast.error('No sales data yet this month')
+    const phone = toWaPhone(staffOfTheMonth.phone)
+    if (!phone) return toast.error('Top performer has no phone number on file')
+    const msg = encodeURIComponent(
+      `🏆 *Congratulations ${staffOfTheMonth.name}!*\n\n` +
+      `You are our *Staff of the Month* for *${format(new Date(), 'MMMM yyyy')}*! 🌟\n\n` +
+      `Revenue Generated\n*${fmtKES(staffOfTheMonth.revenue)}*\n\n` +
+      `Your hard work and dedication make ${shop.name} great. Thank you for everything! 🙏\n\n` +
+      `_${shop.name} · Powered by SalesTrack_`
+    )
+    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank')
+    toast.success(`🏆 Sent Staff of the Month to ${staffOfTheMonth.name}!`)
+  }
   const totalMonthlyRevenue = allSales.filter(s => {
     const d = s.created ? s.created.slice(0, 10) : null
     if (!d) return false
@@ -271,7 +341,19 @@ export default function StaffPage() {
           <div className="page-subtitle">{staff.filter(s => s.is_active).length} active staff · {services.filter(s => s.is_active).length} services · {format(new Date(), 'MMMM yyyy')}</div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          {tab === 0 && <button className="btn-primary" onClick={openAddStaff}><Plus size={16} /> Add Staff</button>}
+          {tab === 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {staffOfTheMonth && (
+                <button onClick={sendStaffOfMonthWhatsApp} style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#d97706,#92400e)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  🏆 Staff of Month
+                </button>
+              )}
+              <button onClick={broadcastWhatsApp} style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid #25D366', background: '#fff', color: '#128C7E', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                📢 Broadcast
+              </button>
+              <button className="btn-primary" onClick={openAddStaff}><Plus size={16} /> Add Staff</button>
+            </div>
+          )}
           {tab === 2 && <button className="btn-primary" onClick={openAddService}><Plus size={16} /> Add Service</button>}
         </div>
       </div>
@@ -416,6 +498,12 @@ export default function StaffPage() {
                 const pct = s.monthly_target_kes > 0 ? Math.round((revenue / s.monthly_target_kes) * 100) : null
                 return { ...s, revenue, commission, salesCount: sales.length, pct }
               })
+              .map(s => {
+                const lastSales = getLastMonthSalesForStaff(s)
+                const lastRevenue = lastSales.reduce((sum, x) => sum + (x.total_kes || 0), 0)
+                const trend = s.revenue > lastRevenue ? 'up' : s.revenue < lastRevenue ? 'down' : 'flat'
+                return { ...s, lastRevenue, trend }
+              })
               .sort((a, b) => b.revenue - a.revenue)
             const topRevenue = ranked[0]?.revenue || 1
             return (
@@ -463,7 +551,12 @@ export default function StaffPage() {
                             {/* Revenue */}
                             <div style={{ textAlign: 'right', flexShrink: 0 }}>
                               <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: isLeader ? '#d97706' : '#c8456a' }}>{fmtKES(s.revenue)}</div>
-                              <div style={{ fontSize: 11, color: '#9b6070' }}>{s.salesCount} sale{s.salesCount !== 1 ? 's' : ''}</div>
+                              <div style={{ fontSize: 11, color: '#9b6070', display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>
+                                {s.trend === 'up' && <span style={{ color: '#059669', fontWeight: 700 }}>▲</span>}
+                                {s.trend === 'down' && <span style={{ color: '#dc2626', fontWeight: 700 }}>▼</span>}
+                                {s.trend === 'flat' && <span style={{ color: '#9b6070' }}>—</span>}
+                                {s.salesCount} sale{s.salesCount !== 1 ? 's' : ''}
+                              </div>
                             </div>
                           </div>
 
@@ -709,6 +802,20 @@ export default function StaffPage() {
                     value={staffForm.commission_value}
                     onChange={e => setStaffForm(f => ({ ...f, commission_value: parseFloat(e.target.value) || 0 }))}
                     placeholder={staffForm.commission_type.includes('percent') ? 'e.g. 10 for 10%' : 'e.g. 200'} />
+                  {(() => {
+                    // Live commission preview using this month's team average revenue
+                    const avgRevenue = staff.length > 0
+                      ? allSales.filter(s => { const d = s.created?.slice(0,10); return d >= thisMonth.from && d <= thisMonth.to }).reduce((sum, s) => sum + s.total_kes, 0) / Math.max(1, staff.filter(s => s.admin_id).length)
+                      : 0
+                    const previewSales = [{ total_kes: avgRevenue, gross_profit_kes: avgRevenue * 0.35 }]
+                    const preview = calcCommission({ commission_type: staffForm.commission_type, commission_value: staffForm.commission_value }, previewSales)
+                    if (preview <= 0 || avgRevenue <= 0) return null
+                    return (
+                      <div style={{ marginTop: 6, background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '7px 12px', fontSize: 12, color: '#92400e', fontWeight: 600 }}>
+                        💡 At current team avg revenue: ~{fmtKES(Math.round(preview))}/month
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
               <div>
@@ -764,7 +871,7 @@ export default function StaffPage() {
                 <div>
                   <label className="label">Category</label>
                   <select className="input" value={svcForm.category} onChange={e => setSvcForm(f => ({ ...f, category: e.target.value }))}>
-                    {['hair','nails','skin','body','lashes','makeup','other'].map(c => <option key={c} value={c}>{CAT_EMOJI[c]} {c}</option>)}
+                    {SERVICE_CATEGORIES.map(c => <option key={c} value={c}>{CAT_EMOJI[c] || '🌸'} {c}</option>)}
                   </select>
                 </div>
                 <div>
