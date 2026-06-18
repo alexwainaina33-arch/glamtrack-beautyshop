@@ -395,11 +395,14 @@ export default function POSPage() {
     finally { setProcessing(false) }
   }
 
+  const activeCategoryName = categories.find(c => c.id === activeCategory)?.name?.toLowerCase() || null
+
   const filtered = products.filter(p => {
+    const pCatName = categories.find(c => c.id === p.category_id)?.name?.toLowerCase() || null
     const mc = activeCategory === 'all'
       || (activeCategory === '__services__' && p.is_service)
-      || (activeCategory !== '__services__' && activeCategory !== 'all' && p.category_id === activeCategory)
-    const ms = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search) || p.sku?.includes(search)
+      || (activeCategory !== '__services__' && activeCategory !== 'all' && pCatName !== null && pCatName === activeCategoryName)
+    const ms = !search || (p.name || '').toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search) || p.sku?.includes(search)
     return mc && ms
   })
 
@@ -451,7 +454,7 @@ export default function POSPage() {
 
       <div className="pos-grid">
         {/* LEFT */}
-        <div className="pos-panel-products" data-mobile-hidden={mobileTab === 'cart'} style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden' }}>
+        <div className="pos-panel-products" data-mobile-hidden={mobileTab === 'cart'} style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden', minHeight: 0 }}>
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ position: 'relative', flex: 1 }}>
               <Search size={14} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: '#9b6070' }} />
@@ -468,7 +471,7 @@ export default function POSPage() {
               </button>
             ))}
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 10, alignContent: 'start' }}>
+          <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 10, alignContent: 'start', minHeight: 0 }}>
             {filtered.map(p => {
               const out = p.track_inventory && p.stock_qty <= 0
               const inCart = cart.find(i => i.id === p.id)

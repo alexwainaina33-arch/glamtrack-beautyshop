@@ -261,9 +261,11 @@ tbody td { padding: 12px 16px; color: #1a1a1f; }
   transition: all 0.2s;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  min-height: 130px;
+  height: auto;
 }
 .product-tile:hover { border-color: #c8456a; box-shadow: 0 4px 20px #c8456a22; transform: translateY(-2px); }
 .product-tile:active { transform: scale(0.97); }
