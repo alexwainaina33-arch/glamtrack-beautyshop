@@ -24,6 +24,7 @@ export const C = {
   COMMISSION_PAYOUTS: 'bs_commission_payouts',
   ATTENDANCE:     'bs_attendance',
   INSIGHTS:       'bs_insights',
+  REPORT_SHARES:  'bs_report_shares',
 }
 
 export default pb

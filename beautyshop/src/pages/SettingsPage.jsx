@@ -74,6 +74,7 @@ export default function SettingsPage() {
         receipt_show_logo:   shop.receipt_show_logo   ?? true,
         receipt_show_tax:    shop.receipt_show_tax    ?? true,
         whatsapp_welcome_msg: shop.whatsapp_welcome_msg || '',
+        opening_capital_kes: shop.opening_capital_kes  || 0,
       })
       setCustomColor(shop.brand_color || '#c8456a')
       loadStaff()
@@ -276,6 +277,11 @@ export default function SettingsPage() {
               <div>
                 <label className="label">VAT Rate (%)</label>
                 <input className="input" type="number" min={0} max={100} step={0.5} value={shopForm.tax_rate||0} onChange={e=>setShopForm(f=>({...f,tax_rate:e.target.value}))} placeholder="16 for standard VAT" />
+              </div>
+              <div style={{ gridColumn:'1/-1' }}>
+                <label className="label">Opening Capital (KES)</label>
+                <input className="input" type="number" min={0} step={1} value={shopForm.opening_capital_kes||0} onChange={e=>setShopForm(f=>({...f,opening_capital_kes:e.target.value}))} placeholder="e.g. 150000" />
+                <div style={{ fontSize:11, color:'#9b6070', marginTop:4 }}>The amount you invested to start this business — cash + value of starting stock/equipment. Set once. Used to calculate your Balance Sheet equity in Reports.</div>
               </div>
             </div>
             <div style={{ paddingTop:8, borderTop:'1px solid #f5edf0' }}>

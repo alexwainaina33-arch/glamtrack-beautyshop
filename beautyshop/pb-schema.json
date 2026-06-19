@@ -1636,6 +1636,21 @@
                 "type": "number"
             },
             {
+                "hidden": false,
+                "id": "bsim_fsrc0",
+                "maxSelect": 1,
+                "name": "funding_source",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "select",
+                "values": [
+                    "cash",
+                    "payable",
+                    "owner_capital"
+                ]
+            },
+            {
                 "autogeneratePattern": "",
                 "hidden": false,
                 "id": "bsim_supnm",
@@ -2020,6 +2035,94 @@
             "CREATE INDEX idx_bs_products_shop ON bs_products (shop_id)",
             "CREATE INDEX idx_bs_products_barcode ON bs_products (barcode)",
             "CREATE INDEX idx_bs_products_status ON bs_products (status)"
+        ],
+        "system": false
+    },
+    {
+        "id": "bscol_rptshare1",
+        "listRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
+        "viewRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
+        "createRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins'",
+        "updateRule": null,
+        "deleteRule": null,
+        "name": "bs_report_shares",
+        "type": "base",
+        "fields": [
+            {
+                "autogeneratePattern": "[a-z0-9]{15}",
+                "hidden": false,
+                "id": "text3208210256",
+                "max": 15,
+                "min": 15,
+                "name": "id",
+                "pattern": "^[a-z0-9]+$",
+                "presentable": false,
+                "primaryKey": true,
+                "required": true,
+                "system": true,
+                "type": "text"
+            },
+            {
+                "cascadeDelete": true,
+                "collectionId": "bscol_shops00001",
+                "hidden": false,
+                "id": "bsrs_shopid",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "shop_id",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsrs_rtype",
+                "max": 50,
+                "min": 0,
+                "name": "report_type",
+                "pattern": "",
+                "presentable": true,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "bsrs_sharedat",
+                "max": "",
+                "min": "",
+                "name": "shared_at",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "date"
+            },
+            {
+                "hidden": false,
+                "id": "autodate2990389176",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            },
+            {
+                "hidden": false,
+                "id": "autodate3332085495",
+                "name": "updated",
+                "onCreate": true,
+                "onUpdate": true,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            }
+        ],
+        "indexes": [
+            "CREATE INDEX idx_bs_report_shares_shop ON bs_report_shares (shop_id)"
         ],
         "system": false
     },
@@ -3180,6 +3283,18 @@
                 "min": 1900,
                 "name": "founded_year",
                 "onlyInt": true,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "bss_opcap",
+                "max": null,
+                "min": 0,
+                "name": "opening_capital_kes",
+                "onlyInt": false,
                 "presentable": false,
                 "required": false,
                 "system": false,

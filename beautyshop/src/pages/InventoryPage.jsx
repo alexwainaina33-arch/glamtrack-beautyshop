@@ -18,6 +18,7 @@ export default function InventoryPage() {
   const [adjustNote, setAdjustNote] = useState('')
   const [adjustCost, setAdjustCost] = useState('')
   const [adjustSupplier, setAdjustSupplier] = useState('')
+  const [adjustFunding, setAdjustFunding] = useState('cash')
   const [saving, setSaving] = useState(false)
   const [filterAlert, setFilterAlert] = useState(false)
   const [valFrom, setValFrom] = useState(() => {
@@ -46,6 +47,7 @@ export default function InventoryPage() {
     setAdjustNote('')
     setAdjustCost(product?.cost_price_kes || '')
     setAdjustSupplier('')
+    setAdjustFunding('cash')
     setShowAdjust(true)
   }
 
@@ -61,6 +63,7 @@ export default function InventoryPage() {
 
       await pb.collection(C.PRODUCTS).update(adjustProduct.id, { stock_qty: newQty })
       const isInbound = ['stock_in', 'return', 'opening_stock'].includes(adjustType)
+      const isPurchase = ['stock_in', 'opening_stock'].includes(adjustType)
       await pb.collection(C.INV_MOVEMENTS).create({
         shop_id: shop.id,
         product_id: adjustProduct.id,
@@ -69,6 +72,7 @@ export default function InventoryPage() {
         before_qty: adjustProduct.stock_qty || 0,
         after_qty: newQty,
         cost_per_unit: isInbound ? Number(adjustCost) || 0 : null,
+        funding_source: isPurchase ? adjustFunding : null,
         supplier_name: adjustSupplier || null,
         notes: adjustNote,
         reference: adjustNote,
@@ -425,6 +429,14 @@ export default function InventoryPage() {
                     <div>
                       <label className="label">Cost per Unit (KES) *</label>
                       <input className="input" type="number" min={0} step="0.01" value={adjustCost} onChange={e => setAdjustCost(e.target.value)} placeholder="What did you pay per unit?" />
+                    </div>
+                    <div>
+                      <label className="label">How did you pay for this stock? *</label>
+                      <select className="input" value={adjustFunding} onChange={e => setAdjustFunding(e.target.value)}>
+                        <option value="cash">💵 Cash / M-Pesa — paid now</option>
+                        <option value="payable">🧾 On Credit — supplier not yet paid</option>
+                        <option value="owner_capital">💼 From my own capital (new investment)</option>
+                      </select>
                     </div>
                     <div>
                       <label className="label">Supplier Name</label>
