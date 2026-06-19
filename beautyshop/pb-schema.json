@@ -533,7 +533,7 @@
         "id": "bscol_attnd0001",
         "listRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
         "viewRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
-        "createRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
+        "createRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && (@request.auth.role = 'owner' || @request.auth.role = 'manager' || @request.auth.role = 'cashier')",
         "updateRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
         "deleteRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id && @request.auth.role = 'owner'",
         "name": "bs_attendance",
@@ -2574,6 +2574,10 @@
                     "body",
                     "lashes",
                     "makeup",
+                    "repairs",
+                    "electronics",
+                    "retail",
+                    "food",
                     "other"
                 ]
             },
@@ -2668,7 +2672,7 @@
         "id": "bscol_sadmin0001",
         "listRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
         "viewRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
-        "createRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && @request.auth.role = 'owner'",
+        "createRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && @request.auth.role = 'owner' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
         "updateRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && @request.auth.role = 'owner' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
         "deleteRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && @request.auth.role = 'owner' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
         "name": "bs_shop_admins",

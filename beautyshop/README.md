@@ -186,3 +186,4 @@ src/
 ---
 
 Built with ❤️ on React + Vite + PocketBase
+
