@@ -455,6 +455,9 @@ export default function LoginPage() {
   const [newAdminName, setNewAdminName] = useState('')
   const [newBizName, setNewBizName] = useState('')
 
+  // Proof of arriving via the landing page's validated lead-capture form
+  const cameFromLandingPage = new URLSearchParams(window.location.search).get('demo') === '1'
+
   const currentBizType = BUSINESS_TYPES.find(b => b.value === bizType)
   const activeBrandColor = brandColor === 'custom' ? customColor : brandColor
 
@@ -523,6 +526,14 @@ export default function LoginPage() {
 
   // ── DEMO LOGIN
   const handleDemoLogin = async () => {
+    // If they didn't arrive via the landing page's validated lead form,
+    // send them there instead of granting access directly. Reuses the
+    // ONE real, country-aware, already-tested lead form rather than
+    // maintaining a second shallow copy of it here.
+    if (!cameFromLandingPage) {
+      window.location.href = '/landing.html#try-demo'
+      return
+    }
     setLoading(true)
     try {
       await login('demo@salestrack.co.ke', 'demo123456')
@@ -758,7 +769,8 @@ export default function LoginPage() {
             <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
           </div>
 
-          {/* Demo login */}
+          {/* Demo login — redirects to the landing page's validated lead
+              form if arriving directly without ?demo=1 in the URL */}
           <button onClick={handleDemoLogin} disabled={loading} style={{
             width: '100%', padding: '11px', borderRadius: 11, border: '1.5px solid rgba(230,184,0,0.3)',
             background: 'rgba(230,184,0,0.08)', color: '#e6b800', fontWeight: 700, fontSize: 13,
@@ -767,14 +779,11 @@ export default function LoginPage() {
           }}>
             <Sparkles size={15} /> Try Demo Account
           </button>
-          <p style={{ textAlign: 'center', color: '#f7c5d033', fontSize: 10, margin: '6px 0 0', letterSpacing: '0.02em' }}>
-            demo@salestrack.co.ke · demo123456
-          </p>
 
           <p style={{ textAlign: 'center', color: '#f7c5d044', fontSize: 11, marginTop: 16, marginBottom: 0 }}>
             New here?{' '}
             <button onClick={() => setMode('register')} style={{ background: 'none', border: 'none', color: '#c8456a', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'Nunito,sans-serif' }}>
-              Start your 14-day free trial →
+              Start your 7-day free trial →
             </button>
           </p>
         </div>
