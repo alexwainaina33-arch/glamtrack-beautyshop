@@ -511,19 +511,30 @@ tbody td { padding: 12px 16px; color: #1a1a1f; }
   .btn-primary,
   .btn-secondary { min-height: 48px; }
 
-  /* Tab nav: horizontal scroll */
+  /* Tab nav: horizontal scroll, always-visible scrollbar + edge fade cue */
+  .tab-nav-wrap {
+    position: relative;
+  }
+  .tab-nav-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 28px;
+    background: linear-gradient(to right, transparent, #f8f4f5 85%);
+    pointer-events: none;
+  }
   .tab-nav {
     overflow-x: auto;
     flex-wrap: nowrap !important;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
-    scrollbar-color: #c8456a66 transparent;
+    scrollbar-color: #c8456a #f0e4e8;
     width: 100% !important;
     max-width: 100% !important;
   }
   .tab-nav::-webkit-scrollbar { display: block; height: 3px; }
-  .tab-nav::-webkit-scrollbar-track { background: transparent; }
-  .tab-nav::-webkit-scrollbar-thumb { background: #c8456a66; border-radius: 3px; }
+  .tab-nav::-webkit-scrollbar-track { background: #f0e4e8; }
+  .tab-nav::-webkit-scrollbar-thumb { background: #c8456a; border-radius: 3px; }
   .tab-nav > button { flex-shrink: 0; }
 }
 
