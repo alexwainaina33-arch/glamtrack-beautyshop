@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Data Processing — SalesTrack</title>
+<meta name="description" content="SalesTrack Data Processing terms — how we process data on behalf of shop owners, sub-processors, and data security commitments."/>
+<meta name="robots" content="index,follow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --rose:#c8456a;--rose-dark:#8b2550;--rose-light:#fce8ed;
+  --gold:#e6b800;--gold-dark:#b38f00;
+  --dark:#1a0a0e;--dark-mid:#3d1020;
+  --white:#fff;--off:#fdf8f9;--muted:#6b4a52;--border:#f0e0e6;
+  --font-serif:'Playfair Display',serif;--font-sans:'Nunito',sans-serif;
+  --max:840px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);color:var(--dark);background:var(--off);line-height:1.7}
+a{color:var(--rose-dark);text-decoration:underline}
+nav{position:sticky;top:0;z-index:50;background:rgba(26,10,14,.96);backdrop-filter:blur(16px);
+  padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:#fce8ed}
+.nav-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--gold),var(--rose));
+  border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nav-logo-icon svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.5}
+.nav-logo-name{font-family:var(--font-serif);font-size:18px;font-weight:700}
+.nav-back{color:rgba(252,232,237,.65);font-size:13px;font-weight:600;text-decoration:none}
+.wrap{max-width:var(--max);margin:0 auto;padding:56px 24px 100px}
+.doc-header{margin-bottom:40px}
+.doc-badge{display:inline-block;background:var(--rose-light);color:var(--rose-dark);
+  font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+  padding:4px 14px;border-radius:20px;margin-bottom:16px}
+h1{font-family:var(--font-serif);font-size:clamp(28px,4vw,40px);font-weight:700;margin-bottom:10px}
+.doc-updated{font-size:13px;color:var(--muted)}
+.doc-body h2{font-family:var(--font-serif);font-size:22px;font-weight:700;margin:40px 0 14px;
+  padding-top:8px;color:var(--dark)}
+.doc-body h3{font-size:15px;font-weight:800;margin:22px 0 8px;color:var(--rose-dark)}
+.doc-body p{font-size:15px;color:#3a2226;margin-bottom:14px}
+.doc-body ul,.doc-body ol{margin:0 0 14px 22px;font-size:15px;color:#3a2226}
+.doc-body li{margin-bottom:7px}
+.doc-body strong{color:var(--dark)}
+.note-box{background:var(--rose-light);border-left:3px solid var(--rose);
+  border-radius:8px;padding:16px 18px;margin:20px 0;font-size:14px;color:#5a2535}
+.table-wrap{overflow-x:auto;margin:18px 0}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:10px 12px;border:1px solid var(--border)}
+th{background:var(--rose-light);color:var(--rose-dark);font-weight:800;font-size:11px;
+  text-transform:uppercase;letter-spacing:.04em}
+td{color:#3a2226}
+.contact-box{background:var(--white);border:1px solid var(--border);border-radius:14px;
+  padding:24px;margin-top:40px}
+.contact-box h3{margin-top:0;font-size:15px;font-weight:800;color:var(--rose-dark)}
+footer{background:var(--dark);padding:32px 24px;text-align:center}
+footer p{color:rgba(252,232,237,.4);font-size:12px}
+footer a{color:rgba(252,232,237,.6)}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">
+    <div class="nav-logo-icon"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+    <span class="nav-logo-name">SalesTrack</span>
+  </a>
+  <a href="/" class="nav-back">← Back to home</a>
+</nav>
+
+<div class="wrap">
+  <div class="doc-header">
+    <span class="doc-badge">Legal</span>
+    <h1>Data Processing</h1>
+    <p class="doc-updated">Last updated: 21 June 2026</p>
+  </div>
+
+  <div class="doc-body">
+
+    <p>This page explains the relationship between SalesTrack and shop owners when it comes to data — specifically, who is responsible for what under data protection law, and how SalesTrack processes data on a shop owner's behalf. It's meant to sit alongside, not replace, our <a href="/legal/privacy.html">Privacy Policy</a> and <a href="/legal/terms.html">Terms of Service</a>.</p>
+
+    <h2>1. Controller and processor roles</h2>
+    <p>Under the Kenya Data Protection Act, 2019 and similar frameworks, two roles matter:</p>
+    <ul>
+      <li><strong>Data Controller</strong> — decides why and how personal data is collected and used. When you run a shop on SalesTrack, <strong>you are the Data Controller</strong> of your own customers' data (their names, phone numbers, purchase history, appointment history, etc.). You decide what to collect from your customers and why.</li>
+      <li><strong>Data Processor</strong> — processes data on the Controller's instructions. <strong>SalesTrack acts as your Data Processor</strong> for your shop's customer data. We store it, back it up, and make it available to you through the app, but we don't decide what your shop collects or why — that's your call as the business owner.</li>
+    </ul>
+    <p>For your own account data as an Account User (your name, email, login, subscription details), SalesTrack is the Data Controller, since we determine why that data is collected — to provide you with the Service.</p>
+
+    <h2>2. What this means in practice</h2>
+    <ul>
+      <li>You are responsible for telling your own customers how their data will be used (for example, that you'll send them a WhatsApp receipt or appointment reminder) and for getting any consent that applies in your jurisdiction</li>
+      <li>We are responsible for keeping the data you enter secure, available, and isolated from other shops on the platform</li>
+      <li>We will not access, use, or share your shop's customer data except as needed to operate the Service, provide support, or comply with the law</li>
+      <li>If your customer asks you to delete their data, contact us and we will help action this within your account, subject to records we are legally required to retain (e.g. completed transaction records for tax purposes)</li>
+    </ul>
+
+    <h2>3. Sub-processors</h2>
+    <p>We use a small number of trusted infrastructure providers to deliver the Service. These are our sub-processors:</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Sub-processor</th><th>Purpose</th><th>Data involved</th></tr>
+        <tr><td>Fly.io (hosting our PocketBase database)</td><td>Stores all application data</td><td>All Account User and End Customer data</td></tr>
+        <tr><td>Vercel</td><td>Hosts the web application and serverless payment functions</td><td>Application code and traffic; payment requests pass through but are not stored by Vercel</td></tr>
+        <tr><td>Safaricom (M-Pesa Daraja API)</td><td>Processes M-Pesa payments</td><td>Phone number, transaction amount, payment confirmation</td></tr>
+        <tr><td>Kenya Revenue Authority (eTIMS)</td><td>Tax compliance, for shops with eTIMS enabled</td><td>Sales transaction data required by law</td></tr>
+      </table>
+    </div>
+    <p>We will notify active Account Users if we add a new sub-processor that materially changes how shop data is handled.</p>
+
+    <h2>4. Immutable transaction records</h2>
+    <p>A core part of how SalesTrack works: once a sale or stock movement is recorded, it cannot be edited or deleted by anyone — including the shop owner and SalesTrack staff. This is intentional. It protects shop owners from internal fraud or accidental data loss, and it's what makes financial reports (like our Lender Pack feature) credible to banks and lenders. If you need to correct an error, the system requires a new offsetting entry (such as a return or adjustment) rather than altering history. This is a permanent feature of the Service, not a configurable setting.</p>
+
+    <h2>5. Data location</h2>
+    <p>Your data is hosted on infrastructure that may be located outside Kenya, depending on our hosting providers' data center locations. We select providers that maintain strong security practices, and we apply the same data protection standards regardless of physical server location.</p>
+
+    <h2>6. Security measures</h2>
+    <ul>
+      <li>Encryption in transit (HTTPS/TLS) for all data sent to and from SalesTrack</li>
+      <li>Passwords stored using one-way hashing, never in plain text</li>
+      <li>Strict server-side access rules ensuring shop data is only visible to authenticated users belonging to that shop</li>
+      <li>Daily backups of the underlying database</li>
+      <li>Secrets (such as M-Pesa API credentials) are never exposed in client-side code — they are handled exclusively in secure server-side functions</li>
+    </ul>
+
+    <h2>7. Data export and portability</h2>
+    <p>You can export your shop's sales, customer, and financial data as CSV at any time from within the app. This means your data is never locked in — if you choose to stop using SalesTrack, you can take a copy of your business records with you.</p>
+
+    <h2>8. Breach notification</h2>
+    <p>If we become aware of a security incident affecting your shop's data, we will notify you without undue delay, with information about what happened, what data was affected, and what steps we are taking, consistent with our obligations under the Kenya Data Protection Act.</p>
+
+    <h2>9. Your obligations as a Data Controller</h2>
+    <p>As the shop owner, please:</p>
+    <ul>
+      <li>Only collect customer data you actually need to run your business</li>
+      <li>Be transparent with your customers about how you use their data (for example, mention WhatsApp reminders or digital receipts)</li>
+      <li>Don't use SalesTrack to store sensitive personal data you don't need (e.g. national ID numbers, medical records) unless your business type genuinely requires it and you have a lawful basis to do so</li>
+      <li>Respond reasonably to your own customers' requests about their data, with our support where needed</li>
+    </ul>
+
+    <div class="note-box">
+      <strong>In short:</strong> you run your shop and decide what data to collect from your customers. We keep that data safe, isolated from other shops, and available to you — and we never use it for anything beyond running the Service for you.
+    </div>
+
+    <div class="contact-box">
+      <h3>Questions about data processing?</h3>
+      <p style="margin-bottom:6px;font-size:14px">Email: <a href="mailto:info@doublexsoftware.com">info@doublexsoftware.com</a></p>
+      <p style="margin-bottom:0;font-size:14px">WhatsApp: <a href="https://wa.me/254716555043" target="_blank" rel="noopener">+254 716 555 043</a></p>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <p>© 2026 SalesTrack. <a href="/">Back to home</a> · <a href="/legal/privacy.html">Privacy Policy</a> · <a href="/legal/terms.html">Terms of Service</a> · <a href="/legal/cookies.html">Cookie Policy</a></p>
+</footer>
+
+</body>
+</html>

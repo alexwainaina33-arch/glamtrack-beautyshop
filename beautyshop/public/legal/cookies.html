@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Cookie Policy — SalesTrack</title>
+<meta name="description" content="SalesTrack Cookie Policy — what local storage and cookies we use and why."/>
+<meta name="robots" content="index,follow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --rose:#c8456a;--rose-dark:#8b2550;--rose-light:#fce8ed;
+  --gold:#e6b800;--gold-dark:#b38f00;
+  --dark:#1a0a0e;--dark-mid:#3d1020;
+  --white:#fff;--off:#fdf8f9;--muted:#6b4a52;--border:#f0e0e6;
+  --font-serif:'Playfair Display',serif;--font-sans:'Nunito',sans-serif;
+  --max:840px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);color:var(--dark);background:var(--off);line-height:1.7}
+a{color:var(--rose-dark);text-decoration:underline}
+nav{position:sticky;top:0;z-index:50;background:rgba(26,10,14,.96);backdrop-filter:blur(16px);
+  padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:#fce8ed}
+.nav-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--gold),var(--rose));
+  border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nav-logo-icon svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.5}
+.nav-logo-name{font-family:var(--font-serif);font-size:18px;font-weight:700}
+.nav-back{color:rgba(252,232,237,.65);font-size:13px;font-weight:600;text-decoration:none}
+.wrap{max-width:var(--max);margin:0 auto;padding:56px 24px 100px}
+.doc-header{margin-bottom:40px}
+.doc-badge{display:inline-block;background:var(--rose-light);color:var(--rose-dark);
+  font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+  padding:4px 14px;border-radius:20px;margin-bottom:16px}
+h1{font-family:var(--font-serif);font-size:clamp(28px,4vw,40px);font-weight:700;margin-bottom:10px}
+.doc-updated{font-size:13px;color:var(--muted)}
+.doc-body h2{font-family:var(--font-serif);font-size:22px;font-weight:700;margin:40px 0 14px;
+  padding-top:8px;color:var(--dark)}
+.doc-body p{font-size:15px;color:#3a2226;margin-bottom:14px}
+.doc-body ul{margin:0 0 14px 22px;font-size:15px;color:#3a2226}
+.doc-body li{margin-bottom:7px}
+.doc-body strong{color:var(--dark)}
+.note-box{background:var(--rose-light);border-left:3px solid var(--rose);
+  border-radius:8px;padding:16px 18px;margin:20px 0;font-size:14px;color:#5a2535}
+.table-wrap{overflow-x:auto;margin:18px 0}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:10px 12px;border:1px solid var(--border)}
+th{background:var(--rose-light);color:var(--rose-dark);font-weight:800;font-size:11px;
+  text-transform:uppercase;letter-spacing:.04em}
+td{color:#3a2226}
+.contact-box{background:var(--white);border:1px solid var(--border);border-radius:14px;
+  padding:24px;margin-top:40px}
+.contact-box h3{margin-top:0;font-size:15px;font-weight:800;color:var(--rose-dark)}
+footer{background:var(--dark);padding:32px 24px;text-align:center}
+footer p{color:rgba(252,232,237,.4);font-size:12px}
+footer a{color:rgba(252,232,237,.6)}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">
+    <div class="nav-logo-icon"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+    <span class="nav-logo-name">SalesTrack</span>
+  </a>
+  <a href="/" class="nav-back">← Back to home</a>
+</nav>
+
+<div class="wrap">
+  <div class="doc-header">
+    <span class="doc-badge">Legal</span>
+    <h1>Cookie Policy</h1>
+    <p class="doc-updated">Last updated: 21 June 2026</p>
+  </div>
+
+  <div class="doc-body">
+
+    <p>This Cookie Policy explains what cookies and similar local storage technologies SalesTrack uses, and why. We've kept this short because, honestly, we don't use very many.</p>
+
+    <div class="note-box">
+      <strong>The short version:</strong> we don't use advertising or tracking cookies, and we don't sell your browsing data to anyone. The few things we store locally on your device exist to keep you logged in and let the app work offline.
+    </div>
+
+    <h2>1. What we use, and why</h2>
+    <div class="table-wrap">
+      <table>
+        <tr><th>What</th><th>Purpose</th><th>Type</th></tr>
+        <tr><td>Authentication session</td><td>Keeps you logged in between visits, so you don't have to sign in every time</td><td>Essential</td></tr>
+        <tr><td>Offline sales queue</td><td>Stores sales made while you're offline (in-browser database) so they can sync once you're back online</td><td>Essential — functional</td></tr>
+        <tr><td>Cached products &amp; categories</td><td>Lets the point-of-sale screen keep working without an internet connection</td><td>Essential — functional</td></tr>
+        <tr><td>PWA install status</td><td>Remembers whether you've installed SalesTrack to your home screen, so we don't keep asking</td><td>Functional</td></tr>
+        <tr><td>Dismissed banners / tips</td><td>Remembers if you've closed a banner or seen a tip, for that session</td><td>Functional</td></tr>
+      </table>
+    </div>
+
+    <h2>2. What we do NOT use</h2>
+    <ul>
+      <li>No third-party advertising cookies</li>
+      <li>No cross-site tracking pixels</li>
+      <li>No sale of your browsing behavior to data brokers or ad networks</li>
+      <li>No social media tracking cookies embedded on your dashboard (our share buttons link out directly to WhatsApp, Facebook, etc. — they don't track you while you're using SalesTrack)</li>
+    </ul>
+
+    <h2>3. Third-party services</h2>
+    <p>Some parts of the Service load resources from third parties, which may set their own minimal technical cookies:</p>
+    <ul>
+      <li><strong>Google Fonts</strong> — used to display our typography</li>
+      <li><strong>M-Pesa (Safaricom Daraja)</strong> — used only during payment, on Safaricom's own payment pages</li>
+    </ul>
+    <p>These providers are responsible for their own cookie practices on their own pages.</p>
+
+    <h2>4. Managing local storage</h2>
+    <p>Because we use local storage for essential functions like offline sales and staying logged in, clearing your browser's site data for SalesTrack will log you out and may affect any sales that haven't yet synced. We recommend only clearing this if instructed by our support team, or after confirming any pending offline sales have synced.</p>
+
+    <h2>5. Changes to this policy</h2>
+    <p>If what we store locally changes — for example, if we add a new feature that needs local storage — we'll update this page and the "Last updated" date above.</p>
+
+    <div class="contact-box">
+      <h3>Questions?</h3>
+      <p style="margin-bottom:6px;font-size:14px">Email: <a href="mailto:info@doublexsoftware.com">info@doublexsoftware.com</a></p>
+      <p style="margin-bottom:0;font-size:14px">WhatsApp: <a href="https://wa.me/254716555043" target="_blank" rel="noopener">+254 716 555 043</a></p>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <p>© 2026 SalesTrack. <a href="/">Back to home</a> · <a href="/legal/privacy.html">Privacy Policy</a> · <a href="/legal/terms.html">Terms of Service</a> · <a href="/legal/data-processing.html">Data Processing</a></p>
+</footer>
+
+</body>
+</html>
