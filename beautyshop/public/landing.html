@@ -324,6 +324,12 @@ section{padding:88px 24px}
   color:#1a0a0e;border:none;font-size:14px;font-weight:800;cursor:pointer;
   font-family:var(--font-sans);transition:all .2s;min-height:48px}
 .aff-cta-btn:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(230,184,0,.38)}
+.aff-input{padding:12px 14px;border-radius:11px;border:1.5px solid var(--border);
+  background:#fff;color:var(--dark);font-size:14px;font-family:var(--font-sans);
+  outline:none;width:100%;box-sizing:border-box;transition:border-color .2s;
+  -webkit-appearance:none}
+.aff-input:focus{border-color:var(--rose)}
+select.aff-input{cursor:pointer}
 
 /* ─── TESTIMONIALS ────────────────────────────── */
 .testimonials{background:var(--off)}
@@ -947,7 +953,7 @@ footer{background:var(--dark);padding:64px 24px 32px;
         <div class="plan-feat miss"><div class="plan-feat-check">✗</div>AI smart analytics</div>
         <div class="plan-feat miss"><div class="plan-feat-check">✗</div>Staff commissions</div>
         <div class="plan-feat miss"><div class="plan-feat-check">✗</div>Multi-branch</div>
-        <a href="/login" class="plan-btn plan-btn-outline" style="margin-top:20px">Start Starter →</a>
+        <a href="/pricing?plan=starter" class="plan-btn plan-btn-outline" style="margin-top:20px">Start Starter →</a>
       </div>
 
       <div class="plan-card popular">
@@ -964,7 +970,7 @@ footer{background:var(--dark);padding:64px 24px 32px;
         <div class="plan-feat"><div class="plan-feat-check" style="background:rgba(200,69,106,.28)">✓</div>Lender Pack</div>
         <div class="plan-feat"><div class="plan-feat-check" style="background:rgba(200,69,106,.28)">✓</div>Priority support</div>
         <div class="plan-feat miss"><div class="plan-feat-check">✗</div>Multi-branch</div>
-        <a href="/login" class="plan-btn plan-btn-primary" style="margin-top:20px">Start Growth →</a>
+        <a href="/pricing?plan=growth" class="plan-btn plan-btn-primary" style="margin-top:20px">Start Growth →</a>
       </div>
 
       <div class="plan-card">
@@ -978,7 +984,7 @@ footer{background:var(--dark);padding:64px 24px 32px;
         <div class="plan-feat"><div class="plan-feat-check">✓</div>Dedicated support</div>
         <div class="plan-feat"><div class="plan-feat-check">✓</div>Custom reports</div>
         <div class="plan-feat"><div class="plan-feat-check">✓</div>API access</div>
-        <a href="/login" class="plan-btn plan-btn-outline" style="margin-top:20px">Start Enterprise →</a>
+        <a href="/pricing?plan=enterprise" class="plan-btn plan-btn-outline" style="margin-top:20px">Start Enterprise →</a>
       </div>
 
     </div>
@@ -1022,9 +1028,18 @@ footer{background:var(--dark);padding:64px 24px 32px;
 
       <div id="affFormWrap">
         <div style="display:flex;flex-direction:column;gap:10px;margin-top:18px">
-          <input class="lf-input-light" id="af-name" type="text" placeholder="Your full name" style="border:1.5px solid var(--border);background:#fff;color:var(--dark)"/>
-          <input class="lf-input-light" id="af-phone" type="tel" placeholder="WhatsApp / phone number" style="border:1.5px solid var(--border);background:#fff;color:var(--dark)"/>
-          <textarea id="af-why" rows="2" placeholder="Who do you plan to refer? (shops, salons, your network...)" style="padding:12px 14px;border-radius:11px;border:1.5px solid var(--border);background:#fff;color:var(--dark);font-size:14px;font-family:'Nunito',sans-serif;resize:vertical"></textarea>
+          <input id="af-name" type="text" placeholder="Your full name" class="aff-input"/>
+          <select id="af-country" class="aff-input" onchange="updateAffPhoneHint()">
+            <option value="KE">🇰🇪 Kenya</option>
+            <option value="UG">🇺🇬 Uganda</option>
+            <option value="TZ">🇹🇿 Tanzania</option>
+            <option value="ET">🇪🇹 Ethiopia</option>
+            <option value="RW">🇷🇼 Rwanda</option>
+            <option value="OTHER">🌍 Other country</option>
+          </select>
+          <input id="af-phone" type="tel" placeholder="e.g. 0712345678" class="aff-input"/>
+          <div id="af-phone-hint" style="font-size:11px;color:var(--muted);margin-top:-4px">Accepted format: 0712345678 or +254712345678</div>
+          <textarea id="af-why" rows="2" placeholder="Who do you plan to refer? (shops, salons, your network...)" class="aff-input" style="resize:vertical"></textarea>
         </div>
         <button class="aff-cta-btn" id="affSubmitBtn" onclick="submitAffiliateLead()" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px">
           <span id="affBtnText">✦ Apply to join the affiliate programme →</span>
@@ -1151,8 +1166,20 @@ footer{background:var(--dark);padding:64px 24px 32px;
           <input class="lf-input" id="lf-name" type="text" placeholder="Jane Wanjiku" required autocomplete="name"/>
         </div>
         <div class="lf-group">
+          <label class="lf-label" for="lf-country">Country *</label>
+          <select class="lf-input" id="lf-country" required onchange="updateLfPhoneHint()">
+            <option value="KE">🇰🇪 Kenya</option>
+            <option value="UG">🇺🇬 Uganda</option>
+            <option value="TZ">🇹🇿 Tanzania</option>
+            <option value="ET">🇪🇹 Ethiopia</option>
+            <option value="RW">🇷🇼 Rwanda</option>
+            <option value="OTHER">🌍 Other country</option>
+          </select>
+        </div>
+        <div class="lf-group">
           <label class="lf-label" for="lf-phone">WhatsApp / phone number *</label>
-          <input class="lf-input" id="lf-phone" type="tel" placeholder="+254 7xx xxx xxx" required autocomplete="tel"/>
+          <input class="lf-input" id="lf-phone" type="tel" placeholder="e.g. 0712345678" required autocomplete="tel"/>
+          <div id="lf-phone-hint" style="font-size:11px;color:rgba(252,232,237,.4);margin-top:2px">Accepted format: 0712345678 or +254712345678</div>
         </div>
         <div class="lf-group">
           <label class="lf-label" for="lf-btype">Type of business *</label>
@@ -1171,7 +1198,7 @@ footer{background:var(--dark);padding:64px 24px 32px;
         </div>
         <div class="lf-group">
           <label class="lf-label" for="lf-town">Town / City *</label>
-          <input class="lf-input" id="lf-town" type="text" placeholder="e.g. Kenya, Uganda, Tanzania" required/>
+          <input class="lf-input" id="lf-town" type="text" placeholder="e.g. Nairobi, Kampala, Dodoma" required/>
         </div>
         <div class="lf-group full">
           <label class="lf-label" for="lf-bname">Business name (optional)</label>
@@ -1351,9 +1378,49 @@ document.querySelectorAll('a[href^="#"]').forEach(function(a){
 /* ── LEAD CAPTURE FORM ── */
 var ST_PB = new PocketBase('https://fieldtrack-kenya.fly.dev');
 
-function validKenyanPhone(raw){
+var COUNTRY_PHONE_RULES = {
+  KE: { code:'+254', trunk:/^0[71]/, full:/^(?:\+254|254)[71]\d{8}$/, example:'0712345678 or +254712345678' },
+  UG: { code:'+256', trunk:/^0[7]/,  full:/^(?:\+256|256)7\d{8}$/,     example:'0712345678 or +256712345678' },
+  TZ: { code:'+255', trunk:/^0[67]/, full:/^(?:\+255|255)[67]\d{8}$/,  example:'0712345678 or +255712345678' },
+  ET: { code:'+251', trunk:/^0[9]/,  full:/^(?:\+251|251)9\d{8}$/,     example:'0912345678 or +251912345678' },
+  RW: { code:'+250', trunk:/^0[7]/,  full:/^(?:\+250|250)7\d{8}$/,     example:'0712345678 or +250712345678' },
+  OTHER: { code:'', trunk:/^/, full:/^\+?\d{7,15}$/, example:'include your country code, e.g. +44...' },
+};
+
+function validPhoneForCountry(raw, countryKey){
+  var rule = COUNTRY_PHONE_RULES[countryKey] || COUNTRY_PHONE_RULES.OTHER;
   var clean = raw.replace(/[\s-]/g,'');
-  return /^(?:\+254|254|0)[71]\d{8}$/.test(clean);
+  if(countryKey === 'OTHER') return rule.full.test(clean);
+  // Accept either local trunk format (0xxxxxxxxx) or full international format
+  var localDigitsOnly = clean.replace(/^0/, '');
+  var asInternational = rule.code + localDigitsOnly;
+  return rule.full.test(clean) || (rule.trunk.test(clean) && rule.full.test(asInternational));
+}
+
+function normalizePhoneForCountry(raw, countryKey){
+  var rule = COUNTRY_PHONE_RULES[countryKey] || COUNTRY_PHONE_RULES.OTHER;
+  var clean = raw.replace(/[\s-]/g,'');
+  if(countryKey === 'OTHER') return clean.indexOf('+') === 0 ? clean : '+' + clean;
+  if(clean.indexOf('+') === 0) return clean;
+  if(clean.indexOf(rule.code.replace('+','')) === 0) return '+' + clean;
+  return rule.code + clean.replace(/^0/, '');
+}
+
+function phoneErrorMessage(countryKey){
+  var rule = COUNTRY_PHONE_RULES[countryKey] || COUNTRY_PHONE_RULES.OTHER;
+  return 'Please enter a valid phone number for your country, e.g. ' + rule.example + '.';
+}
+
+function updateLfPhoneHint(){
+  var country = document.getElementById('lf-country').value;
+  var rule = COUNTRY_PHONE_RULES[country] || COUNTRY_PHONE_RULES.OTHER;
+  document.getElementById('lf-phone-hint').textContent = 'Accepted format: ' + rule.example;
+}
+
+function updateAffPhoneHint(){
+  var country = document.getElementById('af-country').value;
+  var rule = COUNTRY_PHONE_RULES[country] || COUNTRY_PHONE_RULES.OTHER;
+  document.getElementById('af-phone-hint').textContent = 'Accepted format: ' + rule.example;
 }
 
 function looksFakeName(raw){
@@ -1366,6 +1433,7 @@ function looksFakeName(raw){
 
 async function submitLead(){
   var name=document.getElementById('lf-name').value.trim();
+  var country=document.getElementById('lf-country').value;
   var phone=document.getElementById('lf-phone').value.trim();
   var btype=document.getElementById('lf-btype').value;
   var town=document.getElementById('lf-town').value.trim();
@@ -1379,8 +1447,8 @@ async function submitLead(){
     alert('Please enter your real full name — we use this to follow up and help you get set up.');
     return;
   }
-  if(!validKenyanPhone(phone)){
-    alert('Please enter a valid Kenyan phone number, e.g. 0712345678 or +254712345678.');
+  if(!validPhoneForCountry(phone, country)){
+    alert(phoneErrorMessage(country));
     return;
   }
   if(town.length<2){
@@ -1395,7 +1463,7 @@ async function submitLead(){
   btnText.style.display='none';
   spinner.style.display='inline-block';
 
-  var phoneNorm = phone.replace(/[\s-]/g,'').replace(/^0/,'+254').replace(/^254/,'+254');
+  var phoneNorm = normalizePhoneForCountry(phone, country);
 
   try{
     await ST_PB.collection('bs_demo_leads').create({
@@ -1429,6 +1497,7 @@ document.querySelectorAll('.lf-input').forEach(function(inp){
 /* ── AFFILIATE APPLICANT LEAD CAPTURE ── */
 async function submitAffiliateLead(){
   var name=document.getElementById('af-name').value.trim();
+  var country=document.getElementById('af-country').value;
   var phone=document.getElementById('af-phone').value.trim();
   var why=document.getElementById('af-why').value.trim();
 
@@ -1440,8 +1509,8 @@ async function submitAffiliateLead(){
     alert('Please enter your real full name.');
     return;
   }
-  if(!validKenyanPhone(phone)){
-    alert('Please enter a valid Kenyan phone number, e.g. 0712345678 or +254712345678.');
+  if(!validPhoneForCountry(phone, country)){
+    alert(phoneErrorMessage(country));
     return;
   }
 
@@ -1452,7 +1521,7 @@ async function submitAffiliateLead(){
   btnText.style.display='none';
   spinner.style.display='inline-block';
 
-  var phoneNorm = phone.replace(/[\s-]/g,'').replace(/^0/,'+254').replace(/^254/,'+254');
+  var phoneNorm = normalizePhoneForCountry(phone, country);
 
   try{
     await ST_PB.collection('bs_affiliate_leads').create({
