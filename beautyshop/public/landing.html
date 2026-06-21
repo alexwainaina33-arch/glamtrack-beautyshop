@@ -1086,13 +1086,13 @@ footer{background:var(--dark);padding:64px 24px 32px;
         <span class="proof-pill" style="background:var(--rose-light);border-color:#f5c0cc;color:var(--rose-dark)">🇷🇼 Rwanda</span>
       </div>
     </div>
-    <div class="testi-grid">
+    <div class="testi-grid" id="testiGrid">
       <div class="testi-card">
         <div class="testi-stars">★★★★★</div>
         <p class="testi-text">"We used the bulk import feature and had all our products onboarded in seconds — our stock is live and accurate now, not stuck on paper."</p>
         <div class="testi-author">
           <div class="testi-avatar">B</div>
-          <div><div class="testi-name">Beltronix Phones &amp; Accessories</div><div class="testi-biz">Electronics & Repairs</div></div>
+          <div><div class="testi-name">Beltronix Phones &amp; Accessories</div><div class="testi-biz">Electronics & Repairs · Kenya</div></div>
         </div>
       </div>
       <div class="testi-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:180px;border-style:dashed;border-color:var(--border);background:var(--off)">
@@ -1103,6 +1103,9 @@ footer{background:var(--dark);padding:64px 24px 32px;
         <div style="font-size:32px;margin-bottom:10px;opacity:.4">🏪</div>
         <p style="font-size:13px;color:var(--muted);margin:0">Be one of the first to share your results.</p>
       </div>
+    </div>
+    <div style="text-align:center;margin-top:32px">
+      <a href="/feedback.html" style="font-size:13px;color:var(--rose-dark);font-weight:700;text-decoration:underline">Are you a SalesTrack shop owner? Share your experience →</a>
     </div>
   </div>
 </section>
@@ -1404,6 +1407,60 @@ document.querySelectorAll('a[href^="#"]').forEach(function(a){
 
 /* ── LEAD CAPTURE FORM ── */
 var ST_PB = new PocketBase('https://fieldtrack-kenya.fly.dev');
+
+/* ── DYNAMIC TESTIMONIALS (approved only) ── */
+var COUNTRY_NAMES = { KE:'Kenya', UG:'Uganda', TZ:'Tanzania', ET:'Ethiopia', RW:'Rwanda', OTHER:'' };
+
+function escapeHtml(str){
+  var d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function buildTestiCard(t){
+  var stars = '★★★★★'.slice(0, t.rating) + '☆☆☆☆☆'.slice(0, 5 - t.rating);
+  var initial = (t.business_name || '?').trim().charAt(0).toUpperCase();
+  var countryName = COUNTRY_NAMES[t.country] || '';
+  var bizLine = escapeHtml(t.business_type) + (countryName ? ' · ' + escapeHtml(countryName) : '');
+  return '<div class="testi-card">' +
+    '<div class="testi-stars">' + stars + '</div>' +
+    '<p class="testi-text">"' + escapeHtml(t.quote) + '"</p>' +
+    '<div class="testi-author">' +
+      '<div class="testi-avatar">' + escapeHtml(initial) + '</div>' +
+      '<div><div class="testi-name">' + escapeHtml(t.business_name) + '</div>' +
+      '<div class="testi-biz">' + bizLine + '</div></div>' +
+    '</div></div>';
+}
+
+var PLACEHOLDER_CARD = '<div class="testi-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:180px;border-style:dashed;border-color:var(--border);background:var(--off)">' +
+  '<div style="font-size:32px;margin-bottom:10px;opacity:.4">🏪</div>' +
+  '<p style="font-size:13px;color:var(--muted);margin:0">Your shop\'s story could be here next.</p></div>';
+
+async function loadTestimonials(){
+  var grid = document.getElementById('testiGrid');
+  if(!grid) return;
+  try{
+    var result = await ST_PB.collection('bs_testimonials').getList(1, 8, {
+      filter: 'approved = true',
+      sort: '-featured,-created',
+      '$cancelKey': 'testimonials-load'
+    });
+    if(!result.items || result.items.length === 0) return; // keep the existing static fallback markup as-is
+
+    var html = '';
+    result.items.slice(0, 6).forEach(function(t){ html += buildTestiCard(t); });
+    var minCards = 3;
+    var shown = Math.min(result.items.length, 6);
+    for(var i = shown; i < minCards; i++){ html += PLACEHOLDER_CARD; }
+
+    grid.innerHTML = html;
+  }catch(err){
+    // Fetch failed (offline, server cold-start, etc) — silently keep the
+    // static fallback already in the page. Never show an error here.
+    console.error('Testimonials load failed:', err);
+  }
+}
+loadTestimonials();
 
 var COUNTRY_PHONE_RULES = {
   KE: { code:'+254', trunk:/^0[71]/, full:/^(?:\+254|254)[71]\d{8}$/, example:'0712345678 or +254712345678' },

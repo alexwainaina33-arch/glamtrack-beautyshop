@@ -550,6 +550,57 @@ function TomorrowsBanner({ shop, onViewAppointments }) {
   )
 }
 
+// ─── FEEDBACK PROMPT BANNER ───────────────────────────────────────
+function FeedbackPromptBanner({ shop, hasSales }) {
+  const [dismissed, setDismissed] = useState(false)
+
+  if (!shop || !hasSales || dismissed) return null
+
+  const storageKey = `feedback_banner_dismissed_${shop.id}`
+  if (localStorage.getItem(storageKey)) return null
+
+  const shopAgeDays = shop.created
+    ? Math.floor((Date.now() - new Date(shop.created).getTime()) / 86400000)
+    : 0
+  if (shopAgeDays < 0) return null
+
+  const dismiss = () => {
+    localStorage.setItem(storageKey, '1')
+    setDismissed(true)
+  }
+
+  const openFeedback = () => {
+    localStorage.setItem(storageKey, '1')
+    window.open('/feedback.html', '_blank', 'noopener,noreferrer')
+    setDismissed(true)
+  }
+
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg,#f5f3ff,#ede9fe)',
+      border: '1.5px solid #ddd6fe',
+      borderRadius: 14, padding: '14px 20px', marginBottom: 20,
+      display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+    }}>
+      <div style={{ fontSize: 26, flexShrink: 0 }}>💬</div>
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: '#5b21b6' }}>
+          You've been with SalesTrack a month now — how's it going?
+        </div>
+        <div style={{ fontSize: 12, color: '#7c3aed', marginTop: 2 }}>
+          Takes 2 minutes, and your shop could be featured on our website.
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <button onClick={openFeedback} style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: '#7c3aed', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+          💬 Share Feedback →
+        </button>
+        <button onClick={dismiss} style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #ddd6fe', background: 'transparent', color: '#7c3aed', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>✕</button>
+      </div>
+    </div>
+  )
+}
+
 // ─── REVENUE FORECAST WIDGET ─────────────────────────────────────
 function RevenueForecastWidget({ shop }) {
   const [forecast, setForecast] = useState(null)
@@ -981,6 +1032,8 @@ export default function DashboardPage() {
   const [hourData, setHourData]       = useState([])
   const [insightMemory, setInsightMemory] = useState(null)
   const [assistantData, setAssistantData] = useState(null)
+  const [hasLifetimeSales, setHasLifetimeSales] = useState(false)
+  const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => { if (shop) loadAll() }, [shop, period])
 
@@ -1079,6 +1132,15 @@ export default function DashboardPage() {
         setAvgDailyRevenue(totalRev30 / 30)
       } catch { setAvgDailyRevenue(0) }
 
+      // Lifetime sales check — feedback banner gate (cheap totalItems-only read)
+      try {
+        const lifetime = await pb.collection(C.SALES).getList(1, 1, {
+          filter: `shop_id="${shop.id}" && status="completed"`,
+          '$autoCancel': false, '$cancelKey': 'dash-feedback-gate'
+        })
+        setHasLifetimeSales(lifetime.totalItems > 0)
+      } catch { setHasLifetimeSales(false) }
+
       // Chart
       if (period === 'today') {
         setSalesChart(Array.from({ length: 12 }, (_, i) => {
@@ -1150,6 +1212,10 @@ export default function DashboardPage() {
     { label: 'Transactions', value: stats.salesCount,          sub: `Avg ${fmtKES(stats.avgOrderValue)}`, icon: '🧾', cls: 'blue', trend: true },
   ]) : []
 
+  const DASHBOARD_TABS = isLimited
+    ? [{ key: 'overview', label: '📊 Overview' }, { key: 'account', label: '⚙️ Account' }]
+    : [{ key: 'overview', label: '📊 Overview' }, { key: 'insights', label: '✨ Insights' }, { key: 'account', label: '⚙️ Account' }, { key: 'feedback', label: '💬 Feedback' }]
+
   return (
     <div>
       {/* Header */}
@@ -1172,13 +1238,25 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <SubscriptionPaybackDay shop={shop} avgDailyRevenue={avgDailyRevenue} />
+      {/* Always visible — time-critical, not tabbed */}
       <RenewalRegretCard shop={shop} stats={stats} onClick={() => navigate('/pricing')} />
-      <EmailVerificationBanner />
       <TomorrowsBanner shop={shop} onViewAppointments={() => { navigate('/app/appointments'); toast.success('Pre-filtered to tomorrow — hit Remind All!') }} />
-      {!isLimited && <RevenueForecastWidget shop={shop} />}
-      {!isLimited && <ChurnPredictorWidget shop={shop} />}
       {showChecklist && shop && <OnboardingChecklist shop={shop} onDismiss={() => setShowChecklist(false)} />}
+
+      {/* Tab nav */}
+      <div className="tab-nav" style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {DASHBOARD_TABS.map(t => (
+          <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
+            padding: '9px 18px', borderRadius: 10, border: 'none', flexShrink: 0,
+            background: activeTab === t.key ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff',
+            color: activeTab === t.key ? '#fff' : '#8b2550', fontWeight: 700, fontSize: 13,
+            cursor: 'pointer', boxShadow: activeTab === t.key ? '0 4px 14px #c8456a44' : '0 1px 4px #0001',
+            fontFamily: 'Nunito,sans-serif', minHeight: 40,
+          }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       {loading ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
@@ -1186,148 +1264,165 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
-          {/* Stat Cards */}
-          <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
-            {statCards.map((s, i) => (
-              <div key={i} className={`stat-card ${s.cls}`}>
-                <div style={{ fontSize: 28, marginBottom: 8 }}>{s.icon}</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1f', fontFamily: 'Playfair Display,serif' }}>{s.value}</div>
-                <div style={{ fontSize: 12, color: '#9b6070', marginTop: 2 }}>{s.label}</div>
-                <div style={{ fontSize: 12, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4, color: s.trend ? '#059669' : '#dc2626' }}>
-                  {s.trend ? <TrendingUp size={12}/> : <TrendingDown size={12}/>}
-                  {s.sub}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {!isLimited && <AIInsightWidget stats={stats} hourData={hourData} shop={shop} period={period} memory={insightMemory} onRecord={(insight) => recordInsightShown(shop.id, insight, stats)} />}
-          {!isLimited && <SalesAssistantWidget shop={shop} assistantData={assistantData} />}
-          {!isLimited && <DailyShareCard stats={stats} shop={shop} period={period} />}
-
-          {!isLimited && (
-            <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
-              <div className="card">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>Revenue Overview</h3>
-                </div>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={salesChart} barSize={28}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0e4e8" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
-                    <Tooltip formatter={v => fmtKES(v)} contentStyle={{ borderRadius: 10, border: '1px solid #f0e4e8', fontFamily: 'Nunito,sans-serif' }} />
-                    <Bar dataKey="revenue" fill="url(#roseGrad)" radius={[6,6,0,0]} />
-                    <defs>
-                      <linearGradient id="roseGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#c8456a" />
-                        <stop offset="100%" stopColor="#8b2550" />
-                      </linearGradient>
-                    </defs>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="card">
-                <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 20px' }}>P&L Summary</h3>
-                {stats && [
-                  { label: 'Revenue',         value: stats.revenue,                     color: '#059669' },
-                  { label: '− Cost of Sales', value: stats.revenue - stats.grossProfit, color: '#dc2626' },
-                  { label: '= Gross Profit',  value: stats.grossProfit,                 color: '#1a1a1f', bold: true, border: true },
-                  { label: '− Expenses',      value: stats.totalExpenses,               color: '#dc2626' },
-                  { label: '= Net Profit',    value: stats.netProfit,                   color: stats.netProfit >= 0 ? '#059669' : '#dc2626', bold: true, border: true },
-                ].map((r, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderTop: r.border ? '1.5px solid #f0e4e8' : 'none', marginTop: r.border ? 4 : 0 }}>
-                    <span style={{ fontSize: 13, color: '#6b4050', fontWeight: r.bold ? 700 : 400 }}>{r.label}</span>
-                    <span style={{ fontSize: 13, fontWeight: r.bold ? 700 : 600, color: r.color, fontFamily: 'Playfair Display,serif' }}>{fmtKES(r.value)}</span>
+          {activeTab === 'overview' && (
+            <>
+              {/* Stat Cards */}
+              <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
+                {statCards.map((s, i) => (
+                  <div key={i} className={`stat-card ${s.cls}`}>
+                    <div style={{ fontSize: 28, marginBottom: 8 }}>{s.icon}</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1f', fontFamily: 'Playfair Display,serif' }}>{s.value}</div>
+                    <div style={{ fontSize: 12, color: '#9b6070', marginTop: 2 }}>{s.label}</div>
+                    <div style={{ fontSize: 12, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4, color: s.trend ? '#059669' : '#dc2626' }}>
+                      {s.trend ? <TrendingUp size={12}/> : <TrendingDown size={12}/>}
+                      {s.sub}
+                    </div>
                   </div>
                 ))}
               </div>
-            </div>
+
+              {!isLimited && (
+                <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
+                  <div className="card">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                      <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>Revenue Overview</h3>
+                    </div>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={salesChart} barSize={28}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0e4e8" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+                        <Tooltip formatter={v => fmtKES(v)} contentStyle={{ borderRadius: 10, border: '1px solid #f0e4e8', fontFamily: 'Nunito,sans-serif' }} />
+                        <Bar dataKey="revenue" fill="url(#roseGrad)" radius={[6,6,0,0]} />
+                        <defs>
+                          <linearGradient id="roseGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#c8456a" />
+                            <stop offset="100%" stopColor="#8b2550" />
+                          </linearGradient>
+                        </defs>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="card">
+                    <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 20px' }}>P&L Summary</h3>
+                    {stats && [
+                      { label: 'Revenue',         value: stats.revenue,                     color: '#059669' },
+                      { label: '− Cost of Sales', value: stats.revenue - stats.grossProfit, color: '#dc2626' },
+                      { label: '= Gross Profit',  value: stats.grossProfit,                 color: '#1a1a1f', bold: true, border: true },
+                      { label: '− Expenses',      value: stats.totalExpenses,               color: '#dc2626' },
+                      { label: '= Net Profit',    value: stats.netProfit,                   color: stats.netProfit >= 0 ? '#059669' : '#dc2626', bold: true, border: true },
+                    ].map((r, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderTop: r.border ? '1.5px solid #f0e4e8' : 'none', marginTop: r.border ? 4 : 0 }}>
+                        <span style={{ fontSize: 13, color: '#6b4050', fontWeight: r.bold ? 700 : 400 }}>{r.label}</span>
+                        <span style={{ fontSize: 13, fontWeight: r.bold ? 700 : 600, color: r.color, fontFamily: 'Playfair Display,serif' }}>{fmtKES(r.value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: isCashier ? '1fr' : '1fr 1fr 1fr', gap: 16 }}>
+                <div className="card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>Recent Sales</h3>
+                    <button onClick={() => navigate('/app/sales')} className="btn-ghost" style={{ fontSize: 12 }}>View all <ArrowRight size={12}/></button>
+                  </div>
+                  {recentSales.length === 0
+                    ? <div style={{ textAlign: 'center', padding: '24px 0', color: '#9b6070', fontSize: 14 }}>No sales yet — <button onClick={() => navigate('/app/pos')} style={{ background: 'none', border: 'none', color: '#c8456a', fontWeight: 700, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', fontSize: 14 }}>make your first sale →</button></div>
+                    : recentSales.map(sale => (
+                      <div key={sale.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f5edf0' }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1f' }}>{sale.receipt_no}</div>
+                          <div style={{ fontSize: 11, color: '#9b6070' }}>{fmtDateTime(sale.created)}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: '#c8456a' }}>{fmtKES(sale.total_kes)}</div>
+                          <div style={{ fontSize: 11, color: '#9b6070' }}>{sale.payment_method}</div>
+                        </div>
+                      </div>
+                    ))
+                  }
+                </div>
+
+                <div className="card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>
+                      Low Stock {stats?.lowStockCount > 0 && <span style={{ background: '#fee2e2', color: '#dc2626', fontSize: 11, padding: '2px 8px', borderRadius: 20, marginLeft: 8 }}>{stats.lowStockCount}</span>}
+                    </h3>
+                    {!isLimited && <button onClick={() => navigate('/app/inventory')} className="btn-ghost" style={{ fontSize: 12 }}>Manage <ArrowRight size={12}/></button>}
+                  </div>
+                  {lowStock.length === 0
+                    ? <div style={{ textAlign: 'center', padding: '24px 0', color: '#059669', fontSize: 14 }}>✅ All products well stocked</div>
+                    : lowStock.map(p => (
+                      <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f5edf0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <AlertCircle size={16} color="#dc2626" />
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1f' }}>{p.name}</div>
+                            <div style={{ fontSize: 11, color: '#9b6070' }}>Reorder at: {p.reorder_point || 5}</div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: p.stock_qty === 0 ? '#dc2626' : '#f59e0b' }}>{p.stock_qty} left</div>
+                      </div>
+                    ))
+                  }
+                </div>
+
+                <div className="card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>
+                      Birthdays 🎂 {birthdayCustomers.length > 0 && <span style={{ background: '#fef3c7', color: '#b45309', fontSize: 11, padding: '2px 8px', borderRadius: 20, marginLeft: 8 }}>{birthdayCustomers.length}</span>}
+                    </h3>
+                    <button onClick={() => navigate('/app/customers')} className="btn-ghost" style={{ fontSize: 12 }}>All <ArrowRight size={12}/></button>
+                  </div>
+                  {birthdayCustomers.length === 0
+                    ? <div style={{ textAlign: 'center', padding: '24px 0', color: '#9b6070', fontSize: 14 }}>No birthdays in next 7 days 🎀</div>
+                    : birthdayCustomers.map(c => (
+                      <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f5edf0' }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1f' }}>{c.name}</div>
+                          <div style={{ fontSize: 11, color: c._daysLeft === 0 ? '#b45309' : '#9b6070', fontWeight: c._daysLeft === 0 ? 700 : 400 }}>
+                            {c._daysLeft === 0 ? '🎉 Today!' : `in ${c._daysLeft} day${c._daysLeft === 1 ? '' : 's'}`}
+                          </div>
+                        </div>
+                        {c.phone && (
+                          <button onClick={() => {
+                            const msg = `🎂 Happy Birthday ${c.name}! 🎉\n\nWishing you a beautiful day from all of us at ${shop?.name}.\n\nEnjoy a special birthday discount on your next visit! 💄✨`
+                            window.open(`https://wa.me/${c.phone.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(msg)}`, '_blank')
+                          }} style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                            📲 Greet
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  }
+                </div>
+              </div>
+            </>
           )}
 
-          {/* Dead Hours Map + G8-C flash promo */}
-          {!isLimited && hourData.length > 0 && <DeadHoursMap hourData={hourData} shop={shop} />}
+          {activeTab === 'insights' && !isLimited && (
+            <>
+              <AIInsightWidget stats={stats} hourData={hourData} shop={shop} period={period} memory={insightMemory} onRecord={(insight) => recordInsightShown(shop.id, insight, stats)} />
+              <SalesAssistantWidget shop={shop} assistantData={assistantData} />
+              <ChurnPredictorWidget shop={shop} />
+              <RevenueForecastWidget shop={shop} />
+              {hourData.length > 0 && <DeadHoursMap hourData={hourData} shop={shop} />}
+              <DailyShareCard stats={stats} shop={shop} period={period} />
+              <BusinessHealthScore stats={stats} shop={shop} />
+            </>
+          )}
 
-          {/* Bottom row */}
-          <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: isCashier ? '1fr' : '1fr 1fr 1fr 1fr', gap: 16 }}>
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>Recent Sales</h3>
-                <button onClick={() => navigate('/app/sales')} className="btn-ghost" style={{ fontSize: 12 }}>View all <ArrowRight size={12}/></button>
-              </div>
-              {recentSales.length === 0
-                ? <div style={{ textAlign: 'center', padding: '24px 0', color: '#9b6070', fontSize: 14 }}>No sales yet — <button onClick={() => navigate('/app/pos')} style={{ background: 'none', border: 'none', color: '#c8456a', fontWeight: 700, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', fontSize: 14 }}>make your first sale →</button></div>
-                : recentSales.map(sale => (
-                  <div key={sale.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f5edf0' }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1f' }}>{sale.receipt_no}</div>
-                      <div style={{ fontSize: 11, color: '#9b6070' }}>{fmtDateTime(sale.created)}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#c8456a' }}>{fmtKES(sale.total_kes)}</div>
-                      <div style={{ fontSize: 11, color: '#9b6070' }}>{sale.payment_method}</div>
-                    </div>
-                  </div>
-                ))
-              }
-            </div>
+          {activeTab === 'account' && (
+            <>
+              <SubscriptionPaybackDay shop={shop} avgDailyRevenue={avgDailyRevenue} />
+              <EmailVerificationBanner />
+            </>
+          )}
 
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>
-                  Low Stock {stats?.lowStockCount > 0 && <span style={{ background: '#fee2e2', color: '#dc2626', fontSize: 11, padding: '2px 8px', borderRadius: 20, marginLeft: 8 }}>{stats.lowStockCount}</span>}
-                </h3>
-                {!isLimited && <button onClick={() => navigate('/app/inventory')} className="btn-ghost" style={{ fontSize: 12 }}>Manage <ArrowRight size={12}/></button>}
-              </div>
-              {lowStock.length === 0
-                ? <div style={{ textAlign: 'center', padding: '24px 0', color: '#059669', fontSize: 14 }}>✅ All products well stocked</div>
-                : lowStock.map(p => (
-                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f5edf0' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <AlertCircle size={16} color="#dc2626" />
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1f' }}>{p.name}</div>
-                        <div style={{ fontSize: 11, color: '#9b6070' }}>Reorder at: {p.reorder_point || 5}</div>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: p.stock_qty === 0 ? '#dc2626' : '#f59e0b' }}>{p.stock_qty} left</div>
-                  </div>
-                ))
-              }
-            </div>
-
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>
-                  Birthdays 🎂 {birthdayCustomers.length > 0 && <span style={{ background: '#fef3c7', color: '#b45309', fontSize: 11, padding: '2px 8px', borderRadius: 20, marginLeft: 8 }}>{birthdayCustomers.length}</span>}
-                </h3>
-                <button onClick={() => navigate('/app/customers')} className="btn-ghost" style={{ fontSize: 12 }}>All <ArrowRight size={12}/></button>
-              </div>
-              {birthdayCustomers.length === 0
-                ? <div style={{ textAlign: 'center', padding: '24px 0', color: '#9b6070', fontSize: 14 }}>No birthdays in next 7 days 🎀</div>
-                : birthdayCustomers.map(c => (
-                  <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f5edf0' }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1f' }}>{c.name}</div>
-                      <div style={{ fontSize: 11, color: c._daysLeft === 0 ? '#b45309' : '#9b6070', fontWeight: c._daysLeft === 0 ? 700 : 400 }}>
-                        {c._daysLeft === 0 ? '🎉 Today!' : `in ${c._daysLeft} day${c._daysLeft === 1 ? '' : 's'}`}
-                      </div>
-                    </div>
-                    {c.phone && (
-                      <button onClick={() => {
-                        const msg = `🎂 Happy Birthday ${c.name}! 🎉\n\nWishing you a beautiful day from all of us at ${shop?.name}.\n\nEnjoy a special birthday discount on your next visit! 💄✨`
-                        window.open(`https://wa.me/${c.phone.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(msg)}`, '_blank')
-                      }} style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                        📲 Greet
-                      </button>
-                    )}
-                  </div>
-                ))
-              }
-            </div>
-
-            {!isLimited && <BusinessHealthScore stats={stats} shop={shop} />}
-          </div>
+          {activeTab === 'feedback' && !isLimited && (
+            <FeedbackPromptBanner shop={shop} hasSales={hasLifetimeSales} />
+          )}
         </>
       )}
     </div>

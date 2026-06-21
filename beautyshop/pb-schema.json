@@ -239,6 +239,128 @@
         }
     },
     {
+        "id": "bscol_afleads01",
+        "listRule": null,
+        "viewRule": null,
+        "createRule": "",
+        "updateRule": null,
+        "deleteRule": null,
+        "name": "bs_affiliate_leads",
+        "type": "base",
+        "fields": [
+            {
+                "autogeneratePattern": "[a-z0-9]{15}",
+                "hidden": false,
+                "id": "text3208210256",
+                "max": 15,
+                "min": 15,
+                "name": "id",
+                "pattern": "^[a-z0-9]+$",
+                "presentable": false,
+                "primaryKey": true,
+                "required": true,
+                "system": true,
+                "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsaf_name0",
+                "max": 0,
+                "min": 0,
+                "name": "name",
+                "pattern": "",
+                "presentable": true,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsaf_phone",
+                "max": 0,
+                "min": 0,
+                "name": "phone",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsaf_notes",
+                "max": 0,
+                "min": 0,
+                "name": "notes",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "bsaf_stat0",
+                "maxSelect": 1,
+                "name": "status",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "select",
+                "values": [
+                    "new",
+                    "contacted",
+                    "approved",
+                    "rejected"
+                ]
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsaf_src00",
+                "max": 0,
+                "min": 0,
+                "name": "source",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "autodate2990389176",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            },
+            {
+                "hidden": false,
+                "id": "autodate3332085495",
+                "name": "updated",
+                "onCreate": true,
+                "onUpdate": true,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            }
+        ],
+        "indexes": [
+            "CREATE INDEX idx_bs_affiliate_leads_phone ON bs_affiliate_leads (phone)"
+        ],
+        "system": false
+    },
+    {
         "id": "bscol_appts0001",
         "listRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
         "viewRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
@@ -1145,6 +1267,154 @@
         "indexes": [
             "CREATE INDEX idx_bs_customers_shop ON bs_customers (shop_id)",
             "CREATE INDEX idx_bs_customers_phone ON bs_customers (phone)"
+        ],
+        "system": false
+    },
+    {
+        "id": "bscol_dleads0001",
+        "listRule": null,
+        "viewRule": null,
+        "createRule": "",
+        "updateRule": null,
+        "deleteRule": null,
+        "name": "bs_demo_leads",
+        "type": "base",
+        "fields": [
+            {
+                "autogeneratePattern": "[a-z0-9]{15}",
+                "hidden": false,
+                "id": "text3208210256",
+                "max": 15,
+                "min": 15,
+                "name": "id",
+                "pattern": "^[a-z0-9]+$",
+                "presentable": false,
+                "primaryKey": true,
+                "required": true,
+                "system": true,
+                "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsdl_name0",
+                "max": 0,
+                "min": 0,
+                "name": "name",
+                "pattern": "",
+                "presentable": true,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsdl_phone",
+                "max": 0,
+                "min": 0,
+                "name": "phone",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsdl_btype",
+                "max": 0,
+                "min": 0,
+                "name": "business_type",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsdl_town0",
+                "max": 0,
+                "min": 0,
+                "name": "town",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsdl_bname",
+                "max": 0,
+                "min": 0,
+                "name": "business_name",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsdl_src00",
+                "max": 0,
+                "min": 0,
+                "name": "source",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "bscol_shops00001",
+                "hidden": false,
+                "id": "bsdl_convsh",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "converted_to_shop_id",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "hidden": false,
+                "id": "autodate2990389176",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            },
+            {
+                "hidden": false,
+                "id": "autodate3332085495",
+                "name": "updated",
+                "onCreate": true,
+                "onUpdate": true,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            }
+        ],
+        "indexes": [
+            "CREATE INDEX idx_bs_demo_leads_phone ON bs_demo_leads (phone)",
+            "CREATE INDEX idx_bs_demo_leads_created ON bs_demo_leads (created)"
         ],
         "system": false
     },
@@ -3524,13 +3794,13 @@
         "system": false
     },
     {
-        "id": "bscol_dleads0001",
-        "listRule": null,
-        "viewRule": null,
+        "id": "bscol_testim0001",
+        "listRule": "approved = true",
+        "viewRule": "approved = true",
         "createRule": "",
         "updateRule": null,
         "deleteRule": null,
-        "name": "bs_demo_leads",
+        "name": "bs_testimonials",
         "type": "base",
         "fields": [
             {
@@ -3550,10 +3820,10 @@
             {
                 "autogeneratePattern": "",
                 "hidden": false,
-                "id": "bsdl_name0",
+                "id": "bste_bname0",
                 "max": 0,
                 "min": 0,
-                "name": "name",
+                "name": "business_name",
                 "pattern": "",
                 "presentable": true,
                 "primaryKey": false,
@@ -3562,23 +3832,27 @@
                 "type": "text"
             },
             {
-                "autogeneratePattern": "",
                 "hidden": false,
-                "id": "bsdl_phone",
-                "max": 0,
-                "min": 0,
-                "name": "phone",
-                "pattern": "",
+                "id": "bste_ctry00",
+                "maxSelect": 1,
+                "name": "country",
                 "presentable": false,
-                "primaryKey": false,
                 "required": true,
                 "system": false,
-                "type": "text"
+                "type": "select",
+                "values": [
+                    "KE",
+                    "UG",
+                    "TZ",
+                    "ET",
+                    "RW",
+                    "OTHER"
+                ]
             },
             {
                 "autogeneratePattern": "",
                 "hidden": false,
-                "id": "bsdl_btype",
+                "id": "bste_btype0",
                 "max": 0,
                 "min": 0,
                 "name": "business_type",
@@ -3592,10 +3866,36 @@
             {
                 "autogeneratePattern": "",
                 "hidden": false,
-                "id": "bsdl_town0",
+                "id": "bste_quote0",
                 "max": 0,
                 "min": 0,
-                "name": "town",
+                "name": "quote",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "bste_ratng0",
+                "max": 5,
+                "min": 1,
+                "name": "rating",
+                "onlyInt": true,
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bste_subnm0",
+                "max": 0,
+                "min": 0,
+                "name": "submitter_name",
                 "pattern": "",
                 "presentable": false,
                 "primaryKey": false,
@@ -3606,116 +3906,10 @@
             {
                 "autogeneratePattern": "",
                 "hidden": false,
-                "id": "bsdl_bname",
+                "id": "bste_phone0",
                 "max": 0,
                 "min": 0,
-                "name": "business_name",
-                "pattern": "",
-                "presentable": false,
-                "primaryKey": false,
-                "required": false,
-                "system": false,
-                "type": "text"
-            },
-            {
-                "autogeneratePattern": "",
-                "hidden": false,
-                "id": "bsdl_src00",
-                "max": 0,
-                "min": 0,
-                "name": "source",
-                "pattern": "",
-                "presentable": false,
-                "primaryKey": false,
-                "required": false,
-                "system": false,
-                "type": "text"
-            },
-            {
-                "cascadeDelete": false,
-                "collectionId": "bscol_shops00001",
-                "hidden": false,
-                "id": "bsdl_convsh",
-                "maxSelect": 1,
-                "minSelect": 0,
-                "name": "converted_to_shop_id",
-                "presentable": false,
-                "required": false,
-                "system": false,
-                "type": "relation"
-            },
-            {
-                "hidden": false,
-                "id": "autodate2990389176",
-                "name": "created",
-                "onCreate": true,
-                "onUpdate": false,
-                "presentable": false,
-                "system": false,
-                "type": "autodate"
-            },
-            {
-                "hidden": false,
-                "id": "autodate3332085495",
-                "name": "updated",
-                "onCreate": true,
-                "onUpdate": true,
-                "presentable": false,
-                "system": false,
-                "type": "autodate"
-            }
-        ],
-        "indexes": [
-            "CREATE INDEX idx_bs_demo_leads_phone ON bs_demo_leads (phone)",
-            "CREATE INDEX idx_bs_demo_leads_created ON bs_demo_leads (created)"
-        ],
-        "system": false
-    },
-    {
-        "id": "bscol_afleads01",
-        "listRule": null,
-        "viewRule": null,
-        "createRule": "",
-        "updateRule": null,
-        "deleteRule": null,
-        "name": "bs_affiliate_leads",
-        "type": "base",
-        "fields": [
-            {
-                "autogeneratePattern": "[a-z0-9]{15}",
-                "hidden": false,
-                "id": "text3208210256",
-                "max": 15,
-                "min": 15,
-                "name": "id",
-                "pattern": "^[a-z0-9]+$",
-                "presentable": false,
-                "primaryKey": true,
-                "required": true,
-                "system": true,
-                "type": "text"
-            },
-            {
-                "autogeneratePattern": "",
-                "hidden": false,
-                "id": "bsaf_name0",
-                "max": 0,
-                "min": 0,
-                "name": "name",
-                "pattern": "",
-                "presentable": true,
-                "primaryKey": false,
-                "required": true,
-                "system": false,
-                "type": "text"
-            },
-            {
-                "autogeneratePattern": "",
-                "hidden": false,
-                "id": "bsaf_phone",
-                "max": 0,
-                "min": 0,
-                "name": "phone",
+                "name": "contact_phone",
                 "pattern": "",
                 "presentable": false,
                 "primaryKey": false,
@@ -3724,39 +3918,27 @@
                 "type": "text"
             },
             {
-                "autogeneratePattern": "",
                 "hidden": false,
-                "id": "bsaf_notes",
-                "max": 0,
-                "min": 0,
-                "name": "notes",
-                "pattern": "",
+                "id": "bste_apprv0",
+                "name": "approved",
                 "presentable": false,
-                "primaryKey": false,
                 "required": false,
                 "system": false,
-                "type": "text"
+                "type": "bool"
             },
             {
                 "hidden": false,
-                "id": "bsaf_stat0",
-                "maxSelect": 1,
-                "name": "status",
+                "id": "bste_featd0",
+                "name": "featured",
                 "presentable": false,
                 "required": false,
                 "system": false,
-                "type": "select",
-                "values": [
-                    "new",
-                    "contacted",
-                    "approved",
-                    "rejected"
-                ]
+                "type": "bool"
             },
             {
                 "autogeneratePattern": "",
                 "hidden": false,
-                "id": "bsaf_src00",
+                "id": "bste_src000",
                 "max": 0,
                 "min": 0,
                 "name": "source",
@@ -3789,7 +3971,8 @@
             }
         ],
         "indexes": [
-            "CREATE INDEX idx_bs_affiliate_leads_phone ON bs_affiliate_leads (phone)"
+            "CREATE INDEX idx_bs_testimonials_approved ON bs_testimonials (approved)",
+            "CREATE INDEX idx_bs_testimonials_country ON bs_testimonials (country)"
         ],
         "system": false
     }

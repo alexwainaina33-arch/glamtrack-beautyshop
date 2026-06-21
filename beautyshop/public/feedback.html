@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Share Your Experience — SalesTrack</title>
+<meta name="description" content="Tell us how SalesTrack is working for your business — your feedback could be featured on our website."/>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js"></script>
+<style>
+:root{
+  --rose:#c8456a;--rose-dark:#8b2550;--rose-light:#fce8ed;
+  --gold:#e6b800;--gold-dark:#b38f00;
+  --dark:#1a0a0e;--dark-mid:#3d1020;
+  --white:#fff;--off:#fdf8f9;--muted:#6b4a52;--border:#f0e0e6;
+  --font-serif:'Playfair Display',serif;--font-sans:'Nunito',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);color:var(--dark);background:linear-gradient(160deg,var(--dark-mid),var(--dark));
+  min-height:100vh;line-height:1.6}
+a{color:inherit;text-decoration:none}
+nav{padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+.nav-logo{display:flex;align-items:center;gap:10px;color:#fce8ed}
+.nav-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--gold),var(--rose));
+  border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nav-logo-icon svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.5}
+.nav-logo-name{font-family:var(--font-serif);font-size:18px;font-weight:700}
+.wrap{max-width:560px;margin:0 auto;padding:24px 20px 80px}
+.head{text-align:center;margin-bottom:32px}
+.badge{display:inline-block;background:rgba(230,184,0,.12);color:var(--gold);
+  font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+  padding:4px 14px;border-radius:20px;margin-bottom:16px}
+h1{font-family:var(--font-serif);font-size:clamp(26px,5vw,34px);font-weight:700;color:#fce8ed;margin-bottom:10px}
+.sub{font-size:14px;color:rgba(252,232,237,.55);max-width:440px;margin:0 auto}
+.card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  border-radius:20px;padding:28px;backdrop-filter:blur(12px)}
+.group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
+  color:rgba(252,232,237,.5)}
+.input,select,textarea{padding:12px 14px;border-radius:11px;
+  border:1.5px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.07);color:#fce8ed;
+  font-size:14px;font-family:var(--font-sans);outline:none;
+  transition:border-color .2s;-webkit-appearance:none;width:100%}
+.input:focus,select:focus,textarea:focus{border-color:var(--rose)}
+select option{background:#3d1020;color:#fce8ed}
+textarea{resize:vertical;min-height:90px}
+.char-count{font-size:11px;color:rgba(252,232,237,.3);text-align:right;margin-top:-10px;margin-bottom:14px}
+.stars-row{display:flex;gap:8px;margin-bottom:16px}
+.star-btn{width:42px;height:42px;border-radius:10px;border:1.5px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.05);color:rgba(252,232,237,.3);font-size:20px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .15s}
+.star-btn.active{background:rgba(230,184,0,.18);border-color:var(--gold);color:var(--gold)}
+.submit-btn{width:100%;padding:15px;border-radius:13px;border:none;
+  background:linear-gradient(135deg,var(--rose),var(--rose-dark));
+  color:#fff;font-size:15px;font-weight:700;cursor:pointer;
+  font-family:var(--font-sans);box-shadow:0 6px 24px rgba(200,69,106,.45);
+  transition:all .2s;min-height:52px;display:flex;align-items:center;
+  justify-content:center;gap:9px;margin-top:6px}
+.submit-btn:hover{transform:translateY(-2px)}
+.submit-btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.note{font-size:11px;color:rgba(252,232,237,.32);text-align:center;margin-top:14px}
+.success{display:none;text-align:center;padding:30px 10px}
+.success-icon{font-size:56px;margin-bottom:14px}
+.success h2{font-family:var(--font-serif);color:#fce8ed;font-size:22px;margin-bottom:10px}
+.success p{color:rgba(252,232,237,.6);font-size:14px;line-height:1.65;max-width:380px;margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">
+    <div class="nav-logo-icon"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+    <span class="nav-logo-name">SalesTrack</span>
+  </a>
+</nav>
+
+<div class="wrap">
+  <div class="head">
+    <span class="badge">2 minutes, tops</span>
+    <h1>How's SalesTrack working for you?</h1>
+    <p class="sub">Your honest feedback helps other business owners decide if SalesTrack is right for them — and might get your shop featured on our website.</p>
+  </div>
+
+  <div class="card" id="formCard">
+    <div class="group">
+      <label class="label" for="t-bname">Business name *</label>
+      <input class="input" id="t-bname" type="text" placeholder="e.g. Beltronix Phones & Accessories" required/>
+    </div>
+
+    <div class="group">
+      <label class="label" for="t-country">Country *</label>
+      <select id="t-country" required>
+        <option value="KE">🇰🇪 Kenya</option>
+        <option value="UG">🇺🇬 Uganda</option>
+        <option value="TZ">🇹🇿 Tanzania</option>
+        <option value="ET">🇪🇹 Ethiopia</option>
+        <option value="RW">🇷🇼 Rwanda</option>
+        <option value="OTHER">🌍 Other</option>
+      </select>
+    </div>
+
+    <div class="group">
+      <label class="label" for="t-btype">Type of business *</label>
+      <select id="t-btype" required>
+        <option value="" disabled selected>Select your business type</option>
+        <option>Salon & Spa</option>
+        <option>Retail Shop</option>
+        <option>Restaurant & Café</option>
+        <option>Pharmacy & Clinic</option>
+        <option>Boutique & Fashion</option>
+        <option>Hardware & Auto</option>
+        <option>Phone & Electronics</option>
+        <option>Beauty Supply</option>
+        <option>Other</option>
+      </select>
+    </div>
+
+    <div class="group">
+      <label class="label">How would you rate SalesTrack? *</label>
+      <div class="stars-row" id="starsRow">
+        <button type="button" class="star-btn" data-val="1">★</button>
+        <button type="button" class="star-btn" data-val="2">★</button>
+        <button type="button" class="star-btn" data-val="3">★</button>
+        <button type="button" class="star-btn" data-val="4">★</button>
+        <button type="button" class="star-btn" data-val="5">★</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <label class="label" for="t-quote">Tell us about your experience *</label>
+      <textarea id="t-quote" maxlength="400" placeholder="What's changed for your business since you started using SalesTrack? Be specific if you can — numbers, time saved, problems solved..."></textarea>
+      <div class="char-count" id="charCount">0 / 400</div>
+    </div>
+
+    <div class="group">
+      <label class="label" for="t-name">Your name *</label>
+      <input class="input" id="t-name" type="text" placeholder="Your full name" required/>
+    </div>
+
+    <div class="group">
+      <label class="label" for="t-phone">Phone / WhatsApp *</label>
+      <input class="input" id="t-phone" type="tel" placeholder="For follow-up only — never published" required/>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitTestimonial()">
+      <span id="btnText">Submit my feedback →</span>
+      <span id="spinner" class="spinner" style="display:none"></span>
+    </button>
+    <p class="note">🔒 Your phone number is private and never shown publicly. We may contact you to confirm a quote before featuring it.</p>
+  </div>
+
+  <div class="success" id="success">
+    <div class="success-icon">🎉</div>
+    <h2>Thank you!</h2>
+    <p>We've received your feedback. Our team will review it, and if selected, your shop could be featured on the SalesTrack website soon. Asante sana for being part of the journey!</p>
+  </div>
+</div>
+
+<script>
+var PB = new PocketBase('https://fieldtrack-kenya.fly.dev');
+var selectedRating = 0;
+
+document.querySelectorAll('.star-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    selectedRating = parseInt(btn.getAttribute('data-val'));
+    document.querySelectorAll('.star-btn').forEach(function(b){
+      b.classList.toggle('active', parseInt(b.getAttribute('data-val')) <= selectedRating);
+    });
+  });
+});
+
+var quoteEl = document.getElementById('t-quote');
+quoteEl.addEventListener('input', function(){
+  document.getElementById('charCount').textContent = quoteEl.value.length + ' / 400';
+});
+
+function looksFakeName(raw){
+  var n = raw.trim();
+  if(n.length<2) return true;
+  if(/^test/i.test(n)) return true;
+  if(/^(.)\1+$/.test(n.replace(/\s/g,''))) return true;
+  return false;
+}
+
+async function submitTestimonial(){
+  var bname = document.getElementById('t-bname').value.trim();
+  var country = document.getElementById('t-country').value;
+  var btype = document.getElementById('t-btype').value;
+  var quote = document.getElementById('t-quote').value.trim();
+  var name = document.getElementById('t-name').value.trim();
+  var phone = document.getElementById('t-phone').value.trim();
+
+  if(!bname || !btype || !quote || !name || !phone){
+    alert('Please fill in all required fields.');
+    return;
+  }
+  if(selectedRating < 1){
+    alert('Please select a star rating.');
+    return;
+  }
+  if(quote.length < 20){
+    alert('Please share a few more details about your experience (at least 20 characters).');
+    return;
+  }
+  if(looksFakeName(name)){
+    alert('Please enter your real name.');
+    return;
+  }
+
+  var btn = document.getElementById('submitBtn');
+  var btnText = document.getElementById('btnText');
+  var spinner = document.getElementById('spinner');
+  btn.disabled = true;
+  btnText.style.display = 'none';
+  spinner.style.display = 'inline-block';
+
+  try{
+    await PB.collection('bs_testimonials').create({
+      business_name: bname,
+      country: country,
+      business_type: btype,
+      quote: quote,
+      rating: selectedRating,
+      submitter_name: name,
+      contact_phone: phone,
+      approved: false,
+      featured: false,
+      source: 'feedback_page'
+    });
+    document.getElementById('formCard').style.display = 'none';
+    document.getElementById('success').style.display = 'block';
+  }catch(err){
+    console.error('Testimonial submit failed:', err);
+    alert('Something went wrong submitting your feedback. Please try again, or WhatsApp us directly at +254 716 555 043.');
+    btn.disabled = false;
+    btnText.style.display = 'inline';
+    spinner.style.display = 'none';
+  }
+}
+</script>
+</body>
+</html>
