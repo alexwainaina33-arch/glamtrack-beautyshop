@@ -457,9 +457,34 @@ export default function LoginPage() {
 
   // Proof of arriving via the landing page's validated lead-capture form
   const cameFromLandingPage = new URLSearchParams(window.location.search).get('demo') === '1'
+  const [autoDemoTried, setAutoDemoTried] = useState(false)
 
   const currentBizType = BUSINESS_TYPES.find(b => b.value === bizType)
   const activeBrandColor = brandColor === 'custom' ? customColor : brandColor
+
+  // Auto-login to demo the moment we arrive validly from the landing page —
+  // closes the "one more click than expected" friction the user flagged.
+  // The visible "Try Demo Account" button remains as a manual fallback in
+  // case this effect's auto-attempt fails silently (e.g. PocketBase cold
+  // start) or the person re-lands on this URL after already dismissing it.
+  useEffect(() => {
+    if (cameFromLandingPage && !autoDemoTried && mode === 'login') {
+      setAutoDemoTried(true)
+      ;(async () => {
+        setLoading(true)
+        try {
+          await login('demo@salestrack.co.ke', 'demo123456')
+          toast.success('Demo mode — explore freely!')
+          navigate('/app/dashboard')
+        } catch {
+          toast.error('Demo account unavailable — tap "Try Demo Account" below to retry')
+        } finally {
+          setLoading(false)
+        }
+      })()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Ensure spin keyframe exists
   useEffect(() => {
