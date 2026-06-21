@@ -25,6 +25,7 @@ export const C = {
   ATTENDANCE:     'bs_attendance',
   INSIGHTS:       'bs_insights',
   REPORT_SHARES:  'bs_report_shares',
+  DEMO_LEADS:     'bs_demo_leads',
 }
 
 export default pb
