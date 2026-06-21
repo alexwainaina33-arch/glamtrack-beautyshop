@@ -1214,7 +1214,7 @@ export default function DashboardPage() {
 
   const DASHBOARD_TABS = isLimited
     ? [{ key: 'overview', label: '📊 Overview' }, { key: 'account', label: '⚙️ Account' }]
-    : [{ key: 'overview', label: '📊 Overview' }, { key: 'insights', label: '✨ Insights' }, { key: 'account', label: '⚙️ Account' }, { key: 'feedback', label: '💬 Feedback' }]
+    : [{ key: 'overview', label: '📊 Overview' }, { key: 'insights', label: '✨ Insights' }, { key: 'account', label: '⚙️ Account' }]
 
   return (
     <div>
@@ -1417,11 +1417,8 @@ export default function DashboardPage() {
             <>
               <SubscriptionPaybackDay shop={shop} avgDailyRevenue={avgDailyRevenue} />
               <EmailVerificationBanner />
+              {!isLimited && <FeedbackPromptBanner shop={shop} hasSales={hasLifetimeSales} />}
             </>
-          )}
-
-          {activeTab === 'feedback' && !isLimited && (
-            <FeedbackPromptBanner shop={shop} hasSales={hasLifetimeSales} />
           )}
         </>
       )}
