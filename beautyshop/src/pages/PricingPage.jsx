@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { TrendingUp, Check, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import MpesaModal from '../components/MpesaModal'
@@ -185,10 +185,21 @@ const PERIOD_LABELS = { monthly: '/ month', yearly: '/ year' }
 
 export default function PricingPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const preselectedPlan = searchParams.get('plan') // 'starter' | 'growth' | 'enterprise' | null
   const [period, setPeriod]         = useState('monthly')
   const [loading, setLoading]       = useState(null)
   const [mpesaPlan, setMpesaPlan]   = useState(null)
   const plans = PLANS[period]
+  const planRefs = useRef({})
+
+  useEffect(() => {
+    if (!preselectedPlan) return
+    const el = planRefs.current[preselectedPlan]
+    if (el) {
+      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150)
+    }
+  }, [preselectedPlan, period])
 
   const openPaystack = (plan, userEmail) => {
     const handler = window.PaystackPop.setup({
@@ -307,14 +318,22 @@ export default function PricingPage() {
 
         {/* Plan cards */}
         <div className="pricing-cards-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 28 }}>
-          {plans.map(plan => (
-            <div key={plan.id} style={{
+          {plans.map(plan => {
+            const isPreselected = preselectedPlan === plan.id
+            return (
+            <div key={plan.id} ref={el => { planRefs.current[plan.id] = el }} style={{
               background: plan.highlight ? 'rgba(200,69,106,0.12)' : 'rgba(255,255,255,0.06)',
-              border: plan.highlight ? '2px solid #c8456a' : '1px solid rgba(255,255,255,0.12)',
+              border: isPreselected ? '2px solid #e6b800' : plan.highlight ? '2px solid #c8456a' : '1px solid rgba(255,255,255,0.12)',
               borderRadius: 18, padding: '24px 20px', position: 'relative',
               display: 'flex', flexDirection: 'column',
+              boxShadow: isPreselected ? '0 0 0 4px rgba(230,184,0,0.18)' : 'none',
             }}>
-              {plan.highlight && (
+              {isPreselected && (
+                <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg,#e6b800,#b38f00)', color: '#1a0a0e', fontSize: 10, fontWeight: 800, padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(230,184,0,0.5)' }}>
+                  👉 YOUR SELECTION
+                </div>
+              )}
+              {!isPreselected && plan.highlight && (
                 <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg,#c8456a,#8b2550)', color: '#fff', fontSize: 10, fontWeight: 800, padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', boxShadow: '0 4px 12px #c8456a55' }}>
                   ⭐ MOST POPULAR
                 </div>
@@ -389,7 +408,8 @@ export default function PricingPage() {
                 }
               </button>
             </div>
-          ))}
+            )
+          })}
         </div>
 
         {/* Paystack fallback */}
