@@ -37,9 +37,23 @@ async function triggerPbBackup(token) {
   return name
 }
 
+async function getFileToken(token) {
+  const r = await fetch(`${PB_URL}/api/files/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': token,
+    },
+  })
+  if (!r.ok) throw new Error(`PocketBase file token failed: ${r.status}`)
+  const data = await r.json()
+  return data.token
+}
+
 async function downloadPbBackup(token, name) {
+  const fileToken = await getFileToken(token)
   const r = await fetch(
-    `${PB_URL}/api/backups/${encodeURIComponent(name)}?token=${token}`,
+    `${PB_URL}/api/backups/${encodeURIComponent(name)}?token=${fileToken}`,
   )
   if (!r.ok) throw new Error(`PocketBase backup download failed: ${r.status}`)
   const buffer = await r.arrayBuffer()
