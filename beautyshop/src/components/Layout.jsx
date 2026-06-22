@@ -7,6 +7,7 @@ import {
   Receipt, BarChart3, Users, Settings, LogOut, Truck, Zap,
   Tag, DollarSign, Calendar, UserCheck, Menu, X, MoreHorizontal
 } from 'lucide-react'
+import RenewalRegretCard from './RenewalRegretCard'
 
 const NAV = (lapsedCount, role) => {
   const all = [
@@ -49,6 +50,7 @@ export default function Layout() {
   const location = useLocation()
   const [lapsedCount, setLapsedCount] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [renewalStats, setRenewalStats] = useState(null)
 
   // Close sidebar on route change (mobile)
   useEffect(() => { setSidebarOpen(false) }, [location.pathname])
@@ -65,6 +67,29 @@ export default function Layout() {
       setLapsedCount(count)
     }).catch(() => {})
   }, [shop])
+
+  // Renewal banner — only fetch 30-day revenue if shop is within 72h of expiry
+  useEffect(() => {
+    if (!shop) return
+    const expiryDate = shop.subscription_ends_at
+      ? new Date(shop.subscription_ends_at)
+      : shop.trial_ends_at
+      ? new Date(shop.trial_ends_at)
+      : null
+    if (!expiryDate) return
+    const hoursLeft = (expiryDate - new Date()) / 3600000
+    if (hoursLeft > 72 || hoursLeft < 0) return // skip query for shops not near expiry
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000)
+      .toISOString().replace('T', ' ').replace('Z', '.000Z')
+    pb.collection(C.SALES).getList(1, 500, {
+      filter: `shop_id="${shop.id}" && status="completed" && created >= "${thirtyDaysAgo}"`,
+      '$autoCancel': false, '$cancelKey': 'layout-renewal-stats',
+    }).then(r => {
+      const revenue = r.items.reduce((s, x) => s + (x.total_kes || 0), 0)
+      setRenewalStats({ revenue })
+    }).catch(() => {})
+  }, [shop, location.pathname])
 
   const logoUrl = shop?.logo
     ? `${pb.baseURL}/api/files/${C.SHOPS}/${shop.id}/${shop.logo}?thumb=200x200`
@@ -260,6 +285,11 @@ export default function Layout() {
       >
         {/* Pushes content below fixed mobile header */}
         <div className="mobile-spacer" />
+        <RenewalRegretCard
+          shop={shop}
+          stats={renewalStats}
+          onClick={() => navigate('/pricing')}
+        />
         <Outlet />
       </main>
 

@@ -68,50 +68,6 @@ function SubscriptionPaybackDay({ shop, avgDailyRevenue }) {
   )
 }
 
-// ─── RENEWAL REGRET PREVENTER ─────────────────────────────────────
-function RenewalRegretCard({ shop, stats, onClick }) {
-  if (!shop || !stats) return null
-  const now = new Date()
-  const expiryDate = shop.subscription_ends_at
-    ? new Date(shop.subscription_ends_at)
-    : shop.trial_ends_at
-    ? new Date(shop.trial_ends_at)
-    : null
-  if (!expiryDate) return null
-  const hoursLeft = (expiryDate - now) / 3600000
-  if (hoursLeft > 72 || hoursLeft < 0) return null
-  const daysLeft = Math.max(0, Math.ceil(hoursLeft / 24))
-
-  return (
-    <div onClick={onClick} style={{
-      background: 'linear-gradient(135deg,#fff1f2,#fff)',
-      border: '2px solid #fca5a5', borderRadius: 14, padding: '16px 20px',
-      marginBottom: 20, cursor: 'pointer', boxShadow: '0 4px 20px rgba(220,38,38,0.12)',
-      display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
-    }}>
-      <div style={{ fontSize: 30, flexShrink: 0 }}>⏰</div>
-      <div style={{ flex: 1, minWidth: 200 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: '#dc2626' }}>
-          {daysLeft === 0 ? 'Expires today' : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`} — renew to protect your data
-        </div>
-        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 3, lineHeight: 1.5 }}>
-          In the last 30 days you recorded <strong style={{ color: '#1a1a1f' }}>
-            KES {(stats.revenue || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}
-          </strong> in sales. Without SalesTrack, that's <strong style={{ color: '#dc2626' }}>gone</strong>.
-        </div>
-      </div>
-      <div style={{
-        background: 'linear-gradient(135deg,#dc2626,#991b1b)',
-        color: '#fff', borderRadius: 10, padding: '8px 18px',
-        fontSize: 12, fontWeight: 800, flexShrink: 0,
-        boxShadow: '0 4px 14px rgba(220,38,38,0.35)',
-      }}>
-        Renew via M-Pesa →
-      </div>
-    </div>
-  )
-}
-
 // ─── EMAIL VERIFICATION BANNER ───────────────────────────────────
 function EmailVerificationBanner() {
   const [dismissed, setDismissed] = useState(false)
@@ -1242,7 +1198,6 @@ export default function DashboardPage() {
       </div>
 
       {/* Always visible — time-critical, not tabbed */}
-      <RenewalRegretCard shop={shop} stats={stats} onClick={() => navigate('/pricing')} />
       <TomorrowsBanner shop={shop} onViewAppointments={() => { navigate('/app/appointments'); toast.success('Pre-filtered to tomorrow — hit Remind All!') }} />
       {showChecklist && shop && <OnboardingChecklist shop={shop} onDismiss={() => setShowChecklist(false)} />}
 
