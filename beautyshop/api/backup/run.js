@@ -4,7 +4,7 @@ import crypto from 'crypto'
 const PB_URL = 'https://fieldtrack-kenya.fly.dev'
 
 async function pbAdminToken() {
-  const r = await fetch(`${PB_URL}/api/admins/auth-with-password`, {
+  const r = await fetch(`${PB_URL}/api/collections/_superusers/auth-with-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
