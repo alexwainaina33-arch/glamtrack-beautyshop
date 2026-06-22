@@ -21,7 +21,7 @@ async function pbAdminToken() {
 }
 
 async function triggerPbBackup(token) {
-  const name = `backup-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`
+  const name = `backup-${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.zip`
   const r = await fetch(`${PB_URL}/api/backups`, {
     method: 'POST',
     headers: {
