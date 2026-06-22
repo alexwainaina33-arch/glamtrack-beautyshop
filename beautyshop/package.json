@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@sentry/react": "^10.59.0",
     "date-fns": "^3.6.0",
     "dexie": "^4.4.3",
     "html5-qrcode": "^2.3.8",
