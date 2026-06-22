@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { TrendingUp, Check, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import MpesaModal from '../components/MpesaModal'
+import pb, { C } from '../lib/pb'
+import { useAuth } from '../context/AuthContext'
 
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_KEY || ''
 
@@ -185,6 +187,7 @@ const PERIOD_LABELS = { monthly: '/ month', yearly: '/ year' }
 
 export default function PricingPage() {
   const navigate = useNavigate()
+  const { shop } = useAuth()
   const [searchParams] = useSearchParams()
   const preselectedPlan = searchParams.get('plan') // 'starter' | 'growth' | 'enterprise' | null
   const [period, setPeriod]         = useState('monthly')
@@ -215,13 +218,24 @@ export default function PricingPage() {
           { display_name: 'Period', variable_name: 'period', value: plan.period },
         ],
       },
-      callback: (response) => {
+      callback: async (response) => {
         localStorage.setItem('st_plan',      plan.name)
         localStorage.setItem('st_period',    plan.period)
         localStorage.setItem('st_ref',       response.reference)
         localStorage.setItem('st_price',     plan.price)
         localStorage.setItem('st_dailycost', plan.dailyCost)
         localStorage.setItem('st_activated', 'true')
+        if (shop?.id) {
+          try {
+            await pb.collection(C.SHOPS).update(shop.id, {
+              plan: plan.id,
+              subscription_status: 'active',
+              last_payment_ref: response.reference,
+            })
+          } catch (e) {
+            console.error('Failed to write plan to shop record:', e)
+          }
+        }
         setLoading(null)
         navigate('/payment-success')
       },
@@ -235,13 +249,27 @@ export default function PricingPage() {
 
   const handleSelect = (plan) => setMpesaPlan(plan)
 
-  const handleMpesaSuccess = ({ ref, plan }) => {
+  const handleMpesaSuccess = async ({ ref, plan }) => {
     localStorage.setItem('st_plan',      plan.name)
     localStorage.setItem('st_period',    plan.period)
     localStorage.setItem('st_ref',       ref)
     localStorage.setItem('st_price',     plan.price)
     localStorage.setItem('st_dailycost', plan.dailyCost)
     localStorage.setItem('st_activated', 'true')
+    // Write plan + activation to PocketBase if a logged-in shop exists.
+    // Silent if no shop (e.g. paid before completing signup) — never
+    // blocks the success flow on this write.
+    if (shop?.id) {
+      try {
+        await pb.collection(C.SHOPS).update(shop.id, {
+          plan: plan.id,
+          subscription_status: 'active',
+          last_payment_ref: ref,
+        })
+      } catch (e) {
+        console.error('Failed to write plan to shop record:', e)
+      }
+    }
     setMpesaPlan(null)
     navigate('/payment-success')
   }

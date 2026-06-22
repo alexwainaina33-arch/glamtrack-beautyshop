@@ -241,7 +241,7 @@ function StepBar({ step }) {
           background: 'rgba(5,150,105,0.15)', border: '1px solid rgba(5,150,105,0.3)',
           borderRadius: 20, fontSize: 10, color: '#86efac', fontWeight: 700,
         }}>
-          <span style={{ fontSize: 8 }}>🎁</span> 14-day free trial · No card required
+          <span style={{ fontSize: 8 }}>🎁</span> 7-day free trial · No card required
         </span>
       </div>
     </div>

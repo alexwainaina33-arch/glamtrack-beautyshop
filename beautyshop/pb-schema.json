@@ -3425,6 +3425,35 @@
             },
             {
                 "hidden": false,
+                "id": "bss_plan00",
+                "maxSelect": 1,
+                "name": "plan",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "select",
+                "values": [
+                    "starter",
+                    "growth",
+                    "enterprise"
+                ]
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bss_payref0",
+                "max": 0,
+                "min": 0,
+                "name": "last_payment_ref",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
                 "id": "bss_trialend",
                 "max": "",
                 "min": "",
