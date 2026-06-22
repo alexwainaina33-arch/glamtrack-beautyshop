@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDate } from '../lib/utils'
 import { buildTrialBalance, buildCashFlow } from '../lib/financials'
+import { hasRequiredPlan } from '../lib/planAccess'
+import PlanGuard from '../components/PlanGuard'
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, eachMonthOfInterval } from 'date-fns'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
 import { Download, Printer, TrendingUp, TrendingDown } from 'lucide-react'
@@ -49,6 +51,7 @@ function PeriodPicker({ dateFrom, dateTo, setDateFrom, setDateTo, style }) {
 export default function ReportsPage() {
   const { shop } = useAuth()
   const [tab, setTab] = useState(0)
+  const canSeeLenderPack = hasRequiredPlan(shop, 'growth')
   const printRef = useRef()
 
   // ── Per-tab date state ─────────────────────────────────────────────────
@@ -1148,7 +1151,10 @@ export default function ReportsPage() {
       )}
 
       {/* ══ TAB 6: LENDER PACK (UNCHANGED) ═════════════════════════════ */}
-      {tab === 6 && (
+      {tab === 6 && !canSeeLenderPack && (
+        <PlanGuard requiredPlan="growth"><div /></PlanGuard>
+      )}
+      {tab === 6 && canSeeLenderPack && (
         <div>
           <style>{`
             @media print {

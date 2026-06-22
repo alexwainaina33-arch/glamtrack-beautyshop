@@ -27,6 +27,7 @@ import ReceiptPublicPage from './pages/ReceiptPublicPage'
 import NotFoundPage from './pages/NotFoundPage'
 import InstallBanner from './components/InstallBanner'
 import RoleGuard from './components/RoleGuard'
+import PlanGuard from './components/PlanGuard'
 import ProfilePage from './pages/ProfilePage'
 
 function LandingRedirect() {
@@ -81,12 +82,12 @@ function AppRoutes() {
         <Route path="reports"      element={<RoleGuard allow={['owner','manager','viewer']}><ReportsPage /></RoleGuard>} />
         <Route path="customers"    element={<CustomersPage />} />
         <Route path="suppliers"    element={<RoleGuard allow={['owner','manager']}><SuppliersPage /></RoleGuard>} />
-        <Route path="analytics"    element={<RoleGuard allow={['owner','manager','viewer']}><AnalyticsPage /></RoleGuard>} />
+        <Route path="analytics"    element={<RoleGuard allow={['owner','manager','viewer']}><PlanGuard requiredPlan="growth"><AnalyticsPage /></PlanGuard></RoleGuard>} />
         <Route path="labels"       element={<RoleGuard allow={['owner','manager']}><BarcodeLabelsPage /></RoleGuard>} />
         <Route path="reconcile"    element={<RoleGuard allow={['owner','manager']}><ReconciliationPage /></RoleGuard>} />
         <Route path="settings"     element={<RoleGuard allow={['owner']}><SettingsPage /></RoleGuard>} />
-        <Route path="appointments" element={<AppointmentsPage />} />
-        <Route path="staff"        element={<RoleGuard allow={['owner','manager']}><StaffPage /></RoleGuard>} />
+        <Route path="appointments" element={<PlanGuard requiredPlan="growth"><AppointmentsPage /></PlanGuard>} />
+        <Route path="staff"        element={<RoleGuard allow={['owner','manager']}><PlanGuard requiredPlan="growth"><StaffPage /></PlanGuard></RoleGuard>} />
         <Route path="profile"      element={<ProfilePage />} />
       </Route>
 

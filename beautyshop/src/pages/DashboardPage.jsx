@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { generateInsight, buildShareCardData, loadShopBaseline, recordInsightShown, loadSalesAssistant } from '../lib/insightsEngine'
+import { hasRequiredPlan } from '../lib/planAccess'
+import PlanGuard from '../components/PlanGuard'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDate, fmtDateTime, pctChange } from '../lib/utils'
@@ -1009,6 +1011,7 @@ function DailyShareCard({ stats, shop, period }) {
 // ─── MAIN DASHBOARD ──────────────────────────────────────────────
 export default function DashboardPage() {
   const { shop, needsShop, role } = useAuth()
+  const canSeeInsights = hasRequiredPlan(shop, 'growth')
   const isCashier = role === 'cashier'
   const isViewer  = role === 'viewer'
   const isLimited = isCashier || isViewer
@@ -1401,7 +1404,10 @@ export default function DashboardPage() {
             </>
           )}
 
-          {activeTab === 'insights' && !isLimited && (
+          {activeTab === 'insights' && !isLimited && !canSeeInsights && (
+            <PlanGuard requiredPlan="growth"><div /></PlanGuard>
+          )}
+          {activeTab === 'insights' && !isLimited && canSeeInsights && (
             <>
               <AIInsightWidget stats={stats} hourData={hourData} shop={shop} period={period} memory={insightMemory} onRecord={(insight) => recordInsightShown(shop.id, insight, stats)} />
               <SalesAssistantWidget shop={shop} assistantData={assistantData} />
