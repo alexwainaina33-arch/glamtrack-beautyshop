@@ -599,12 +599,16 @@ export default function SettingsPage() {
                   <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 12, padding: '14px 16px', fontSize: 13, color: '#1a1a1f', whiteSpace: 'pre-wrap', lineHeight: 1.7, marginBottom: 14, fontFamily: 'monospace' }}>
                     {script}
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(script).then(() => toast.success('Script copied! Paste into WhatsApp Business Away Message 📲')).catch(() => toast.error('Could not copy')) }}
-                      style={{ padding: '9px 18px', borderRadius: 10, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
-                      📋 Copy Script
-                    </button>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {isLocked ? (
+                      <span style={{ fontSize: 12, color: '#9b6070', fontStyle: 'italic' }}>🔒 Renew to copy this script</span>
+                    ) : (
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(script).then(() => toast.success('Script copied! Paste into WhatsApp Business Away Message 📲')).catch(() => toast.error('Could not copy')) }}
+                        style={{ padding: '9px 18px', borderRadius: 10, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+                        📋 Copy Script
+                      </button>
+                    )}
                     <a href="https://www.whatsapp.com/download" target="_blank" rel="noopener noreferrer"
                       style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #f0e4e8', background: '#fff', color: '#3d1020', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
                       📱 Get WhatsApp Business
@@ -640,16 +644,20 @@ export default function SettingsPage() {
                       <div>✅ Updates automatically when you add services</div>
                       <div>✅ Print A6 size at any Nairobi cyber café — KES 20</div>
                     </div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <a href={qrSrc} download={`${shop?.name}-qr-code.png`} target="_blank" rel="noopener noreferrer"
-                        style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#c8456a,#8b2550)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        ⬇️ Download QR Code
-                      </a>
-                      <button onClick={() => window.print()}
-                        style={{ padding: '9px 16px', borderRadius: 10, border: '1.5px solid #f0e4e8', background: '#fff', color: '#3d1020', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
-                        🖨️ Print
-                      </button>
-                    </div>
+                    {isLocked ? (
+                      <span style={{ fontSize: 12, color: '#9b6070', fontStyle: 'italic' }}>🔒 Renew to download or print this QR code</span>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <a href={qrSrc} download={`${shop?.name}-qr-code.png`} target="_blank" rel="noopener noreferrer"
+                          style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#c8456a,#8b2550)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          ⬇️ Download QR Code
+                        </a>
+                        <button onClick={() => window.print()}
+                          style={{ padding: '9px 16px', borderRadius: 10, border: '1.5px solid #f0e4e8', background: '#fff', color: '#3d1020', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+                          🖨️ Print
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )

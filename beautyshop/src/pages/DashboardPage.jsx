@@ -115,7 +115,7 @@ function EmailVerificationBanner() {
 }
 
 // ─── DEAD HOURS MAP ──────────────────────────────────────────────
-function DeadHoursMap({ hourData, shop }) {
+function DeadHoursMap({ hourData, shop, isLocked }) {
   if (!hourData || hourData.length === 0) return null
   const max = Math.max(...hourData.map(h => h.count), 1)
   const deadHours = [...hourData].sort((a, b) => a.count - b.count).slice(0, 3)
@@ -168,20 +168,24 @@ function DeadHoursMap({ hourData, shop }) {
             Send a WhatsApp flash promo at {fmt(Math.max(0, deadStart - 1))} to fill those slow hours. Dead time = paid rent with zero sales.
           </div>
           {shop?.phone && (
-            <a
-              href={'https://wa.me/' + shop.phone.replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent(
-                '📢 *Flash Offer — ' + fmt(deadStart) + ' Special!*\n\n' +
-                'We have slots open right now at ' + (shop.name || 'our shop') + '!\n\n' +
-                '✨ Walk in this hour and get priority service — no waiting.\n\n' +
-                'Limited spots — first come, first served! 🏃‍♀️💨\n\n' +
-                '_' + (shop.name || 'Us') + ' · Powered by SalesTrack_'
-              )}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, padding: '8px 16px', borderRadius: 10, background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}
-            >
-              📢 Post Flash Promo on WhatsApp
-            </a>
+            isLocked ? (
+              <span style={{ display: 'inline-block', marginTop: 10, fontSize: 12, color: '#9b6070', fontStyle: 'italic' }}>🔒 Renew to send flash promos</span>
+            ) : (
+              <a
+                href={'https://wa.me/' + shop.phone.replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent(
+                  '📢 *Flash Offer — ' + fmt(deadStart) + ' Special!*\n\n' +
+                  'We have slots open right now at ' + (shop.name || 'our shop') + '!\n\n' +
+                  '✨ Walk in this hour and get priority service — no waiting.\n\n' +
+                  'Limited spots — first come, first served! 🏃‍♀️💨\n\n' +
+                  '_' + (shop.name || 'Us') + ' · Powered by SalesTrack_'
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, padding: '8px 16px', borderRadius: 10, background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}
+              >
+                📢 Post Flash Promo on WhatsApp
+              </a>
+            )
           )}
         </div>
       ) : (
@@ -966,7 +970,7 @@ function DailyShareCard({ stats, shop, period }) {
 
 // ─── MAIN DASHBOARD ──────────────────────────────────────────────
 export default function DashboardPage() {
-  const { shop, needsShop, role } = useAuth()
+  const { shop, needsShop, role, isLocked } = useAuth()
   const canSeeInsights = hasRequiredPlan(shop, 'growth')
   const isCashier = role === 'cashier'
   const isViewer  = role === 'viewer'
@@ -1368,7 +1372,7 @@ export default function DashboardPage() {
               <SalesAssistantWidget shop={shop} assistantData={assistantData} />
               <ChurnPredictorWidget shop={shop} />
               <RevenueForecastWidget shop={shop} />
-              {hourData.length > 0 && <DeadHoursMap hourData={hourData} shop={shop} />}
+              {hourData.length > 0 && <DeadHoursMap hourData={hourData} shop={shop} isLocked={isLocked} />}
               <DailyShareCard stats={stats} shop={shop} period={period} />
               <BusinessHealthScore stats={stats} shop={shop} />
             </>

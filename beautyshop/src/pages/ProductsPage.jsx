@@ -101,7 +101,7 @@ function validateRow(row, categories, index) {
 }
 
 export default function ProductsPage() {
-  const { shop, loading: authLoading } = useAuth()
+  const { shop, loading: authLoading, isLocked } = useAuth()
   const [products, setProducts]     = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading]       = useState(true)
@@ -302,6 +302,7 @@ export default function ProductsPage() {
         <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
           <button className="btn-secondary" onClick={() => { setShowBulk(true); setBulkStep(1) }}><Upload size={15}/> Bulk Import</button>
           <button className="btn-secondary" onClick={() => {
+            if (isLocked) { toast.error('🔒 Renew your subscription to share the pricelist'); return }
             if (!filtered.length) { toast.error('No products to share'); return }
             const el = document.getElementById('pricelist-capture')
             if (!el) return
