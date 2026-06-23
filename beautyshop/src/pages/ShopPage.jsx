@@ -198,6 +198,55 @@ export default function ShopPage() {
     }, { replace: true })
   }
 
+  // ── item detail view (services + products) ─────────────────────────────
+  const resolveCategoryName = (p) => {
+    const exp = p.expand?.category_id
+    if (!exp) return null
+    return Array.isArray(exp) ? (exp[0]?.name || null) : (exp.name || null)
+  }
+  const [detailItem, setDetailItem] = useState(null) // { type: 'service'|'product', id }
+  const detailInitDone = useRef(false)
+
+  useEffect(() => {
+    if (detailInitDone.current || !shop) return
+    if (services.length === 0 && products.length === 0) return
+    detailInitDone.current = true
+    const itemId   = searchParams.get('item')
+    const itemType = searchParams.get('type')
+    if (itemId && (itemType === 'service' || itemType === 'product')) {
+      setDetailItem({ type: itemType, id: itemId })
+    }
+  }, [shop, services, products, searchParams])
+
+  const openDetail = (type, item) => {
+    setDetailItem({ type, id: item.id })
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.set('item', item.id)
+      next.set('type', type)
+      return next
+    }, { replace: false })
+  }
+  const closeDetail = () => {
+    setDetailItem(null)
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.delete('item')
+      next.delete('type')
+      return next
+    }, { replace: false })
+  }
+
+  const detailService = detailItem?.type === 'service' ? services.find(s => s.id === detailItem.id) : null
+  const detailProduct = detailItem?.type === 'product' ? products.find(p => p.id === detailItem.id) : null
+
+  const relatedServices = detailService
+    ? services.filter(s => s.id !== detailService.id && (s.category || 'other') === (detailService.category || 'other')).slice(0, 4)
+    : []
+  const relatedProducts = detailProduct
+    ? products.filter(p => p.id !== detailProduct.id && (resolveCategoryName(p) || 'Uncategorized') === (resolveCategoryName(detailProduct) || 'Uncategorized')).slice(0, 4)
+    : []
+
   // ── cart helpers ──────────────────────────────────────────────────────────
   const addToCart = (product) => {
     setCart(prev => {
@@ -214,11 +263,6 @@ export default function ShopPage() {
   const cartTotal  = cart.reduce((s, i) => s + i.price_kes * i.qty, 0)
   const cartCount  = cart.reduce((s, i) => s + i.qty, 0)
 
-  const resolveCategoryName = (p) => {
-    const exp = p.expand?.category_id
-    if (!exp) return null
-    return Array.isArray(exp) ? (exp[0]?.name || null) : (exp.name || null)
-  }
   const productCategories = [...new Set(products.map(p => resolveCategoryName(p) || 'Uncategorized'))]
   const filteredProducts = products.filter(p => {
     const matchSearch = !productSearch || p.name?.toLowerCase().includes(productSearch.toLowerCase()) || (p.brand || '').toLowerCase().includes(productSearch.toLowerCase())
@@ -523,8 +567,8 @@ export default function ShopPage() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {svcs.map(svc => (
-                      <div key={svc.id} className="svc-card"
-                        style={{ background: '#fff', borderRadius: 16, padding: '16px 18px', border: '1.5px solid #f0e4e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                      <div key={svc.id} className="svc-card" onClick={() => openDetail('service', svc)}
+                        style={{ background: '#fff', borderRadius: 16, padding: '16px 18px', border: '1.5px solid #f0e4e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1f', marginBottom: 2 }}>{svc.name}</div>
                           {svc.description && <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 4, lineHeight: 1.4 }}>{svc.description}</div>}
@@ -536,7 +580,7 @@ export default function ShopPage() {
                           <div style={{ fontWeight: 800, fontSize: 16, color: brand, fontFamily: 'Playfair Display,serif' }}>
                             {fmtPrice(svc.price_kes, shop.currency)}
                           </div>
-                          <a href={`${bookingUrl}?service=${encodeURIComponent(svc.name)}`}
+                          <a href={`${bookingUrl}?service=${encodeURIComponent(svc.name)}`} onClick={e => e.stopPropagation()}
                             style={{ padding: '7px 16px', borderRadius: 10, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', boxShadow: `0 2px 8px ${brand}33` }}>
                             Book →
                           </a>
@@ -618,11 +662,11 @@ export default function ShopPage() {
                 const outOfStock = p.track_inventory && p.stock_qty === 0
 
                 return (
-                  <div key={p.id} className="prod-card"
+                  <div key={p.id} className="prod-card" onClick={() => openDetail('product', p)}
                     style={{ background: '#fff', borderRadius: 16, border: `1.5px solid ${inCart ? brand : '#f0e4e8'}`, overflow: 'hidden', opacity: outOfStock ? 0.55 : 1, position: 'relative' }}>
 
                     {/* Product image */}
-                    <div onClick={() => imgUrl && setImgModal(imgUrl)}
+                    <div onClick={e => { e.stopPropagation(); imgUrl && setImgModal(imgUrl) }}
                       style={{ height: 130, background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, cursor: imgUrl ? 'zoom-in' : 'default' }}>
                       {!imgUrl && '🛍️'}
                     </div>
@@ -655,7 +699,7 @@ export default function ShopPage() {
                           )}
                         </div>
                         {!outOfStock && (
-                          <button onClick={() => addToCart(p)}
+                          <button onClick={e => { e.stopPropagation(); addToCart(p) }}
                             style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: inCart ? '#f0fdf4' : `linear-gradient(135deg,${brand},${brand}cc)`, color: inCart ? '#059669' : '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minHeight: 32 }}>
                             {inCart ? '✓ Added' : '+ Add'}
                           </button>
@@ -857,6 +901,152 @@ export default function ShopPage() {
           )}
         </div>
       </div>
+
+      {/* ══ ITEM DETAIL VIEW ══════════════════════════════════════════════ */}
+      {(detailService || detailProduct) && (
+        <div onClick={e => e.target === e.currentTarget && closeDetail()}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.48)', zIndex: 500, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div className="slide-up" style={{ background: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 640, maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+
+            {/* Drawer header + breadcrumb */}
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #f0e4e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <div style={{ fontSize: 12, color: '#9b6070' }}>
+                <span style={{ cursor: 'pointer' }} onClick={closeDetail}>{shop.name}</span>
+                {' / '}
+                <span style={{ cursor: 'pointer' }} onClick={() => { goTab(detailService ? 'services' : 'products'); closeDetail() }}>
+                  {detailService ? 'Services' : 'Shop'}
+                </span>
+                {' / '}
+                <span style={{ color: brand, fontWeight: 700 }}>{detailService ? detailService.name : detailProduct.name}</span>
+              </div>
+              <button onClick={closeDetail}
+                style={{ background: '#f5edf0', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>✕</button>
+            </div>
+
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+
+              {/* ── SERVICE DETAIL ── */}
+              {detailService && (
+                <div style={{ padding: '20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+                    <div style={{ width: 64, height: 64, borderRadius: 16, background: `linear-gradient(135deg,${brand}22,${brand}44)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, flexShrink: 0 }}>
+                      {getCatEmoji(detailService.category || 'other')}
+                    </div>
+                    <div>
+                      <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, color: '#1a1a1f', margin: 0 }}>{detailService.name}</h2>
+                      <div style={{ fontSize: 12, color: '#9b6070', textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 2 }}>{detailService.category || 'other'}</div>
+                    </div>
+                  </div>
+
+                  {detailService.description && (
+                    <p style={{ fontSize: 14, color: '#3d1020', lineHeight: 1.7, margin: '0 0 16px' }}>{detailService.description}</p>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                    <div style={{ flex: 1, background: '#fdf5f7', borderRadius: 12, padding: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: '#9b6070', fontWeight: 700 }}>DURATION</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: '#1a1a1f', marginTop: 2 }}>⏱ {detailService.duration_minutes} min</div>
+                    </div>
+                    <div style={{ flex: 1, background: '#fdf5f7', borderRadius: 12, padding: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: '#9b6070', fontWeight: 700 }}>PRICE</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: brand, fontFamily: 'Playfair Display,serif', marginTop: 2 }}>{fmtPrice(detailService.price_kes, shop.currency)}</div>
+                    </div>
+                  </div>
+
+                  <a href={`${bookingUrl}?service=${encodeURIComponent(detailService.name)}`}
+                    style={{ display: 'block', width: '100%', padding: '14px', borderRadius: 14, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box', boxShadow: `0 4px 16px ${brand}44` }}>
+                    📅 Book This Service
+                  </a>
+
+                  {relatedServices.length > 0 && (
+                    <div style={{ marginTop: 28 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', color: '#6b4050', marginBottom: 12 }}>You may also like</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {relatedServices.map(rs => (
+                          <div key={rs.id} onClick={() => openDetail('service', rs)}
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fdf5f7', borderRadius: 12, padding: '12px 14px', cursor: 'pointer' }}>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 13, color: '#1a1a1f' }}>{rs.name}</div>
+                              <div style={{ fontSize: 11, color: '#9b6070' }}>{rs.duration_minutes} min</div>
+                            </div>
+                            <div style={{ fontWeight: 800, fontSize: 13, color: brand }}>{fmtPrice(rs.price_kes, shop.currency)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── PRODUCT DETAIL ── */}
+              {detailProduct && (() => {
+                const imgUrl = detailProduct.images?.length
+                  ? `${PB_URL}/api/files/${detailProduct.collectionId}/${detailProduct.id}/${detailProduct.images[0]}?thumb=800x800`
+                  : null
+                const outOfStock = detailProduct.track_inventory && detailProduct.stock_qty === 0
+                const inCart = cart.find(i => i.id === detailProduct.id)
+                return (
+                  <div>
+                    <div onClick={() => imgUrl && setImgModal(imgUrl)}
+                      style={{ height: 220, background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 60, cursor: imgUrl ? 'zoom-in' : 'default' }}>
+                      {!imgUrl && '🛍️'}
+                    </div>
+                    <div style={{ padding: '20px' }}>
+                      <div style={{ fontSize: 12, color: '#9b6070', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{resolveCategoryName(detailProduct) || 'Uncategorized'}</div>
+                      <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, color: '#1a1a1f', margin: '0 0 4px' }}>{detailProduct.name}</h2>
+                      {detailProduct.brand && <div style={{ fontSize: 13, color: '#9b6070', marginBottom: 12 }}>{detailProduct.brand}</div>}
+                      {detailProduct.description && (
+                        <p style={{ fontSize: 14, color: '#3d1020', lineHeight: 1.7, margin: '0 0 16px' }}>{detailProduct.description}</p>
+                      )}
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+                        <div style={{ fontWeight: 800, fontSize: 22, color: brand, fontFamily: 'Playfair Display,serif' }}>{fmtPrice(detailProduct.price_kes, shop.currency)}</div>
+                        {detailProduct.compare_price_kes > detailProduct.price_kes && (
+                          <div style={{ fontSize: 14, color: '#9b6070', textDecoration: 'line-through' }}>{fmtPrice(detailProduct.compare_price_kes, shop.currency)}</div>
+                        )}
+                        {outOfStock && <span style={{ background: '#fee2e2', color: '#dc2626', fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 8 }}>Out of stock</span>}
+                      </div>
+
+                      {!outOfStock && (
+                        <button onClick={() => addToCart(detailProduct)}
+                          style={{ width: '100%', padding: '14px', borderRadius: 14, border: 'none', background: inCart ? '#f0fdf4' : `linear-gradient(135deg,${brand},${brand}cc)`, color: inCart ? '#059669' : '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer', boxShadow: inCart ? 'none' : `0 4px 16px ${brand}44` }}>
+                          {inCart ? `✓ In cart (${inCart.qty})` : '🛒 Add to Cart'}
+                        </button>
+                      )}
+
+                      {relatedProducts.length > 0 && (
+                        <div style={{ marginTop: 28 }}>
+                          <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', color: '#6b4050', marginBottom: 12 }}>You may also like</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
+                            {relatedProducts.map(rp => {
+                              const rImg = rp.images?.length
+                                ? `${PB_URL}/api/files/${rp.collectionId}/${rp.id}/${rp.images[0]}?thumb=400x400`
+                                : null
+                              return (
+                                <div key={rp.id} onClick={() => openDetail('product', rp)}
+                                  style={{ background: '#fdf5f7', borderRadius: 12, overflow: 'hidden', cursor: 'pointer' }}>
+                                  <div style={{ height: 80, background: rImg ? `url(${rImg}) center/cover no-repeat` : `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
+                                    {!rImg && '🛍️'}
+                                  </div>
+                                  <div style={{ padding: '8px 10px' }}>
+                                    <div style={{ fontWeight: 700, fontSize: 12, color: '#1a1a1f', lineHeight: 1.3 }}>{rp.name}</div>
+                                    <div style={{ fontWeight: 800, fontSize: 12, color: brand, marginTop: 2 }}>{fmtPrice(rp.price_kes, shop.currency)}</div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══ CART DRAWER ═══════════════════════════════════════════════════ */}
       {cartOpen && (
