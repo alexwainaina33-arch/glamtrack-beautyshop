@@ -185,6 +185,41 @@ const PLANS = {
 
 const PERIOD_LABELS = { monthly: '/ month', yearly: '/ year' }
 
+// ── Referral credit: called silently after every successful payment ──────
+// Never throws — referral credit is a bonus, never a blocker.
+async function creditReferrer(referralCodeUsed) {
+  if (!referralCodeUsed?.trim()) return
+  try {
+    const code = referralCodeUsed.trim().toUpperCase()
+    console.log('[referral] searching for code:', code)
+    // Find the shop that owns this referral code
+    const res = await pb.collection(C.SHOPS).getList(1, 1, {
+      filter: `referral_code="${code}"`,
+      '$cancelKey': 'referral-credit',
+    })
+    console.log('[referral] search result:', res)
+    if (!res.items.length) { console.log('[referral] no match, exiting'); return }
+    const referrer = res.items[0]
+    console.log('[referral] found referrer:', referrer.id, referrer.name)
+    // Base date: use existing subscription_ends_at if it's in the future,
+    // otherwise start from today (handles lapsed referrers fairly)
+    const now = new Date()
+    const existing = referrer.subscription_ends_at ? new Date(referrer.subscription_ends_at) : null
+    const base = existing && existing > now ? existing : now
+    const newEnd = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000)
+    console.log('[referral] about to update with newEnd:', newEnd.toISOString())
+    await pb.collection(C.SHOPS).update(referrer.id, {
+      subscription_ends_at: newEnd.toISOString().replace('T', ' ').replace('Z', '.000Z'),
+      subscription_status: 'active',
+    })
+    console.log(`Referral credit applied: ${code} → ${referrer.name} extended to ${newEnd.toDateString()}`)
+  } catch (e) {
+    // Silent — never surface referral errors to the paying customer
+    console.error('Referral credit failed silently:', e?.message || e)
+    console.error('[referral] full error object:', e)
+  }
+}
+
 export default function PricingPage() {
   const navigate = useNavigate()
   const { shop } = useAuth()
@@ -235,6 +270,8 @@ export default function PricingPage() {
           } catch (e) {
             console.error('Failed to write plan to shop record:', e)
           }
+          // Credit the referrer 1 free month if this shop used a referral code
+          await creditReferrer(shop.referral_code_used)
         }
         setLoading(null)
         navigate('/payment-success')
@@ -256,9 +293,6 @@ export default function PricingPage() {
     localStorage.setItem('st_price',     plan.price)
     localStorage.setItem('st_dailycost', plan.dailyCost)
     localStorage.setItem('st_activated', 'true')
-    // Write plan + activation to PocketBase if a logged-in shop exists.
-    // Silent if no shop (e.g. paid before completing signup) — never
-    // blocks the success flow on this write.
     if (shop?.id) {
       try {
         await pb.collection(C.SHOPS).update(shop.id, {
@@ -269,6 +303,8 @@ export default function PricingPage() {
       } catch (e) {
         console.error('Failed to write plan to shop record:', e)
       }
+      // Credit the referrer 1 free month if this shop used a referral code
+      await creditReferrer(shop.referral_code_used)
     }
     setMpesaPlan(null)
     navigate('/payment-success')
@@ -457,6 +493,23 @@ export default function PricingPage() {
             onSuccess={handleMpesaSuccess}
           />
         )}
+
+        <button
+          onClick={async () => {
+            console.log('Testing serverless referral credit with code: REFTEST1')
+            const r = await fetch('/api/referral/credit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ referralCodeUsed: 'REFTEST1' }),
+            })
+            const data = await r.json()
+            console.log('[referral] serverless response:', data)
+            alert(JSON.stringify(data))
+          }}
+          style={{ display: 'block', margin: '0 auto 20px', padding: '8px 16px', background: '#444', color: '#fff', borderRadius: 8, border: 'none', cursor: 'pointer' }}
+        >
+          🧪 TEST: Credit Referrer (serverless)
+        </button>
 
         <p style={{ textAlign: 'center', color: '#f7c5d033', fontSize: 12 }}>
           All plans include SSL security · Daily backups · 99.9% uptime · M-Pesa & card payments
