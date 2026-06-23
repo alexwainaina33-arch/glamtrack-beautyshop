@@ -25,7 +25,7 @@ const ROLE_DESC = { owner:'Full access', manager:'All except settings', cashier:
 const CAT_EMOJI = { hair: '💇', nails: '💅', skin: '✨', body: '💆', lashes: '👁️', makeup: '💄', other: '🌸' }
 
 export default function SettingsPage() {
-  const { shop, switchShop } = useAuth()
+  const { shop, switchShop, isLocked } = useAuth()
   const logoRef = useRef(null)
 
   const [tab,       setTab]       = useState(0)
@@ -413,29 +413,42 @@ export default function SettingsPage() {
               {shopPageUrl}
             </div>
 
-            <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:20 }}>
-              <button onClick={() => copyLink('shoppage', shopPageUrl)}
-                style={{ padding:'9px 16px', borderRadius:10, border:'none', background: copiedKey==='shoppage'?'#059669':'#c8456a', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:6, transition:'background 0.2s' }}>
-                {copiedKey==='shoppage' ? <><Check size={14}/> Copied!</> : '📋 Copy Link'}
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:20, alignItems:'center' }}>
+              <button onClick={() => !isLocked && copyLink('shoppage', shopPageUrl)} disabled={isLocked}
+                style={{ padding:'9px 16px', borderRadius:10, border:'none', background: isLocked ? '#e5d5db' : copiedKey==='shoppage'?'#059669':'#c8456a', color:'#fff', fontWeight:700, fontSize:13, cursor: isLocked ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:6, transition:'background 0.2s' }}>
+                {isLocked ? '🔒 Locked' : copiedKey==='shoppage' ? <><Check size={14}/> Copied!</> : '📋 Copy Link'}
               </button>
-              <a href={`https://wa.me/?text=${encodeURIComponent(`Check out ${shop?.name}! 💅\n\nServices, prices & online booking:\n👉 ${shopPageUrl}`)}`}
-                target="_blank" rel="noopener noreferrer"
-                style={{ padding:'9px 16px', borderRadius:10, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6 }}>
-                📲 Share on WhatsApp
-              </a>
-              <a href={qrUrl(shopPageUrl)} target="_blank" rel="noopener noreferrer"
-                style={{ padding:'9px 16px', borderRadius:10, border:'1.5px solid #f0e4e8', background:'#fff', color:'#3d1020', fontWeight:700, fontSize:13, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6 }}>
-                🖨️ Print QR Code
-              </a>
+              {!isLocked && (
+                <>
+                  <a href={`https://wa.me/?text=${encodeURIComponent(`Check out ${shop?.name}! 💅\n\nServices, prices & online booking:\n👉 ${shopPageUrl}`)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ padding:'9px 16px', borderRadius:10, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6 }}>
+                    📲 Share on WhatsApp
+                  </a>
+                  <a href={qrUrl(shopPageUrl)} target="_blank" rel="noopener noreferrer"
+                    style={{ padding:'9px 16px', borderRadius:10, border:'1.5px solid #f0e4e8', background:'#fff', color:'#3d1020', fontWeight:700, fontSize:13, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6 }}>
+                    🖨️ Print QR Code
+                  </a>
+                </>
+              )}
+              {isLocked && (
+                <span style={{ fontSize:12, color:'#9b6070', fontStyle:'italic' }}>Renew to share or print this link</span>
+              )}
             </div>
 
-            {shopPageUrl && (
+            {shopPageUrl && !isLocked && (
               <div style={{ textAlign:'center' }}>
                 <div style={{ fontSize:11, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.08em', color:'#9b6070', marginBottom:10 }}>QR Code — put this on your counter, business card or receipts</div>
                 <div style={{ display:'inline-block', background:'#fff', border:'2px solid #f0e4e8', borderRadius:14, padding:12 }}>
                   <img src={qrUrl(shopPageUrl)} alt="Shop page QR code" style={{ width:160, height:160, display:'block' }} />
                   <div style={{ fontSize:11, color:'#9b6070', marginTop:8, fontWeight:600 }}>{shop?.name}</div>
                 </div>
+              </div>
+            )}
+            {shopPageUrl && isLocked && (
+              <div style={{ textAlign:'center', padding:'20px', background:'#fdf5f7', borderRadius:14, border:'1.5px dashed #f0e4e8' }}>
+                <div style={{ fontSize:24, marginBottom:6 }}>🔒</div>
+                <div style={{ fontSize:12, color:'#9b6070' }}>QR code hidden — renew your subscription to print or share</div>
               </div>
             )}
           </div>
@@ -457,20 +470,27 @@ export default function SettingsPage() {
               {bookingUrl}
             </div>
 
-            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-              <button onClick={() => copyLink('main', bookingUrl)}
-                style={{ padding:'9px 16px', borderRadius:10, border:'none', background: copiedKey==='main'?'#059669':'#c8456a', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:6, transition:'background 0.2s' }}>
-                {copiedKey==='main' ? <><Check size={14}/> Copied!</> : '📋 Copy Link'}
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+              <button onClick={() => !isLocked && copyLink('main', bookingUrl)} disabled={isLocked}
+                style={{ padding:'9px 16px', borderRadius:10, border:'none', background: isLocked ? '#e5d5db' : copiedKey==='main'?'#059669':'#c8456a', color:'#fff', fontWeight:700, fontSize:13, cursor: isLocked ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:6, transition:'background 0.2s' }}>
+                {isLocked ? '🔒 Locked' : copiedKey==='main' ? <><Check size={14}/> Copied!</> : '📋 Copy Link'}
               </button>
-              <a href={`https://wa.me/?text=${encodeURIComponent(`Book an appointment at ${shop?.name}! 💅\n\n👉 ${bookingUrl}`)}`}
-                target="_blank" rel="noopener noreferrer"
-                style={{ padding:'9px 16px', borderRadius:10, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6 }}>
-                📲 Share on WhatsApp
-              </a>
-              <a href={qrUrl(bookingUrl)} target="_blank" rel="noopener noreferrer"
-                style={{ padding:'9px 16px', borderRadius:10, border:'1.5px solid #f0e4e8', background:'#fff', color:'#3d1020', fontWeight:700, fontSize:13, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6 }}>
-                🖨️ Print QR Code
-              </a>
+              {!isLocked && (
+                <>
+                  <a href={`https://wa.me/?text=${encodeURIComponent(`Book an appointment at ${shop?.name}! 💅\n\n👉 ${bookingUrl}`)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ padding:'9px 16px', borderRadius:10, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6 }}>
+                    📲 Share on WhatsApp
+                  </a>
+                  <a href={qrUrl(bookingUrl)} target="_blank" rel="noopener noreferrer"
+                    style={{ padding:'9px 16px', borderRadius:10, border:'1.5px solid #f0e4e8', background:'#fff', color:'#3d1020', fontWeight:700, fontSize:13, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6 }}>
+                    🖨️ Print QR Code
+                  </a>
+                </>
+              )}
+              {isLocked && (
+                <span style={{ fontSize:12, color:'#9b6070', fontStyle:'italic' }}>Renew to share or print this link</span>
+              )}
             </div>
           </div>
 
@@ -503,19 +523,25 @@ export default function SettingsPage() {
                           </div>
                         </div>
                         <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                          <button onClick={() => copyLink(copyKey, svcUrl)}
-                            style={{ padding:'6px 12px', borderRadius:8, border:'none', background: copiedKey===copyKey?'#059669':'#c8456a', color:'#fff', fontWeight:700, fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:5, transition:'background 0.2s', minWidth:72 }}>
-                            {copiedKey===copyKey ? <><Check size={11}/> Copied!</> : '📋 Copy'}
-                          </button>
-                          <a href={`https://wa.me/?text=${encodeURIComponent(`Book *${svc.name}* at ${shop?.name}!\n⏱ ${svc.duration_minutes} min · KES ${svc.price_kes?.toLocaleString()}\n\n👉 ${svcUrl}`)}`}
-                            target="_blank" rel="noopener noreferrer"
-                            style={{ padding:'6px 12px', borderRadius:8, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:12, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center' }}>
-                            📲
-                          </a>
-                          <a href={qrUrl(svcUrl)} target="_blank" rel="noopener noreferrer"
-                            style={{ padding:'6px 12px', borderRadius:8, border:'1.5px solid #f0e4e8', background:'#fff', color:'#3d1020', fontWeight:700, fontSize:12, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center' }}>
-                            🖨️
-                          </a>
+                          {isLocked ? (
+                            <span style={{ fontSize:11, color:'#9b6070', fontStyle:'italic', padding:'6px 0' }}>🔒 Renew to share</span>
+                          ) : (
+                            <>
+                              <button onClick={() => copyLink(copyKey, svcUrl)}
+                                style={{ padding:'6px 12px', borderRadius:8, border:'none', background: copiedKey===copyKey?'#059669':'#c8456a', color:'#fff', fontWeight:700, fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:5, transition:'background 0.2s', minWidth:72 }}>
+                                {copiedKey===copyKey ? <><Check size={11}/> Copied!</> : '📋 Copy'}
+                              </button>
+                              <a href={`https://wa.me/?text=${encodeURIComponent(`Book *${svc.name}* at ${shop?.name}!\n⏱ ${svc.duration_minutes} min · KES ${svc.price_kes?.toLocaleString()}\n\n👉 ${svcUrl}`)}`}
+                                target="_blank" rel="noopener noreferrer"
+                                style={{ padding:'6px 12px', borderRadius:8, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:12, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center' }}>
+                                📲
+                              </a>
+                              <a href={qrUrl(svcUrl)} target="_blank" rel="noopener noreferrer"
+                                style={{ padding:'6px 12px', borderRadius:8, border:'1.5px solid #f0e4e8', background:'#fff', color:'#3d1020', fontWeight:700, fontSize:12, cursor:'pointer', textDecoration:'none', display:'inline-flex', alignItems:'center' }}>
+                                🖨️
+                              </a>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div style={{ background:'#fdf5f7', borderRadius:8, padding:'8px 10px', fontSize:11, color:'#6b4050', wordBreak:'break-all', fontFamily:'monospace' }}>
@@ -725,7 +751,9 @@ export default function SettingsPage() {
         <div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:8 }}>
             <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:0 }}>Staff & Access Control</h2>
-            <button className="btn-primary" onClick={()=>setShowAddStaff(true)}><Plus size={15}/> Add Staff</button>
+            <button className="btn-primary" onClick={()=>setShowAddStaff(true)} disabled={isLocked} title={isLocked ? 'Account locked — renew to add staff' : ''}>
+              {isLocked ? '🔒 Locked' : <><Plus size={15}/> Add Staff</>}
+            </button>
           </div>
           <div className="stat-grid-4" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:18 }}>
             {ROLES.map(role => (

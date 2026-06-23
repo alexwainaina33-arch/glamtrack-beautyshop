@@ -1,7 +1,36 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import pb, { C } from '../lib/pb'
+import { DEMO_SHOP_ID } from '../lib/planAccess'
 
 const AuthContext = createContext(null)
+
+// AUTOLOCK — computes whether this shop is currently locked out of
+// write actions (read-only mode) due to a lapsed trial or subscription.
+// Demo shop always bypasses. Trial shops lock immediately at trial_ends_at
+// (0-day grace). Shops that have ever had a subscription_ends_at value
+// (i.e. have paid at least once) get a fixed 2-day grace period past
+// subscription_ends_at before locking — protects real paying customers
+// (e.g. Beltronix) from being locked out over a slow manual renewal.
+// See DECISIONS LOG: AUTOLOCK, this session.
+export function computeIsLocked(shop) {
+  if (!shop) return false
+  if (shop.id === DEMO_SHOP_ID) return false
+
+  const now = new Date()
+
+  if (shop.subscription_ends_at) {
+    const subEnd = new Date(shop.subscription_ends_at)
+    const graceEnd = new Date(subEnd.getTime() + 2 * 86400000) // 2-day fixed grace
+    return now > graceEnd
+  }
+
+  if (shop.trial_ends_at) {
+    const trialEnd = new Date(shop.trial_ends_at)
+    return now > trialEnd // 0-day grace — trial locks immediately
+  }
+
+  return false
+}
 
 export function AuthProvider({ children }) {
   const [admin, setAdmin]         = useState(pb.authStore.model)
@@ -77,8 +106,12 @@ export function AuthProvider({ children }) {
     setNeedsShop(false)
   }
 
+  // AUTOLOCK — recomputed on every render from current shop data.
+  // See computeIsLocked() above for the full rule set.
+  const isLocked = computeIsLocked(shop)
+
   return (
-    <AuthContext.Provider value={{ admin, shop, role, permissions, needsShop, loading, login, logout, switchShop, completeShopSetup, loadShop, canAccess }}>
+    <AuthContext.Provider value={{ admin, shop, role, permissions, needsShop, loading, login, logout, switchShop, completeShopSetup, loadShop, canAccess, isLocked }}>
       {children}
     </AuthContext.Provider>
   )

@@ -9,7 +9,7 @@ import { format, startOfMonth, endOfMonth } from 'date-fns'
 const EMPTY = { description: '', category_id: '', amount_kes: '', expense_date: format(new Date(), 'yyyy-MM-dd'), payment_method: 'cash', reference: '', notes: '' }
 
 export default function ExpensesPage() {
-  const { shop, loading: authLoading } = useAuth()
+  const { shop, loading: authLoading, isLocked } = useAuth()
   const [expenses, setExpenses] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
@@ -44,6 +44,7 @@ export default function ExpensesPage() {
 
   const handleSave = async (e) => {
     e.preventDefault()
+    if (!editing && isLocked) return toast.error('🔒 Account locked — renew your subscription to record new expenses', { duration: 6000 })
     setSaving(true)
     try {
       const data = new FormData()
@@ -109,7 +110,9 @@ export default function ExpensesPage() {
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="btn-secondary" onClick={() => setShowCatModal(true)}>⚙️ Categories</button>
-          <button className="btn-primary" onClick={openNew}><Plus size={16} /> Add Expense</button>
+          <button className="btn-primary" onClick={openNew} disabled={isLocked} title={isLocked ? 'Account locked — renew to add expenses' : ''}>
+            {isLocked ? '🔒 Locked' : <><Plus size={16} /> Add Expense</>}
+          </button>
         </div>
       </div>
 

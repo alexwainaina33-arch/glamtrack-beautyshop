@@ -30,7 +30,7 @@ function addMinutesToTime(timeStr, mins) {
 }
 
 export default function AppointmentsPage() {
-  const { shop } = useAuth()
+  const { shop, isLocked } = useAuth()
   const navigate  = useNavigate()
 
   const [selectedDate, setSelectedDate] = useState(new Date())
@@ -135,6 +135,7 @@ export default function AppointmentsPage() {
   }
 
   const handleSave = async () => {
+    if (isLocked) return toast.error('🔒 Account locked — renew your subscription to book or reassign appointments', { duration: 6000 })
     if (!form.customer_name.trim()) return toast.error('Customer name required')
     if (!form.start_time)           return toast.error('Start time required')
     try {
@@ -282,8 +283,8 @@ export default function AppointmentsPage() {
             🔗 Booking Links
           </button>
 
-          <button className="btn-primary" onClick={() => openAdd()}>
-            <Plus size={16} /> New Appointment
+          <button className="btn-primary" onClick={() => openAdd()} disabled={isLocked} title={isLocked ? 'Account locked — renew to book appointments' : ''}>
+            {isLocked ? <>🔒 Locked</> : <><Plus size={16} /> New Appointment</>}
           </button>
         </div>
       </div>
@@ -303,22 +304,28 @@ export default function AppointmentsPage() {
           <div style={{ background: 'linear-gradient(135deg,#fce8ed,#fdf5f7)', borderRadius: 12, padding: '14px 16px', marginBottom: 14, border: '1px solid #f0e4e8' }}>
             <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9b6070', marginBottom: 6 }}>Main Booking Page</div>
             <div style={{ fontSize: 13, color: '#3d1020', fontWeight: 600, wordBreak: 'break-all', marginBottom: 10 }}>{bookingPageUrl}</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                onClick={() => { navigator.clipboard.writeText(bookingPageUrl); toast.success('Main link copied!') }}
-                style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#c8456a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
-              >📋 Copy Link</button>
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(`Book an appointment at ${shop?.name}! 💅\n\n👉 ${bookingPageUrl}`)}`}
-                target="_blank" rel="noopener noreferrer"
-                style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
-              >📲 Share on WhatsApp</a>
-              {/* QR code — free, no API key, no dep */}
-              <a
-                href={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(bookingPageUrl)}&size=300x300&margin=10`}
-                target="_blank" rel="noopener noreferrer"
-                style={{ padding: '7px 14px', borderRadius: 8, border: '1.5px solid #f0e4e8', background: '#fff', color: '#3d1020', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
-              >🖨️ QR Code</a>
+             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {isLocked ? (
+                <span style={{ fontSize: 12, color: '#9b6070', fontStyle: 'italic' }}>🔒 Renew to share or print this link</span>
+              ) : (
+                <>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(bookingPageUrl); toast.success('Main link copied!') }}
+                    style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#c8456a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                  >📋 Copy Link</button>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`Book an appointment at ${shop?.name}! 💅\n\n👉 ${bookingPageUrl}`)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                  >📲 Share on WhatsApp</a>
+                  {/* QR code — free, no API key, no dep */}
+                  <a
+                    href={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(bookingPageUrl)}&size=300x300&margin=10`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ padding: '7px 14px', borderRadius: 8, border: '1.5px solid #f0e4e8', background: '#fff', color: '#3d1020', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                  >🖨️ QR Code</a>
+                </>
+              )}
             </div>
           </div>
 
@@ -336,22 +343,28 @@ export default function AppointmentsPage() {
                         <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1f' }}>{svc.name}</div>
                         <div style={{ fontSize: 11, color: '#9b6070', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{link}</div>
                       </div>
-                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                        <button
-                          onClick={() => copyServiceLink(svc)}
-                          style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: copiedId === svc.id ? '#059669' : '#c8456a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', transition: 'background 0.2s', minWidth: 64, display: 'flex', alignItems: 'center', gap: 4 }}
-                        >
-                          {copiedId === svc.id ? <><Check size={12} /> Copied!</> : '📋 Copy'}
-                        </button>
-                        <button
-                          onClick={() => shareServiceWhatsApp(svc)}
-                          style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
-                        >📲</button>
-                        <a
-                          href={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(link)}&size=300x300&margin=10`}
-                          target="_blank" rel="noopener noreferrer"
-                          style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid #f0e4e8', background: '#fff', color: '#3d1020', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'none' }}
-                        >🖨️</a>
+                       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        {isLocked ? (
+                          <span style={{ fontSize: 11, color: '#9b6070', fontStyle: 'italic' }}>🔒 Locked</span>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => copyServiceLink(svc)}
+                              style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: copiedId === svc.id ? '#059669' : '#c8456a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', transition: 'background 0.2s', minWidth: 64, display: 'flex', alignItems: 'center', gap: 4 }}
+                            >
+                              {copiedId === svc.id ? <><Check size={12} /> Copied!</> : '📋 Copy'}
+                            </button>
+                            <button
+                              onClick={() => shareServiceWhatsApp(svc)}
+                              style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                            >📲</button>
+                            <a
+                              href={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(link)}&size=300x300&margin=10`}
+                              target="_blank" rel="noopener noreferrer"
+                              style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid #f0e4e8', background: '#fff', color: '#3d1020', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'none' }}
+                            >🖨️</a>
+                          </>
+                        )}
                       </div>
                     </div>
                   )
@@ -465,8 +478,8 @@ export default function AppointmentsPage() {
                 <div style={{ textAlign: 'center', padding: '32px 16px', color: '#9b6070' }}>
                   <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
                   <div style={{ fontSize: 13 }}>No appointments</div>
-                  <button className="btn-primary" style={{ marginTop: 12, fontSize: 12 }} onClick={() => openAdd()}>
-                    <Plus size={14} /> Book First
+                  <button className="btn-primary" style={{ marginTop: 12, fontSize: 12 }} onClick={() => openAdd()} disabled={isLocked} title={isLocked ? 'Account locked — renew to book appointments' : ''}>
+                    {isLocked ? '🔒 Locked' : <><Plus size={14} /> Book First</>}
                   </button>
                 </div>
               ) : appointments.map(appt => {

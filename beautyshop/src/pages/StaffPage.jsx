@@ -55,7 +55,7 @@ export const notifyStaffWhatsApp = (staffMember, appointment, shopName) => {
 }
 
 export default function StaffPage() {
-  const { shop } = useAuth()
+  const { shop, isLocked } = useAuth()
   const [tab, setTab] = useState(0) // 0=Staff, 1=Leaderboard, 2=Services, 3=Payouts, 4=Attendance
   const [staff, setStaff] = useState([])
   const [services, setServices] = useState([])
@@ -202,6 +202,7 @@ export default function StaffPage() {
     setShowStaffModal(true)
   }
   const saveStaff = async () => {
+    if (isLocked) return toast.error('🔒 Account locked — renew your subscription to add or edit staff', { duration: 6000 })
     if (!staffForm.name.trim()) return toast.error('Name required')
     try {
       const payload = { ...staffForm, shop_id: shop.id }
@@ -249,6 +250,7 @@ export default function StaffPage() {
     setShowPayoutModal(true)
   }
   const savePayout = async () => {
+    if (isLocked) return toast.error('🔒 Account locked — renew your subscription to record commission payouts', { duration: 6000 })
     if (!payoutStaff) return
     try {
       const sales = getSalesForStaff(payoutStaff, payoutForm.period_from, payoutForm.period_to)
@@ -351,7 +353,9 @@ export default function StaffPage() {
               <button onClick={broadcastWhatsApp} style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid #25D366', background: '#fff', color: '#128C7E', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
                 📢 Broadcast
               </button>
-              <button className="btn-primary" onClick={openAddStaff}><Plus size={16} /> Add Staff</button>
+              <button className="btn-primary" onClick={openAddStaff} disabled={isLocked} title={isLocked ? 'Account locked — renew to add staff' : ''}>
+                {isLocked ? '🔒 Locked' : <><Plus size={16} /> Add Staff</>}
+              </button>
             </div>
           )}
           {tab === 2 && <button className="btn-primary" onClick={openAddService}><Plus size={16} /> Add Service</button>}
@@ -394,7 +398,9 @@ export default function StaffPage() {
                 <div className="card" style={{ textAlign: 'center', padding: 48, gridColumn: '1/-1' }}>
                   <div style={{ fontSize: 48, marginBottom: 12 }}>👩‍💼</div>
                   <p style={{ color: '#9b6070' }}>No staff yet. Add your first team member!</p>
-                  <button className="btn-primary" style={{ marginTop: 12 }} onClick={openAddStaff}><Plus size={16} /> Add Staff</button>
+                  <button className="btn-primary" style={{ marginTop: 12 }} onClick={openAddStaff} disabled={isLocked}>
+                    {isLocked ? '🔒 Locked' : <><Plus size={16} /> Add Staff</>}
+                  </button>
                 </div>
               )}
               {staff.map(s => {
@@ -477,8 +483,8 @@ export default function StaffPage() {
                     )}
 
                     {s.commission_type !== 'none' && outstanding > 0 && (
-                      <button onClick={() => openPayout(s)} style={{ width: '100%', padding: '9px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#d97706,#92400e)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                        💸 Record Commission Payout
+                      <button onClick={() => openPayout(s)} disabled={isLocked} style={{ width: '100%', padding: '9px', borderRadius: 10, border: 'none', background: isLocked ? '#e5d5db' : 'linear-gradient(135deg,#d97706,#92400e)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: isLocked ? 'not-allowed' : 'pointer' }}>
+                        {isLocked ? '🔒 Locked — Renew to Pay' : '💸 Record Commission Payout'}
                       </button>
                     )}
                   </div>
@@ -846,7 +852,7 @@ export default function StaffPage() {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowStaffModal(false)}>Cancel</button>
-                <button className="btn-primary" style={{ flex: 2 }} onClick={saveStaff}>{editStaffId ? '💾 Save' : '👩‍💼 Add Staff'}</button>
+                <button className="btn-primary" style={{ flex: 2 }} onClick={saveStaff} disabled={isLocked}>{isLocked ? '🔒 Locked' : editStaffId ? '💾 Save' : '👩‍💼 Add Staff'}</button>
               </div>
             </div>
           </div>
@@ -951,8 +957,8 @@ export default function StaffPage() {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowPayoutModal(false)}>Cancel</button>
-                <button onClick={savePayout} style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#d97706,#92400e)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-                  ✅ Confirm Payout {fmtKES(payoutForm.commission_kes)}
+                <button onClick={savePayout} disabled={isLocked} style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', background: isLocked ? '#e5d5db' : 'linear-gradient(135deg,#d97706,#92400e)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: isLocked ? 'not-allowed' : 'pointer' }}>
+                  {isLocked ? '🔒 Account Locked' : `✅ Confirm Payout ${fmtKES(payoutForm.commission_kes)}`}
                 </button>
               </div>
             </div>

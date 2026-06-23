@@ -9,7 +9,7 @@ import { format } from 'date-fns'
 const EMPTY = { name: '', phone: '', email: '', birthday: '', notes: '' }
 
 export default function CustomersPage() {
-  const { shop, loading: authLoading } = useAuth()
+  const { shop, loading: authLoading, isLocked } = useAuth()
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -48,6 +48,7 @@ export default function CustomersPage() {
 
   const handleSave = async (e) => {
     e.preventDefault()
+    if (isLocked) return toast.error('🔒 Account locked — renew your subscription to add or edit customers', { duration: 6000 })
     setSaving(true)
     try {
       if (editing) {
@@ -103,7 +104,9 @@ export default function CustomersPage() {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn-secondary" onClick={exportCustomersCSV}><Download size={16} /> Export CSV</button>
-          <button className="btn-primary" onClick={() => { setEditing(null); setForm(EMPTY); setShowModal(true) }}><Plus size={16} /> Add Customer</button>
+          <button className="btn-primary" onClick={() => { setEditing(null); setForm(EMPTY); setShowModal(true) }} disabled={isLocked} title={isLocked ? 'Account locked — renew to add customers' : ''}>
+            {isLocked ? '🔒 Locked' : <><Plus size={16} /> Add Customer</>}
+          </button>
         </div>
       </div>
 

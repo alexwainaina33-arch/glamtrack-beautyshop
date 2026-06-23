@@ -45,7 +45,7 @@ const NAV = (lapsedCount, role) => {
 }
 
 export default function Layout() {
-  const { admin, shop, role, logout } = useAuth()
+  const { admin, shop, role, logout, isLocked } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [lapsedCount, setLapsedCount] = useState(0)
@@ -290,6 +290,26 @@ export default function Layout() {
           stats={renewalStats}
           onClick={() => navigate('/pricing')}
         />
+        {isLocked && (
+          <div
+            onClick={() => navigate('/pricing')}
+            style={{
+              background: 'linear-gradient(135deg,#3d1020,#6b1e38)',
+              color: '#fff', borderRadius: 14, padding: '14px 18px',
+              marginBottom: 16, display: 'flex', alignItems: 'center',
+              gap: 12, cursor: 'pointer', boxShadow: '0 4px 16px #0002'
+            }}
+          >
+            <span style={{ fontSize: 24, flexShrink: 0 }}>🔒</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: 14 }}>Account Locked — Renew to Continue</div>
+              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>
+                Your trial or subscription has expired. You can still view your data, but new sales, expenses, and bookings are paused until you renew.
+              </div>
+            </div>
+            <span style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0 }}>Renew →</span>
+          </div>
+        )}
         <Outlet />
       </main>
 

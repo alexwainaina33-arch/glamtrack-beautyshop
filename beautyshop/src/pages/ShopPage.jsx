@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import pb, { C, PB_URL } from '../lib/pb'
+import { computeIsLocked } from '../context/AuthContext'
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const CAT_EMOJI = {
@@ -204,6 +205,18 @@ export default function ShopPage() {
         <div style={{ fontSize: 64, marginBottom: 16 }}>🔍</div>
         <h2 style={{ fontFamily: 'Playfair Display,serif', color: '#3d1020', margin: '0 0 8px' }}>Shop not found</h2>
         <p style={{ color: '#9b6070', margin: 0 }}>This link may be incorrect or the shop may have moved.</p>
+      </div>
+    </div>
+  )
+
+  // AUTOLOCK — public shop page must respect the same lock state as the
+  // owner-facing app. See computeIsLocked() in AuthContext.jsx for the rule.
+  if (computeIsLocked(shop)) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fdf5f7', fontFamily: 'Nunito,sans-serif', padding: 24 }}>
+      <div style={{ textAlign: 'center', maxWidth: 360 }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>🛍️</div>
+        <h2 style={{ fontFamily: 'Playfair Display,serif', color: '#3d1020', margin: '0 0 8px' }}>This shop's page is temporarily unavailable</h2>
+        <p style={{ color: '#9b6070', margin: 0 }}>Please check back soon, or contact the business directly if you need to reach them.</p>
       </div>
     </div>
   )

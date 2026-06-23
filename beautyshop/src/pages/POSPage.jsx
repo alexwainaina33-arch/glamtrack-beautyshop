@@ -10,7 +10,7 @@ import { queueSale, getPendingSales, markSynced, cacheProducts, cacheCategories,
 import ReceiptModal from '../components/ReceiptModal'
 
 export default function POSPage() {
-  const { shop, admin, loading: authLoading } = useAuth()
+  const { shop, admin, loading: authLoading, isLocked } = useAuth()
   const [products, setProducts]     = useState([])
   const [categories, setCategories] = useState([])
   const [cart, setCart]             = useState([])
@@ -254,6 +254,7 @@ export default function POSPage() {
   const change          = paymentMethod === 'cash' && cashTendered ? Math.max(0, Number(cashTendered) - total) : 0
 
   const payLater = async () => {
+    if (isLocked) return toast.error('🔒 Account locked — renew your subscription to record sales', { duration: 6000 })
     if (!cart.length) return toast.error('Cart is empty')
     if (!customer) return toast.error('Select a customer first — credit requires a name')
     if (!confirm(`Record KES ${total.toLocaleString('en-KE', { minimumFractionDigits: 2 })} as credit for ${customer.name}?`)) return
@@ -295,6 +296,7 @@ export default function POSPage() {
   }
 
   const processSale = async () => {
+    if (isLocked) return toast.error('🔒 Account locked — renew your subscription to make sales', { duration: 6000 })
     if (!cart.length) return toast.error('Cart is empty')
     if (paymentMethod === 'cash' && cashTendered && Number(cashTendered) < total) return toast.error('Insufficient cash')
 
@@ -620,12 +622,12 @@ export default function POSPage() {
                 {mpesaAmount && Number(mpesaAmount) < total && <div style={{ background: '#f0f9ff', color: '#0369a1', borderRadius: 8, padding: '5px 11px', fontSize: 12, fontWeight: 700 }}>💵 Cash balance: {fmtKES(cashAmt)}</div>}
               </div>
             )}
-            <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: 14, borderRadius: 12 }} onClick={processSale} disabled={processing || !cart.length}>
-              {processing ? <><div style={{ width: 15, height: 15, border: '2px solid #fff4', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Processing…</> : `✅ Complete · ${fmtKES(total)}`}
+            <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: 14, borderRadius: 12 }} onClick={processSale} disabled={processing || !cart.length || isLocked}>
+              {processing ? <><div style={{ width: 15, height: 15, border: '2px solid #fff4', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Processing…</> : isLocked ? '🔒 Account Locked' : `✅ Complete · ${fmtKES(total)}`}
             </button>
-            <button onClick={payLater} disabled={processing || !cart.length || !customer}
-              style={{ width: '100%', marginTop: 6, padding: '9px', borderRadius: 12, border: '2px solid #f59e0b', background: !cart.length || !customer ? '#f5edf0' : '#fffbeb', color: !cart.length || !customer ? '#9b6070' : '#b45309', fontWeight: 700, fontSize: 13, cursor: !cart.length || !customer ? 'not-allowed' : 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              💳 Pay Later {!customer && cart.length > 0 ? '(select customer first)' : ''}
+            <button onClick={payLater} disabled={processing || !cart.length || !customer || isLocked}
+              style={{ width: '100%', marginTop: 6, padding: '9px', borderRadius: 12, border: '2px solid #f59e0b', background: !cart.length || !customer || isLocked ? '#f5edf0' : '#fffbeb', color: !cart.length || !customer || isLocked ? '#9b6070' : '#b45309', fontWeight: 700, fontSize: 13, cursor: !cart.length || !customer || isLocked ? 'not-allowed' : 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              💳 Pay Later {!customer && cart.length > 0 && !isLocked ? '(select customer first)' : ''}
             </button>
           </div>
         </div>

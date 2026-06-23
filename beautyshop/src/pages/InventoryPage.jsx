@@ -6,7 +6,7 @@ import { Plus, AlertTriangle, ArrowUp, ArrowDown, RefreshCw, X, Filter } from 'l
 import toast from 'react-hot-toast'
 
 export default function InventoryPage() {
-  const { shop, loading: authLoading } = useAuth()
+  const { shop, loading: authLoading, isLocked } = useAuth()
   const [products, setProducts] = useState([])
   const [movements, setMovements] = useState([])
   const [loading, setLoading] = useState(true)
@@ -53,6 +53,7 @@ export default function InventoryPage() {
 
   const handleAdjust = async (e) => {
     e.preventDefault()
+    if (isLocked) return toast.error('🔒 Account locked — renew your subscription to adjust stock', { duration: 6000 })
     if (!adjustQty || isNaN(adjustQty) || Number(adjustQty) <= 0) return toast.error('Enter valid quantity')
     setSaving(true)
     try {
@@ -135,7 +136,9 @@ export default function InventoryPage() {
           <div className="page-title">Inventory 📦</div>
           <div className="page-subtitle">{products.length} tracked products</div>
         </div>
-        <button className="btn-primary" onClick={() => openAdjust(null, 'stock_in')}><Plus size={16} /> Stock Adjustment</button>
+        <button className="btn-primary" onClick={() => openAdjust(null, 'stock_in')} disabled={isLocked} title={isLocked ? 'Account locked — renew to adjust stock' : ''}>
+          {isLocked ? '🔒 Locked' : <><Plus size={16} /> Stock Adjustment</>}
+        </button>
       </div>
 
       {/* Summary cards */}

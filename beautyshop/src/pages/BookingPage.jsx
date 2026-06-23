@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import pb, { C, PB_URL } from '../lib/pb'
+import { computeIsLocked } from '../context/AuthContext'
 
 const CAT_EMOJI = {
   hair: '💇', nails: '💅', skin: '✨', body: '💆',
@@ -163,6 +164,7 @@ export default function BookingPage() {
 
   const handleSubmit = async () => {
     setError('')
+    if (computeIsLocked(shop))       return setError('This shop is temporarily unavailable for bookings. Please contact them directly.')
     if (!selected.name.trim())       return setError('Please enter your name.')
     if (!selected.phone.trim())      return setError('Please enter your phone number.')
     if (!selected.services?.length)  return setError('Please select at least one service.')
@@ -231,6 +233,23 @@ export default function BookingPage() {
         <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
         <h2 style={{ fontFamily: 'Playfair Display,serif', color: '#3d1020', marginBottom: 8 }}>Shop not found</h2>
         <p style={{ color: '#9b6070' }}>This booking link may be incorrect or the shop may have moved.</p>
+      </div>
+    </div>
+  )
+
+  // AUTOLOCK — public booking page must respect the same lock state as the
+  // owner-facing app. See computeIsLocked() in AuthContext.jsx for the rule.
+  if (computeIsLocked(shop)) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fdf5f7', fontFamily: 'Nunito,sans-serif', padding: 24 }}>
+      <div style={{ textAlign: 'center', maxWidth: 360 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>📅</div>
+        <h2 style={{ fontFamily: 'Playfair Display,serif', color: '#3d1020', marginBottom: 8 }}>Bookings are temporarily unavailable</h2>
+        <p style={{ color: '#9b6070' }}>{shop.name} isn't accepting online bookings right now. Please contact them directly.</p>
+        {shop.phone && (
+          <a href={`tel:${shop.phone}`} style={{ display: 'inline-block', marginTop: 12, color: shop.brand_color || '#c8456a', fontWeight: 700, textDecoration: 'none' }}>
+            📞 {shop.phone}
+          </a>
+        )}
       </div>
     </div>
   )
