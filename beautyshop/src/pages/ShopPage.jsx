@@ -1,13 +1,15 @@
 import { useEffect, useState, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import pb, { C, PB_URL } from '../lib/pb'
 import { computeIsLocked } from '../context/AuthContext'
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const CAT_EMOJI = {
   hair: '💇', nails: '💅', skin: '✨', body: '💆',
-  lashes: '👁️', makeup: '💄', other: '🌸',
+  lashes: '👁️', makeup: '💄', repairs: '🔧',
+  electronics: '🔌', retail: '🛒', food: '🍽️', other: '🌸',
 }
+const getCatEmoji = (cat) => CAT_EMOJI[cat] || '✨'
 
 function fmtPrice(n, currency) {
   const amount = Number(n)
@@ -109,6 +111,8 @@ export default function ShopPage() {
   const [serviceCatFilter, setServiceCatFilter] = useState('')
   const [copied,     setCopied]     = useState(false)
   const [imgModal,   setImgModal]   = useState(null)   // full-screen product image
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlInitDone = useRef(false)
   const heroRef = useRef(null)
 
   useEffect(() => {
@@ -149,6 +153,51 @@ export default function ShopPage() {
     load()
   }, [slug])
 
+  // ── URL deep-linking (tab + category) ───────────────────────────────────
+  // Restores tab/category from the URL once shop data has loaded — lets a
+  // category or tab be bookmarked/shared directly (?tab=products&cat=hair)
+  useEffect(() => {
+    if (urlInitDone.current || !shop) return
+    urlInitDone.current = true
+    const urlTab = searchParams.get('tab')
+    const urlCat = searchParams.get('cat')
+    if (urlTab && ['services', 'products', 'about', 'hours'].includes(urlTab)) {
+      setTab(urlTab)
+      if (urlCat) {
+        if (urlTab === 'services') setServiceCatFilter(urlCat)
+        if (urlTab === 'products') setProductCatFilter(urlCat)
+      }
+    }
+  }, [shop, searchParams])
+
+  const goTab = (key) => {
+    setTab(key)
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.set('tab', key)
+      next.delete('cat')
+      return next
+    }, { replace: true })
+  }
+  const setServiceCat = (cat) => {
+    setServiceCatFilter(cat)
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.set('tab', 'services')
+      if (cat) next.set('cat', cat); else next.delete('cat')
+      return next
+    }, { replace: true })
+  }
+  const setProductCat = (cat) => {
+    setProductCatFilter(cat)
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.set('tab', 'products')
+      if (cat) next.set('cat', cat); else next.delete('cat')
+      return next
+    }, { replace: true })
+  }
+
   // ── cart helpers ──────────────────────────────────────────────────────────
   const addToCart = (product) => {
     setCart(prev => {
@@ -165,10 +214,16 @@ export default function ShopPage() {
   const cartTotal  = cart.reduce((s, i) => s + i.price_kes * i.qty, 0)
   const cartCount  = cart.reduce((s, i) => s + i.qty, 0)
 
-  const productCategories = [...new Set(products.map(p => p.expand?.category_id?.name).filter(Boolean))]
+  const resolveCategoryName = (p) => {
+    const exp = p.expand?.category_id
+    if (!exp) return null
+    return Array.isArray(exp) ? (exp[0]?.name || null) : (exp.name || null)
+  }
+  const productCategories = [...new Set(products.map(p => resolveCategoryName(p) || 'Uncategorized'))]
   const filteredProducts = products.filter(p => {
     const matchSearch = !productSearch || p.name?.toLowerCase().includes(productSearch.toLowerCase()) || (p.brand || '').toLowerCase().includes(productSearch.toLowerCase())
-    const matchCat = !productCatFilter || p.expand?.category_id?.name === productCatFilter
+    const pCat = resolveCategoryName(p) || 'Uncategorized'
+    const matchCat = !productCatFilter || pCat === productCatFilter
     return matchSearch && matchCat
   })
 
@@ -235,7 +290,7 @@ export default function ShopPage() {
   const openStatus = getOpenStatus(shop.business_hours)
   const mapQuery   = encodeURIComponent(shop.address || shop.name)
 
-  const serviceCategories = Object.keys(CAT_EMOJI).filter(c => services.some(s => (s.category || 'other') === c))
+  const serviceCategories = [...new Set(services.map(s => s.category || 'other'))]
   const filteredServices = services.filter(s => {
     const matchSearch = !serviceSearch || s.name?.toLowerCase().includes(serviceSearch.toLowerCase())
     const matchCat = !serviceCatFilter || (s.category || 'other') === serviceCatFilter
@@ -400,7 +455,7 @@ export default function ShopPage() {
       <div style={{ maxWidth: 640, margin: '18px auto 0', padding: '0 16px' }}>
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
           {tabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} className="tab-pill"
+            <button key={t.key} onClick={() => goTab(t.key)} className="tab-pill"
               style={{ padding: '9px 16px', borderRadius: 24, background: tab === t.key ? `linear-gradient(135deg,${brand},${brand}cc)` : '#fff', color: tab === t.key ? '#fff' : '#6b4050', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', boxShadow: tab === t.key ? `0 3px 12px ${brand}44` : '0 1px 4px rgba(0,0,0,.06)', border: tab !== t.key ? '1.5px solid #f0e4e8' : 'none', flexShrink: 0 }}>
               {t.label}{t.count !== null ? ` (${t.count})` : ''}
             </button>
@@ -434,14 +489,14 @@ export default function ShopPage() {
                   </div>
                   {serviceCategories.length > 0 && (
                     <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
-                      <button onClick={() => setServiceCatFilter('')}
+                      <button onClick={() => setServiceCat('')}
                         style={{ padding: '6px 14px', borderRadius: 20, border: serviceCatFilter === '' ? 'none' : '1.5px solid #f0e4e8', background: serviceCatFilter === '' ? brand : '#fff', color: serviceCatFilter === '' ? '#fff' : '#6b4050', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
                         All
                       </button>
                       {serviceCategories.map(cat => (
-                        <button key={cat} onClick={() => setServiceCatFilter(cat)}
+                        <button key={cat} onClick={() => setServiceCat(cat)}
                           style={{ padding: '6px 14px', borderRadius: 20, border: serviceCatFilter === cat ? 'none' : '1.5px solid #f0e4e8', background: serviceCatFilter === cat ? brand : '#fff', color: serviceCatFilter === cat ? '#fff' : '#6b4050', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
-                          {CAT_EMOJI[cat]} {cat}
+                          {getCatEmoji(cat)} {cat}
                         </button>
                       ))}
                     </div>
@@ -459,7 +514,7 @@ export default function ShopPage() {
                   {/* Category header */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <div style={{ width: 32, height: 32, borderRadius: 10, background: `linear-gradient(135deg,${brand}22,${brand}44)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
-                      {CAT_EMOJI[cat] || '✨'}
+                      {getCatEmoji(cat)}
                     </div>
                     <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', color: '#6b4050' }}>{cat}</span>
                     <div style={{ flex: 1, height: 1, background: '#f0e4e8' }} />
@@ -534,12 +589,12 @@ export default function ShopPage() {
               </div>
               {productCategories.length > 0 && (
                 <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
-                  <button onClick={() => setProductCatFilter('')}
+                  <button onClick={() => setProductCat('')}
                     style={{ padding: '6px 14px', borderRadius: 20, border: productCatFilter === '' ? 'none' : '1.5px solid #f0e4e8', background: productCatFilter === '' ? brand : '#fff', color: productCatFilter === '' ? '#fff' : '#6b4050', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
                     All
                   </button>
                   {productCategories.map(cat => (
-                    <button key={cat} onClick={() => setProductCatFilter(cat)}
+                    <button key={cat} onClick={() => setProductCat(cat)}
                       style={{ padding: '6px 14px', borderRadius: 20, border: productCatFilter === cat ? 'none' : '1.5px solid #f0e4e8', background: productCatFilter === cat ? brand : '#fff', color: productCatFilter === cat ? '#fff' : '#6b4050', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
                       {cat}
                     </button>

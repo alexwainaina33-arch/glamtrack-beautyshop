@@ -2004,8 +2004,8 @@
     },
     {
         "id": "bscol_prods0001",
-        "listRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
-        "viewRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
+        "listRule": "status = \"active\" || (@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id)",
+        "viewRule": "status = \"active\" || (@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id)",
         "createRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
         "updateRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
         "deleteRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
