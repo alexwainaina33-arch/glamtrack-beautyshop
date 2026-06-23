@@ -26,7 +26,11 @@ const CAT_EMOJI = { hair: '💇', nails: '💅', skin: '✨', body: '💆', lash
 
 export default function SettingsPage() {
   const { shop, switchShop, isLocked } = useAuth()
-  const logoRef = useRef(null)
+  const logoRef   = useRef(null)
+  const coverRef  = useRef(null)
+  const [coverFile,    setCoverFile]    = useState(null)
+  const [coverPreview, setCoverPreview] = useState(null)
+  const [coverDragOver,setCoverDragOver]= useState(false)
 
   const [tab,       setTab]       = useState(0)
   const [shopForm,  setShopForm]  = useState({})
@@ -56,6 +60,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (shop) {
+      const DEFAULT_HOURS = { Mon:{open:'08:00',close:'18:00',closed:false}, Tue:{open:'08:00',close:'18:00',closed:false}, Wed:{open:'08:00',close:'18:00',closed:false}, Thu:{open:'08:00',close:'18:00',closed:false}, Fri:{open:'08:00',close:'18:00',closed:false}, Sat:{open:'09:00',close:'17:00',closed:false}, Sun:{open:'09:00',close:'14:00',closed:true} }
       setShopForm({
         name:                shop.name                || '',
         phone:               shop.phone               || '',
@@ -75,6 +80,10 @@ export default function SettingsPage() {
         receipt_show_tax:    shop.receipt_show_tax    ?? true,
         whatsapp_welcome_msg: shop.whatsapp_welcome_msg || '',
         opening_capital_kes: shop.opening_capital_kes  || 0,
+        tagline:             shop.tagline             || '',
+        about_text:          shop.about_text          || '',
+        founded_year:        shop.founded_year        || '',
+        business_hours:      (shop.business_hours && Object.keys(shop.business_hours).length > 0) ? shop.business_hours : DEFAULT_HOURS,
       })
       setCustomColor(shop.brand_color || '#c8456a')
       loadStaff()
@@ -117,17 +126,33 @@ export default function SettingsPage() {
     r.readAsDataURL(file)
   }
 
+  const handleCoverFile = (file) => {
+    if (!file) return
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) { toast.error('JPG, PNG or WebP only'); return }
+    if (file.size > 5*1024*1024) { toast.error('Max 5MB'); return }
+    setCoverFile(file)
+    const r = new FileReader()
+    r.onload = e => setCoverPreview(e.target.result)
+    r.readAsDataURL(file)
+  }
+
   const saveShop = async (e) => {
     e?.preventDefault()
     setSaving(true)
     try {
       const fd = new FormData()
-      Object.entries(shopForm).forEach(([k,v]) => fd.append(k, String(v)))
-      if (logoFile) fd.append('logo', logoFile)
+      Object.entries(shopForm).forEach(([k,v]) => {
+        if (k === 'business_hours') fd.append(k, JSON.stringify(v))
+        else fd.append(k, String(v ?? ''))
+      })
+      if (logoFile)  fd.append('logo', logoFile)
+      if (coverFile) fd.append('cover_image', coverFile)
       const updated = await pb.collection(C.SHOPS).update(shop.id, fd)
       switchShop(updated)
       setLogoFile(null)
       setLogoPreview(null)
+      setCoverFile(null)
+      setCoverPreview(null)
       toast.success('Settings saved! ✅')
     } catch (err) { toast.error(err?.message || 'Save failed') }
     finally { setSaving(false) }
@@ -293,7 +318,8 @@ export default function SettingsPage() {
 
       {/* ── TAB 1: BRANDING ── */}
       {tab === 1 && (
-        <div className="mobile-stack" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, maxWidth:780 }}>
+        <div style={{ maxWidth:780 }}>
+        <div className="mobile-stack" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
           {/* Logo */}
           <div className="card">
             <h3 style={{ fontFamily:'Playfair Display,serif', fontSize:17, color:'#3d1020', margin:'0 0 16px' }}>Business Logo</h3>
@@ -382,6 +408,112 @@ export default function SettingsPage() {
               <button type="submit" className="btn-primary" disabled={saving}><Save size={14}/>{saving?'Saving…':'Save Branding'}</button>
             </form>
           </div>
+        </div>
+
+        {/* ── Cover Image ── */}
+        <div className="card" style={{ marginBottom:16 }}>
+          <h3 style={{ fontFamily:'Playfair Display,serif', fontSize:17, color:'#3d1020', margin:'0 0 6px' }}>🖼️ Cover Photo</h3>
+          <p style={{ fontSize:13, color:'#9b6070', margin:'0 0 14px' }}>A wide banner photo shown at the top of your public shop page. Ideal size: 1200 × 400px. Shows your shopfront, workspace, or a hero product shot.</p>
+          {(coverPreview || shop?.cover_image) && (
+            <div style={{ position:'relative', marginBottom:14, borderRadius:12, overflow:'hidden', border:'1.5px solid #f0e4e8' }}>
+              <img
+                src={coverPreview || `${pb.baseURL}/api/files/${C.SHOPS}/${shop.id}/${shop.cover_image}?thumb=1200x400`}
+                alt="cover"
+                style={{ width:'100%', height:160, objectFit:'cover', display:'block' }}
+              />
+              {coverPreview && (
+                <button onClick={()=>{setCoverFile(null);setCoverPreview(null)}}
+                  style={{ position:'absolute', top:8, right:8, background:'rgba(0,0,0,.55)', border:'none', borderRadius:'50%', width:28, height:28, color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14 }}>✕</button>
+              )}
+              <div style={{ position:'absolute', bottom:8, left:10, fontSize:11, color:'rgba(255,255,255,.85)', fontWeight:700, background:'rgba(0,0,0,.38)', padding:'2px 8px', borderRadius:6 }}>
+                {coverPreview ? 'New cover — save to publish' : 'Current cover photo'}
+              </div>
+            </div>
+          )}
+          <div
+            onDragOver={e=>{e.preventDefault();setCoverDragOver(true)}}
+            onDragLeave={()=>setCoverDragOver(false)}
+            onDrop={e=>{e.preventDefault();setCoverDragOver(false);handleCoverFile(e.dataTransfer.files[0])}}
+            onClick={()=>coverRef.current?.click()}
+            style={{ border:`2px dashed ${coverDragOver?'#c8456a':'#f0e4e8'}`, borderRadius:12, padding:'18px', textAlign:'center', cursor:'pointer', background:coverDragOver?'#fce8ed':'#fdf5f7', transition:'all 0.2s' }}
+          >
+            <Upload size={26} color={coverDragOver?'#c8456a':'#d4a0b0'} style={{ margin:'0 auto 6px' }} />
+            <div style={{ fontSize:13, color:'#9b6070', fontWeight:600 }}>Drop cover photo or click to upload</div>
+            <div style={{ fontSize:11, color:'#c8b0b8', marginTop:2 }}>JPG · PNG · WebP · Max 5MB · Recommended 1200×400px</div>
+          </div>
+          <input ref={coverRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display:'none' }} onChange={e=>handleCoverFile(e.target.files[0])} />
+          {coverFile && (
+            <button onClick={saveShop} disabled={saving} className="btn-primary" style={{ marginTop:12, width:'100%' }}>
+              <Save size={14}/>{saving?'Saving…':'Save Cover Photo'}
+            </button>
+          )}
+        </div>
+
+        {/* ── Shop Profile ── */}
+        <div className="card" style={{ marginBottom:16 }}>
+          <h3 style={{ fontFamily:'Playfair Display,serif', fontSize:17, color:'#3d1020', margin:'0 0 6px' }}>🏪 Shop Profile</h3>
+          <p style={{ fontSize:13, color:'#9b6070', margin:'0 0 16px' }}>Shown on your public shop page under your name. Helps new customers decide to visit.</p>
+          <form onSubmit={saveShop} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div>
+              <label className="label">Tagline / Slogan</label>
+              <input className="input" value={shopForm.tagline||''} onChange={e=>setShopForm(f=>({...f,tagline:e.target.value}))} placeholder="e.g. Your beauty, our passion ✨" maxLength={80} />
+              <div style={{ fontSize:11, color:'#9b6070', marginTop:3 }}>One short line shown under your shop name on your public page.</div>
+            </div>
+            <div>
+              <label className="label">About / Our Story</label>
+              <textarea className="input" rows={4} style={{ resize:'vertical' }} value={shopForm.about_text||''} onChange={e=>setShopForm(f=>({...f,about_text:e.target.value}))} placeholder="Tell customers who you are, what makes you different, and why they should choose you…" maxLength={600} />
+              <div style={{ fontSize:11, color:'#9b6070', marginTop:3 }}>{(shopForm.about_text||'').length}/600 characters · Shown in the About tab on your shop page.</div>
+            </div>
+            <div>
+              <label className="label">Year Founded</label>
+              <input className="input" type="number" min={1900} max={new Date().getFullYear()} value={shopForm.founded_year||''} onChange={e=>setShopForm(f=>({...f,founded_year:e.target.value}))} placeholder={`e.g. ${new Date().getFullYear() - 3}`} style={{ maxWidth:160 }} />
+              <div style={{ fontSize:11, color:'#9b6070', marginTop:3 }}>Shows "Est. {shopForm.founded_year||'YYYY'}" on your shop page as a trust signal.</div>
+            </div>
+            <div style={{ paddingTop:4, borderTop:'1px solid #f5edf0' }}>
+              <button type="submit" className="btn-primary" disabled={saving}><Save size={14}/>{saving?'Saving…':'Save Shop Profile'}</button>
+            </div>
+          </form>
+        </div>
+
+        {/* ── Business Hours ── */}
+        <div className="card">
+          <h3 style={{ fontFamily:'Playfair Display,serif', fontSize:17, color:'#3d1020', margin:'0 0 6px' }}>🕐 Opening Hours</h3>
+          <p style={{ fontSize:13, color:'#9b6070', margin:'0 0 16px' }}>Set your opening hours per day. Customers see a live "Open now" / "Closed" badge on your shop page.</p>
+          {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(day => {
+            const hrs = (shopForm.business_hours || {})[day] || { open:'08:00', close:'18:00', closed:false }
+            const updateDay = (patch) => setShopForm(f => ({
+              ...f,
+              business_hours: { ...(f.business_hours||{}), [day]: { ...hrs, ...patch } }
+            }))
+            const dayFull = { Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday', Fri:'Friday', Sat:'Saturday', Sun:'Sunday' }[day]
+            return (
+              <div key={day} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 0', borderBottom:'1px solid #fdf5f7', flexWrap:'wrap' }}>
+                <div style={{ width:80, fontSize:13, fontWeight:700, color: hrs.closed ? '#9b6070' : '#3d1020', flexShrink:0 }}>{dayFull}</div>
+                <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12, color:'#6b4050', flexShrink:0 }}>
+                  <input type="checkbox" checked={!hrs.closed} onChange={e=>updateDay({closed:!e.target.checked})} />
+                  Open
+                </label>
+                {!hrs.closed ? (
+                  <div style={{ display:'flex', alignItems:'center', gap:6, flex:1, flexWrap:'wrap' }}>
+                    <input type="time" value={hrs.open||'08:00'} onChange={e=>updateDay({open:e.target.value})}
+                      style={{ padding:'5px 8px', borderRadius:8, border:'1.5px solid #f0e4e8', fontSize:13, fontFamily:'Nunito,sans-serif', background:'#fdf5f7', color:'#3d1020', minWidth:100 }} />
+                    <span style={{ fontSize:12, color:'#9b6070' }}>to</span>
+                    <input type="time" value={hrs.close||'18:00'} onChange={e=>updateDay({close:e.target.value})}
+                      style={{ padding:'5px 8px', borderRadius:8, border:'1.5px solid #f0e4e8', fontSize:13, fontFamily:'Nunito,sans-serif', background:'#fdf5f7', color:'#3d1020', minWidth:100 }} />
+                  </div>
+                ) : (
+                  <span style={{ fontSize:12, color:'#9b6070', fontStyle:'italic', flex:1 }}>Closed all day</span>
+                )}
+              </div>
+            )
+          })}
+          <div style={{ paddingTop:14, marginTop:4 }}>
+            <button onClick={saveShop} disabled={saving} className="btn-primary" style={{ width:'100%' }}>
+              <Save size={14}/>{saving?'Saving…':'Save Opening Hours'}
+            </button>
+          </div>
+        </div>
+
         </div>
       )}
 
