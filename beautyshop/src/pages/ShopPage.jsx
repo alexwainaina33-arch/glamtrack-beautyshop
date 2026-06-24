@@ -26,6 +26,8 @@ function getAvatarColor(name) {
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0
   return AVATAR_PALETTE[hash % AVATAR_PALETTE.length]
 }
+const RATING_LABELS = { 1: '😞 Poor', 2: '😐 Fair', 3: '🙂 Good', 4: '😃 Very Good', 5: '🤩 Excellent' }
+
 const STAFF_ROLE_LABEL = {
   stylist: 'Stylist', nail_tech: 'Nail Technician', skin_therapist: 'Skin Therapist',
   lash_tech: 'Lash Technician', receptionist: 'Receptionist', manager: 'Manager', cashier: 'Cashier',
@@ -118,7 +120,8 @@ export default function ShopPage() {
   const [shop,       setShop]       = useState(null)
   const [services,   setServices]   = useState([])
   const [products,   setProducts]   = useState([])
-  const [staff,      setStaff]      = useState([])
+   const [staff,      setStaff]      = useState([])
+  const [reviews,    setReviews]    = useState([])
   const [salesCount, setSalesCount] = useState(0)
   const [custCount,  setCustCount]  = useState(0)
   const [loading,    setLoading]    = useState(true)
@@ -131,7 +134,12 @@ export default function ShopPage() {
   const [serviceSearch,    setServiceSearch]    = useState('')
   const [serviceCatFilter, setServiceCatFilter] = useState('')
   const [copied,     setCopied]     = useState(false)
-  const [imgModal,   setImgModal]   = useState(null)   // full-screen product image
+   const [imgModal,   setImgModal]   = useState(null)   // full-screen product image
+  const [reviewModalOpen, setReviewModalOpen] = useState(false)
+  const [reviewForm, setReviewForm] = useState({ customer_name: '', rating: 5, review_text: '' })
+  const [savingReview, setSavingReview] = useState(false)
+ const [reviewSubmitted, setReviewSubmitted] = useState(false)
+  const [hoverRating, setHoverRating] = useState(0)
   const [searchParams, setSearchParams] = useSearchParams()
   const urlInitDone = useRef(false)
   const heroRef = useRef(null)
@@ -143,7 +151,7 @@ export default function ShopPage() {
           `slug="${slug}"`, { '$autoCancel': false }
         )
         setShop(shopRes)
-        const [svcs, prods, staffList, sales, custs] = await Promise.all([
+        const [svcs, prods, staffList, reviewsList, sales, custs] = await Promise.all([
           pb.collection(C.SERVICES).getList(1, 200, {
             filter: `shop_id="${shopRes.id}" && is_active=true`,
             sort: 'category,name', '$autoCancel': false,
@@ -155,6 +163,10 @@ export default function ShopPage() {
           pb.collection('bs_staff').getList(1, 100, {
             filter: `shop_id="${shopRes.id}" && is_active=true`,
             sort: 'name', '$autoCancel': false,
+          }).then(r => r.items).catch(() => []),
+          pb.collection('bs_reviews').getList(1, 50, {
+            filter: `shop_id="${shopRes.id}" && is_approved=true`,
+            sort: '-created', '$autoCancel': false,
           }).then(r => r.items).catch(() => []),
           pb.collection(C.SALES).getList(1, 1, {
             filter: `shop_id="${shopRes.id}" && status="completed"`,
@@ -168,6 +180,7 @@ export default function ShopPage() {
         setServices(svcs)
         setProducts(prods)
         setStaff(staffList)
+        setReviews(reviewsList)
         setSalesCount(sales)
         setCustCount(custs)
       } catch {
@@ -450,12 +463,36 @@ export default function ShopPage() {
     return () => { clearTimeout(tid); revealRef.current?.disconnect() }
   }, [tab, loading])
 
-  const shareShopLink = () => {
+ const shareShopLink = () => {
     const url = window.location.href
     if (navigator.share) {
       navigator.share({ title: shop?.name, url }).catch(() => {})
     } else {
       navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+    }
+  }
+
+  const submitReview = async (e) => {
+    e.preventDefault()
+    if (savingReview) return
+    if (!reviewForm.customer_name.trim() || !reviewForm.review_text.trim()) return
+    setSavingReview(true)
+    try {
+      await pb.collection('bs_reviews').create({
+        shop_id: shop.id,
+        customer_name: reviewForm.customer_name.trim(),
+        rating: reviewForm.rating,
+        review_text: reviewForm.review_text.trim(),
+        is_approved: false,
+      })
+      setReviewSubmitted(true)
+      setReviewForm({ customer_name: '', rating: 5, review_text: '' })
+      setTimeout(() => { setReviewModalOpen(false); setReviewSubmitted(false) }, 2200)
+    } catch (err) {
+      console.error('Review submit error:', err)
+      alert('Could not submit your review — please try again.')
+    } finally {
+      setSavingReview(false)
     }
   }
 
@@ -527,7 +564,7 @@ export default function ShopPage() {
   }, {})
 
   const hasProducts = products.length > 0
-  const hasAbout    = !!(shop.about_text || shop.founded_year || staff.length > 0)
+  const hasAbout    = !!(shop.about_text || shop.founded_year || staff.length > 0 || reviews.length > 0)
   const hasHours    = !!(shop.business_hours && Object.keys(shop.business_hours).length > 0)
 
   const tabs = [
@@ -1012,6 +1049,36 @@ export default function ShopPage() {
               </div>
             )}
 
+           {/* Leave a Review */}
+            <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', color: brand, marginBottom: 4 }}>Share Your Experience</div>
+                <div style={{ fontSize: 12, color: '#9b6070' }}>Visited {shop.name}? Let others know how it went.</div>
+              </div>
+              <button onClick={() => setReviewModalOpen(true)}
+                style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                ✍️ Write a Review
+              </button>
+            </div>
+
+            {/* Customer Reviews */}
+            {reviews.length > 0 && (
+              <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8', padding: '20px' }}>
+                <div style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', color: brand, marginBottom: 14 }}>Customer Reviews</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {reviews.map(r => (
+                    <div key={r.id} style={{ background: '#fdf5f7', borderRadius: 12, padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: '#1a1a1f' }}>{r.customer_name}</span>
+                        <span style={{ fontSize: 13, color: '#d97706' }}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
+                      </div>
+                      <p style={{ fontSize: 13, color: '#3d1020', lineHeight: 1.6, margin: 0 }}>{r.review_text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Map embed */}
             {shop.address && (
               <div style={{ borderRadius: 16, overflow: 'hidden', border: '1.5px solid #f0e4e8' }}>
@@ -1447,6 +1514,61 @@ export default function ShopPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+     {/* ══ LEAVE A REVIEW MODAL ══════════════════════════════════════════ */}
+      {reviewModalOpen && (
+        <div onClick={e => e.target === e.currentTarget && !savingReview && setReviewModalOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.48)', zIndex: 700, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div className="slide-up" style={{ background: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 640, maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #f0e4e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#3d1020' }}>✍️ Write a Review</div>
+              <button onClick={() => !savingReview && setReviewModalOpen(false)}
+                style={{ background: '#f5edf0', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✕</button>
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1, padding: '20px', paddingBottom: 'calc(20px + env(safe-area-inset-bottom,0px))' }}>
+              {reviewSubmitted ? (
+                <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: '#1a1a1f', marginBottom: 6 }}>Thank you!</div>
+                  <p style={{ fontSize: 13, color: '#9b6070', margin: 0 }}>Your review has been sent to {shop.name} for approval.</p>
+                </div>
+              ) : (
+                <form onSubmit={submitReview} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#6b4050', display: 'block', marginBottom: 6 }}>Your Name</label>
+                    <input required value={reviewForm.customer_name} onChange={e => setReviewForm(f => ({ ...f, customer_name: e.target.value }))}
+                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #f0e4e8', fontSize: 14, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none' }} />
+                  </div>
+<div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#6b4050', display: 'block', marginBottom: 6 }}>Rating</label>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {[1,2,3,4,5].map(n => (
+                        <button key={n} type="button"
+                          onClick={() => setReviewForm(f => ({ ...f, rating: n }))}
+                          onMouseEnter={() => setHoverRating(n)}
+                          onMouseLeave={() => setHoverRating(0)}
+                          style={{ fontSize: 30, background: 'none', border: 'none', cursor: 'pointer', padding: 2, transition: 'transform .12s, color .12s', transform: n === (hoverRating || reviewForm.rating) ? 'scale(1.15)' : 'scale(1)', color: n <= (hoverRating || reviewForm.rating) ? '#d97706' : '#e5d5da' }}>★</button>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#d97706', marginTop: 6, minHeight: 16 }}>
+                      {RATING_LABELS[hoverRating || reviewForm.rating] || ''}
+                    </div>
+                  </div>                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#6b4050', display: 'block', marginBottom: 6 }}>Your Review</label>
+                    <textarea required rows={4} value={reviewForm.review_text} onChange={e => setReviewForm(f => ({ ...f, review_text: e.target.value }))}
+                      placeholder="Tell others about your experience…"
+                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #f0e4e8', fontSize: 14, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none', resize: 'vertical' }} />
+                  </div>
+                  <button type="submit" disabled={savingReview}
+                    style={{ width: '100%', padding: '14px', borderRadius: 14, border: 'none', background: savingReview ? '#e5d5da' : `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 15, cursor: savingReview ? 'wait' : 'pointer' }}>
+                    {savingReview ? 'Submitting…' : 'Submit Review'}
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       )}

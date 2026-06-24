@@ -3041,6 +3041,119 @@
         ],
         "system": false
     },
+   {
+        "id": "bscol_reviews0001",
+        "listRule": "is_approved = true",
+        "viewRule": "is_approved = true",
+        "createRule": "",
+        "updateRule": null,
+        "deleteRule": null,
+        "name": "bs_reviews",
+        "type": "base",
+        "fields": [
+            {
+                "autogeneratePattern": "[a-z0-9]{15}",
+                "hidden": false,
+                "id": "text3208210256",
+                "max": 15,
+                "min": 15,
+                "name": "id",
+                "pattern": "^[a-z0-9]+$",
+                "presentable": false,
+                "primaryKey": true,
+                "required": true,
+                "system": true,
+                "type": "text"
+            },
+            {
+                "cascadeDelete": true,
+                "collectionId": "bscol_shops00001",
+                "hidden": false,
+                "id": "bsrv_shopid",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "shop_id",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsrv_cname",
+                "max": 0,
+                "min": 0,
+                "name": "customer_name",
+                "pattern": "",
+                "presentable": true,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "bsrv_rating",
+                "max": 5,
+                "min": 1,
+                "name": "rating",
+                "onlyInt": true,
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsrv_text",
+                "max": 0,
+                "min": 0,
+                "name": "review_text",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "bsrv_apprv",
+                "name": "is_approved",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "bool"
+            },
+            {
+                "hidden": false,
+                "id": "autodate2990389176",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            },
+            {
+                "hidden": false,
+                "id": "autodate3332085495",
+                "name": "updated",
+                "onCreate": true,
+                "onUpdate": true,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            }
+        ],
+        "indexes": [
+            "CREATE INDEX idx_bs_reviews_shop ON bs_reviews (shop_id)",
+            "CREATE INDEX idx_bs_reviews_approved ON bs_reviews (is_approved)"
+        ],
+        "system": false
+    },
     {
         "id": "bscol_sadmin0001",
         "listRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",

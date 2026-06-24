@@ -20,6 +20,7 @@ import ReconciliationPage from './pages/ReconciliationPage'
 import SettingsPage from './pages/SettingsPage'
 import AppointmentsPage from './pages/AppointmentsPage'
 import StaffPage from './pages/StaffPage'
+import ReviewsPage from './pages/ReviewsPage'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
 import BookingPage from './pages/BookingPage'
 import ShopPage from './pages/ShopPage'
@@ -87,7 +88,8 @@ function AppRoutes() {
         <Route path="reconcile"    element={<RoleGuard allow={['owner','manager']}><ReconciliationPage /></RoleGuard>} />
         <Route path="settings"     element={<RoleGuard allow={['owner']}><SettingsPage /></RoleGuard>} />
         <Route path="appointments" element={<PlanGuard requiredPlan="growth"><AppointmentsPage /></PlanGuard>} />
-        <Route path="staff"        element={<RoleGuard allow={['owner','manager']}><PlanGuard requiredPlan="growth"><StaffPage /></PlanGuard></RoleGuard>} />
+         <Route path="staff"        element={<RoleGuard allow={['owner','manager']}><PlanGuard requiredPlan="growth"><StaffPage /></PlanGuard></RoleGuard>} />
+        <Route path="reviews"      element={<RoleGuard allow={['owner','manager']}><ReviewsPage /></RoleGuard>} />
         <Route path="profile"      element={<ProfilePage />} />
       </Route>
 

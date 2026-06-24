@@ -5,11 +5,11 @@ import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, ShoppingCart, Package, ArchiveX, TrendingUp,
   Receipt, BarChart3, Users, Settings, LogOut, Truck, Zap,
-  Tag, DollarSign, Calendar, UserCheck, Menu, X, MoreHorizontal
+ Tag, DollarSign, Calendar, UserCheck, Menu, X, MoreHorizontal, Star
 } from 'lucide-react'
 import RenewalRegretCard from './RenewalRegretCard'
 
-const NAV = (lapsedCount, role) => {
+const NAV = (lapsedCount, reviewsPending, role) => {
   const all = [
     { section: 'SELL', roles: ['owner','manager','cashier','viewer'], items: [
       { to: '/app/dashboard',    icon: LayoutDashboard, label: 'Dashboard',           roles: ['owner','manager','viewer'] },
@@ -31,6 +31,7 @@ const NAV = (lapsedCount, role) => {
     ]},
     { section: 'PEOPLE', roles: ['owner','manager'], items: [
       { to: '/app/customers', icon: Users,     label: 'Customers',            roles: ['owner','manager','cashier','viewer'], badge: lapsedCount > 0 ? lapsedCount : null },
+      { to: '/app/reviews',   icon: Star,      label: 'Reviews',               roles: ['owner','manager'], badge: reviewsPending > 0 ? reviewsPending : null },
       { to: '/app/staff',     icon: UserCheck, label: 'Staff & Commissions',  roles: ['owner','manager'] },
       { to: '/app/settings',  icon: Settings,  label: 'Settings',             roles: ['owner'] },
     ]},
@@ -48,7 +49,8 @@ export default function Layout() {
   const { admin, shop, role, logout, isLocked } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [lapsedCount, setLapsedCount] = useState(0)
+ const [lapsedCount, setLapsedCount] = useState(0)
+  const [reviewsPending, setReviewsPending] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [renewalStats, setRenewalStats] = useState(null)
 
@@ -59,13 +61,21 @@ export default function Layout() {
     if (!shop) return
     const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000)
       .toISOString().replace('T', ' ').replace('Z', '.000Z')
-    pb.collection(C.CUSTOMERS).getList(1, 500, {
+   pb.collection(C.CUSTOMERS).getList(1, 500, {
       filter: `shop_id="${shop.id}" && updated < "${fourteenDaysAgo}"`,
       '$autoCancel': false, '$cancelKey': 'layout-lapsed',
     }).then(r => {
       const count = r.items.filter(c => c.total_spent_kes > 0).length
       setLapsedCount(count)
     }).catch(() => {})
+  }, [shop])
+
+  useEffect(() => {
+    if (!shop) return
+    pb.collection('bs_reviews').getList(1, 1, {
+      filter: `shop_id="${shop.id}" && is_approved=false`,
+      '$autoCancel': false, '$cancelKey': 'layout-reviews-pending',
+    }).then(r => setReviewsPending(r.totalItems)).catch(() => {})
   }, [shop])
 
   // Renewal banner — only fetch 30-day revenue if shop is within 72h of expiry
@@ -216,7 +226,7 @@ export default function Layout() {
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
-          {NAV(lapsedCount, role).map(({ section, items }) => (
+          {NAV(lapsedCount, reviewsPending, role).map(({ section, items }) => (
             <div key={section}>
               <div style={{ fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#f7c5d033', padding: '10px 18px 4px' }}>
                 {section}
