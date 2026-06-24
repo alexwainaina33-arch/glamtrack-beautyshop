@@ -11,6 +11,26 @@ const CAT_EMOJI = {
 }
 const getCatEmoji = (cat) => CAT_EMOJI[cat] || '✨'
 
+// Staff avatar fallback — deterministic color + initials when no photo exists.
+// If a `photo` file field is ever added to bs_staff, the render code below
+// already checks for it first and will use it automatically.
+const AVATAR_PALETTE = ['#c8456a', '#8b2550', '#d97706', '#059669', '#3b82f6', '#7c3aed']
+function getInitials(name) {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  return (parts[0]?.[0] || '') + (parts[1]?.[0] || '')
+}
+function getAvatarColor(name) {
+  if (!name) return AVATAR_PALETTE[0]
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0
+  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length]
+}
+const STAFF_ROLE_LABEL = {
+  stylist: 'Stylist', nail_tech: 'Nail Technician', skin_therapist: 'Skin Therapist',
+  lash_tech: 'Lash Technician', receptionist: 'Receptionist', manager: 'Manager', cashier: 'Cashier',
+}
+
 function fmtPrice(n, currency) {
   const amount = Number(n)
   switch ((currency || 'KES').toUpperCase()) {
@@ -98,6 +118,7 @@ export default function ShopPage() {
   const [shop,       setShop]       = useState(null)
   const [services,   setServices]   = useState([])
   const [products,   setProducts]   = useState([])
+  const [staff,      setStaff]      = useState([])
   const [salesCount, setSalesCount] = useState(0)
   const [custCount,  setCustCount]  = useState(0)
   const [loading,    setLoading]    = useState(true)
@@ -122,7 +143,7 @@ export default function ShopPage() {
           `slug="${slug}"`, { '$autoCancel': false }
         )
         setShop(shopRes)
-        const [svcs, prods, sales, custs] = await Promise.all([
+        const [svcs, prods, staffList, sales, custs] = await Promise.all([
           pb.collection(C.SERVICES).getList(1, 200, {
             filter: `shop_id="${shopRes.id}" && is_active=true`,
             sort: 'category,name', '$autoCancel': false,
@@ -131,6 +152,10 @@ export default function ShopPage() {
             filter: `shop_id="${shopRes.id}" && status="active"`,
             sort: 'name', expand: 'category_id', '$autoCancel': false,
           }).then(r => r.items),
+          pb.collection('bs_staff').getList(1, 100, {
+            filter: `shop_id="${shopRes.id}" && is_active=true`,
+            sort: 'name', '$autoCancel': false,
+          }).then(r => r.items).catch(() => []),
           pb.collection(C.SALES).getList(1, 1, {
             filter: `shop_id="${shopRes.id}" && status="completed"`,
             '$autoCancel': false,
@@ -142,6 +167,7 @@ export default function ShopPage() {
         ])
         setServices(svcs)
         setProducts(prods)
+        setStaff(staffList)
         setSalesCount(sales)
         setCustCount(custs)
       } catch {
@@ -152,6 +178,53 @@ export default function ShopPage() {
     }
     load()
   }, [slug])
+
+  // ── SEO meta tags (og:*, twitter:*) ─────────────────────────────────────
+  // Injects/updates document.title and social-preview meta tags once shop
+  // data is loaded, so WhatsApp/Twitter/Facebook link previews show the
+  // shop name, tagline and cover photo instead of a blank link. Cleans up
+  // (restores previous title, removes tags it created) on unmount.
+  useEffect(() => {
+    if (!shop) return
+    const prevTitle = document.title
+    document.title = shop.tagline ? `${shop.name} · ${shop.tagline}` : (shop.name || prevTitle)
+
+    const seoImage = shop.cover_image
+      ? `${PB_URL}/api/files/${shop.collectionId}/${shop.id}/${shop.cover_image}?thumb=1200x630`
+      : (shop.logo ? `${PB_URL}/api/files/${shop.collectionId}/${shop.id}/${shop.logo}?thumb=800x800` : '')
+    const seoDescription = shop.tagline || shop.about_text || `Book appointments and shop with ${shop.name} online.`
+    const seoUrl = window.location.href
+
+    const metaTags = [
+      { attr: 'property', key: 'og:title',       content: shop.name },
+      { attr: 'property', key: 'og:description', content: seoDescription },
+      { attr: 'property', key: 'og:image',       content: seoImage },
+      { attr: 'property', key: 'og:url',         content: seoUrl },
+      { attr: 'property', key: 'og:type',        content: 'website' },
+      { attr: 'name',     key: 'twitter:card',        content: 'summary_large_image' },
+      { attr: 'name',     key: 'twitter:title',       content: shop.name },
+      { attr: 'name',     key: 'twitter:description', content: seoDescription },
+      { attr: 'name',     key: 'twitter:image',       content: seoImage },
+    ]
+
+    const createdTags = []
+    metaTags.forEach(({ attr, key, content }) => {
+      if (!content) return
+      let tag = document.querySelector(`meta[${attr}="${key}"]`)
+      if (!tag) {
+        tag = document.createElement('meta')
+        tag.setAttribute(attr, key)
+        document.head.appendChild(tag)
+        createdTags.push(tag)
+      }
+      tag.setAttribute('content', content)
+    })
+
+    return () => {
+      document.title = prevTitle
+      createdTags.forEach(tag => tag.remove())
+    }
+  }, [shop])
 
   // ── URL deep-linking (tab + category) ───────────────────────────────────
   // Restores tab/category from the URL once shop data has loaded — lets a
@@ -274,6 +347,8 @@ export default function ShopPage() {
   // ── html2canvas story card share ───────────────────────────────────────
   const [sharing,    setSharing]    = useState(false)
   const storyCardRef = useRef(null)
+  const [downloadingPriceList, setDownloadingPriceList] = useState(false)
+  const priceListRef = useRef(null)
 
   useEffect(() => {
     if (document.getElementById('html2canvas-cdn')) return
@@ -311,6 +386,49 @@ export default function ShopPage() {
     } catch (err) {
       console.error('Share card error:', err)
       setSharing(false)
+    }
+  }
+
+  // ── html2canvas price list download ──────────────────────────────────
+  const downloadPriceList = async () => {
+    if (downloadingPriceList) return
+    setDownloadingPriceList(true)
+    // Safety net: if anything hangs silently, the button un-stucks itself after 10s
+    const safetyTimeout = setTimeout(() => {
+      console.warn('Price list: timed out after 10s, resetting button')
+      setDownloadingPriceList(false)
+    }, 10000)
+    try {
+      console.log('Price list: step 1 — checking html2canvas')
+      const h2c = window.html2canvas
+      if (!h2c) { clearTimeout(safetyTimeout); alert('Price list loading, please try again in a moment.'); setDownloadingPriceList(false); return }
+      const node = priceListRef.current
+      if (!node) { clearTimeout(safetyTimeout); setDownloadingPriceList(false); return }
+      console.log('Price list: step 2 — node found, making visible')
+      node.style.display = 'flex'
+      await new Promise(r => setTimeout(r, 80)) // let fonts paint
+      console.log('Price list: step 3 — calling html2canvas')
+      const canvas = await h2c(node, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' })
+      console.log('Price list: step 4 — canvas captured', canvas.width, canvas.height)
+      node.style.display = 'none'
+      canvas.toBlob((blob) => {
+        console.log('Price list: step 5 — blob created', blob?.size)
+        try {
+          const url = URL.createObjectURL(blob)
+          const a   = document.createElement('a')
+          a.href = url; a.download = `${shop?.slug || 'shop'}-price-list.png`; a.click()
+          setTimeout(() => URL.revokeObjectURL(url), 3000)
+          console.log('Price list: step 6 — download triggered')
+        } catch (blobErr) {
+          console.error('Price list: blob handling error', blobErr)
+        }
+        clearTimeout(safetyTimeout)
+        setDownloadingPriceList(false)
+      }, 'image/png')
+    } catch (err) {
+      console.error('Price list error:', err)
+      clearTimeout(safetyTimeout)
+      setDownloadingPriceList(false)
     }
   }
 
@@ -409,7 +527,7 @@ export default function ShopPage() {
   }, {})
 
   const hasProducts = products.length > 0
-  const hasAbout    = !!(shop.about_text || shop.founded_year)
+  const hasAbout    = !!(shop.about_text || shop.founded_year || staff.length > 0)
   const hasHours    = !!(shop.business_hours && Object.keys(shop.business_hours).length > 0)
 
   const tabs = [
@@ -870,6 +988,30 @@ export default function ShopPage() {
               </div>
             </div>
 
+            {/* Meet the Team */}
+            {staff.length > 0 && (
+              <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8', padding: '20px' }}>
+                <div style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', color: brand, marginBottom: 14 }}>Meet the Team</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(84px,1fr))', gap: 14 }}>
+                  {staff.map(s => {
+                    const staffPhotoUrl = s.photo
+                      ? `${PB_URL}/api/files/${s.collectionId}/${s.id}/${s.photo}?thumb=200x200`
+                      : null
+                    return (
+                      <div key={s.id} style={{ textAlign: 'center' }}>
+                        {staffPhotoUrl
+                          ? <img src={staffPhotoUrl} alt={s.name} loading="lazy" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', margin: '0 auto 8px', display: 'block', border: `2px solid ${brand}33` }} />
+                          : <div style={{ width: 64, height: 64, borderRadius: '50%', background: getAvatarColor(s.name), color: '#fff', fontWeight: 800, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px', textTransform: 'uppercase' }}>{getInitials(s.name)}</div>
+                        }
+                        <div style={{ fontWeight: 700, fontSize: 12, color: '#1a1a1f', lineHeight: 1.3 }}>{s.name}</div>
+                        {s.role && <div style={{ fontSize: 10, color: '#9b6070', marginTop: 1 }}>{STAFF_ROLE_LABEL[s.role] || s.role}</div>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Map embed */}
             {shop.address && (
               <div style={{ borderRadius: 16, overflow: 'hidden', border: '1.5px solid #f0e4e8' }}>
@@ -965,6 +1107,12 @@ export default function ShopPage() {
               style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #f0e4e8', background: sharing ? '#f5edf0' : '#fff', color: '#3d1020', fontWeight: 700, fontSize: 13, cursor: sharing ? 'wait' : 'pointer', fontFamily: 'Nunito,sans-serif', opacity: sharing ? .7 : 1 }}>
               {sharing ? '⏳ Generating…' : '📲 Share as Story'}
             </button>
+            {services.length > 0 && (
+              <button onClick={downloadPriceList} disabled={downloadingPriceList}
+                style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #f0e4e8', background: downloadingPriceList ? '#f5edf0' : '#fff', color: '#3d1020', fontWeight: 700, fontSize: 13, cursor: downloadingPriceList ? 'wait' : 'pointer', fontFamily: 'Nunito,sans-serif', opacity: downloadingPriceList ? .7 : 1 }}>
+                {downloadingPriceList ? '⏳ Generating…' : '📋 Price List'}
+              </button>
+            )}
           </div>
           <p style={{ fontSize: 11, color: '#c8b0b8', margin: 0 }}>
             Powered by <strong style={{ color: brand }}>SalesTrack</strong> · Run your business from your phone
@@ -1015,6 +1163,42 @@ export default function ShopPage() {
           </div>
           <div style={{ textAlign: 'center', fontSize: 9, color: '#c8b0b8', marginTop: 2 }}>Powered by SalesTrack</div>
         </div>
+      </div>
+
+      {/* ── Off-screen price list (auto-height, rendered by html2canvas) ── */}
+      <div ref={priceListRef} style={{
+        display: 'none', position: 'fixed', left: -9999, top: 0, zIndex: -1,
+        width: 400, flexDirection: 'column',
+        fontFamily: 'Nunito,sans-serif', background: '#fff', padding: '32px 28px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, paddingBottom: 20, borderBottom: `3px solid ${brand}` }}>
+          {logoUrl
+            ? <img src={logoUrl} crossOrigin="anonymous" alt="" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${brand}` }} />
+            : <div style={{ width: 56, height: 56, borderRadius: '50%', background: brand, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, color: '#fff' }}>🏪</div>
+          }
+          <div>
+            <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 22, fontWeight: 700, color: '#1a1a1f' }}>{shop.name}</div>
+            <div style={{ fontSize: 12, color: brand, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 2 }}>Price List</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {services.map(svc => (
+            <div key={svc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f0e4e8' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1f' }}>{svc.name}</div>
+                <div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>⏱ {svc.duration_minutes} min</div>
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 15, color: brand, fontFamily: 'Playfair Display,serif', whiteSpace: 'nowrap' }}>{fmtPrice(svc.price_kes, shop.currency)}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: 24, background: `linear-gradient(135deg,${brand},${brand}cc)`, borderRadius: 12, padding: '14px 18px', textAlign: 'center' }}>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.85)', marginBottom: 3 }}>Book online anytime</div>
+          <div style={{ fontSize: 13, color: '#fff', fontWeight: 700 }}>{bookingUrl.replace('https://', '')}</div>
+        </div>
+        <div style={{ textAlign: 'center', fontSize: 10, color: '#c8b0b8', marginTop: 14 }}>Powered by SalesTrack</div>
       </div>
 
       {/* ══ FLOATING ACTION BUTTONS — pinned above sticky bar, mobile ════ */}
