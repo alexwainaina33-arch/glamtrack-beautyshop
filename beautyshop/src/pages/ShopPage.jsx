@@ -271,6 +271,67 @@ export default function ShopPage() {
     return matchSearch && matchCat
   })
 
+  // ── html2canvas story card share ───────────────────────────────────────
+  const [sharing,    setSharing]    = useState(false)
+  const storyCardRef = useRef(null)
+
+  useEffect(() => {
+    if (document.getElementById('html2canvas-cdn')) return
+    const s = document.createElement('script')
+    s.id  = 'html2canvas-cdn'
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+    s.async = true
+    document.head.appendChild(s)
+  }, [])
+
+  const shareStoryCard = async () => {
+    if (sharing) return
+    setSharing(true)
+    try {
+      const h2c = window.html2canvas
+      if (!h2c) { alert('Share card loading, please try again in a moment.'); setSharing(false); return }
+      const node = storyCardRef.current
+      if (!node) { setSharing(false); return }
+      node.style.display = 'flex'
+      await new Promise(r => setTimeout(r, 80)) // let fonts paint
+      const canvas = await h2c(node, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: null })
+      node.style.display = 'none'
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], `${shop?.slug || 'shop'}-share.png`, { type: 'image/png' })
+        if (navigator.share && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], title: shop?.name, text: shop?.tagline || '' }).catch(() => {})
+        } else {
+          const url = URL.createObjectURL(blob)
+          const a   = document.createElement('a')
+          a.href = url; a.download = file.name; a.click()
+          setTimeout(() => URL.revokeObjectURL(url), 3000)
+        }
+        setSharing(false)
+      }, 'image/png')
+    } catch (err) {
+      console.error('Share card error:', err)
+      setSharing(false)
+    }
+  }
+
+  // ── scroll-reveal ──────────────────────────────────────────────────────
+  const revealRef = useRef(null)
+  useEffect(() => {
+    // Small delay lets React commit the new tab's DOM before we query it
+    const tid = setTimeout(() => {
+      if (revealRef.current) revealRef.current.disconnect()
+      const observer = new IntersectionObserver(
+        (entries) => entries.forEach(e => {
+          if (e.isIntersecting) { e.target.classList.add('revealed'); observer.unobserve(e.target) }
+        }),
+        { threshold: 0.08 }
+      )
+      revealRef.current = observer
+      document.querySelectorAll('.reveal:not(.revealed)').forEach(el => observer.observe(el))
+    }, 60)
+    return () => { clearTimeout(tid); revealRef.current?.disconnect() }
+  }, [tab, loading])
+
   const shareShopLink = () => {
     const url = window.location.href
     if (navigator.share) {
@@ -362,23 +423,35 @@ export default function ShopPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#fdf5f7', fontFamily: 'Nunito,sans-serif', paddingBottom: 120 }}>
       <style>{`
-        @keyframes fadeUp   { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes shimmer  { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-        @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:.45} }
-        @keyframes slideUp  { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
-        @keyframes scaleIn  { from{opacity:0;transform:scale(.94)} to{opacity:1;transform:scale(1)} }
+        @keyframes fadeUp    { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes shimmer   { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        @keyframes pulse     { 0%,100%{opacity:1} 50%{opacity:.45} }
+        @keyframes pulseDot  { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.7);opacity:.4} }
+        @keyframes slideUp   { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
+        @keyframes scaleIn   { from{opacity:0;transform:scale(.94)} to{opacity:1;transform:scale(1)} }
+        @keyframes revealUp  { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:translateY(0)} }
         .fade-up   { animation: fadeUp  .38s ease forwards }
-        .live-dot  { animation: pulse   2s ease-in-out infinite }
+        .live-dot  { animation: pulseDot 1.8s ease-in-out infinite }
         .slide-up  { animation: slideUp .3s cubic-bezier(.4,0,.2,1) forwards }
         .scale-in  { animation: scaleIn .22s ease forwards }
 
+        /* scroll-reveal — attached by IntersectionObserver on mount */
+        .reveal { opacity:0; transform:translateY(22px); transition:opacity .48s ease, transform .48s ease; }
+        .revealed { opacity:1; transform:translateY(0); }
+
         .svc-card  { transition: box-shadow .2s, transform .2s; }
-        .svc-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.1); transform: translateY(-2px); }
+        .svc-card:hover  { box-shadow: 0 6px 24px rgba(0,0,0,.1); transform: translateY(-2px); }
+        .svc-card:active { transform: scale(1.02); }
         .prod-card { transition: box-shadow .2s, transform .2s; cursor: pointer; }
-        .prod-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.1); transform: translateY(-2px); }
+        .prod-card:hover  { box-shadow: 0 6px 24px rgba(0,0,0,.1); transform: translateY(-2px); }
+        .prod-card:active { transform: scale(1.02); }
         .book-btn:hover { filter: brightness(1.08); transform: scale(1.02); }
         .book-btn { transition: all .18s; }
         .tab-pill { transition: all .18s; white-space: nowrap; }
+
+        /* service card left color accent strip */
+        .svc-card-inner { position:relative; padding-left:14px; }
+        .svc-card-inner::before { content:''; position:absolute; left:0; top:4px; bottom:4px; width:3px; border-radius:2px; }
 
         ::-webkit-scrollbar { width:4px; height:4px; }
         ::-webkit-scrollbar-thumb { background:#d4a0b0; border-radius:4px; }
@@ -387,51 +460,66 @@ export default function ShopPage() {
       {/* ══ HERO ══════════════════════════════════════════════════════════ */}
       <div ref={heroRef} style={{ position: 'relative' }}>
 
-        {/* Cover / gradient banner */}
+        {/* Cover photo with full overlay stack */}
         <div style={{
-          height: coverUrl ? 240 : 160,
+          height: coverUrl ? 260 : 180,
           background: coverUrl
             ? `url(${coverUrl}) center/cover no-repeat`
             : `linear-gradient(135deg, ${brand} 0%, ${brand}99 60%, #fdf5f7 100%)`,
           position: 'relative',
+          overflow: 'hidden',
         }}>
-          {coverUrl && (
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,.08) 0%, rgba(0,0,0,.52) 100%)' }} />
-          )}
-          {/* Share button top-right */}
+          {/* Deep gradient from bottom — always present so text is readable */}
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,.04) 0%, rgba(0,0,0,.18) 40%, rgba(0,0,0,.72) 100%)' }} />
+
+          {/* Share button — top right */}
           <button onClick={shareShopLink}
-            style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(255,255,255,.22)', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,.35)', borderRadius: 20, padding: '6px 14px', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+            style={{ position: 'absolute', top: 14, right: 14, zIndex: 4, background: 'rgba(255,255,255,.18)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,.32)', borderRadius: 20, padding: '6px 14px', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
             {copied ? '✅ Copied!' : '🔗 Share'}
           </button>
-        </div>
 
-        {/* Logo + name card */}
-        <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, marginTop: coverUrl ? -44 : -28, position: 'relative', zIndex: 2 }}>
-            {logoUrl
-              ? <img src={logoUrl} alt={shop.name} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '4px solid #fff', flexShrink: 0, boxShadow: '0 4px 20px rgba(0,0,0,.18)' }} />
-              : <div style={{ width: 80, height: 80, borderRadius: '50%', background: `linear-gradient(135deg,${brand},${brand}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, border: '4px solid #fff', flexShrink: 0, boxShadow: '0 4px 20px rgba(0,0,0,.18)' }}>🏪</div>
-            }
-            <div style={{ flex: 1, paddingBottom: 4 }}>
-              <h1 style={{ fontFamily: 'Playfair Display,serif', color: '#1a1a1f', fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{shop.name}</h1>
-              {shop.tagline && <p style={{ color: '#6b4050', fontSize: 13, margin: '3px 0 0', fontStyle: 'italic' }}>{shop.tagline}</p>}
-              {shop.business_type && <p style={{ color: '#9b6070', fontSize: 11, margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '.06em' }}>{shop.business_type}</p>}
-            </div>
-          </div>
-
-          {/* Open/Closed badge */}
+          {/* Open/Closed badge — top left on cover */}
           {openStatus && (
-            <div style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 20, background: openStatus.open ? '#f0fdf4' : '#fef3c7', border: `1px solid ${openStatus.open ? '#bbf7d0' : '#fde68a'}` }}>
-              <span className={openStatus.open ? 'live-dot' : ''} style={{ width: 7, height: 7, borderRadius: '50%', background: openStatus.open ? '#059669' : '#d97706', display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: openStatus.open ? '#059669' : '#92400e' }}>{openStatus.label}</span>
-              {!openStatus.open && openStatus.nextOpen && (
-                <span style={{ fontSize: 11, color: '#9b6070' }}>· Opens {openStatus.nextOpen}</span>
-              )}
+            <div style={{ position: 'absolute', top: 14, left: 14, zIndex: 4, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 20, background: 'rgba(0,0,0,.38)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', border: `1px solid ${openStatus.open ? 'rgba(5,150,105,.5)' : 'rgba(217,119,6,.4)'}` }}>
+              <span className={openStatus.open ? 'live-dot' : ''} style={{ width: 7, height: 7, borderRadius: '50%', background: openStatus.open ? '#34d399' : '#fbbf24', display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{openStatus.label}</span>
             </div>
           )}
 
+          {/* Logo overlaid bottom-left of cover */}
+          <div style={{ position: 'absolute', bottom: -36, left: 16, zIndex: 5 }}>
+            {logoUrl
+              ? <img src={logoUrl} alt={shop.name} loading="lazy" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '4px solid #fff', display: 'block', boxShadow: '0 4px 20px rgba(0,0,0,.28)' }} />
+              : <div style={{ width: 80, height: 80, borderRadius: '50%', background: `linear-gradient(135deg,${brand},${brand}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, border: '4px solid #fff', boxShadow: '0 4px 20px rgba(0,0,0,.28)' }}>🏪</div>
+            }
+          </div>
+
+          {/* Tagline + Est. badge overlaid on photo — bottom right */}
+          <div style={{ position: 'absolute', bottom: 14, right: 14, zIndex: 4, textAlign: 'right' }}>
+            {shop.tagline && (
+              <div style={{ fontSize: 13, fontStyle: 'italic', color: 'rgba(255,255,255,.92)', fontFamily: 'Playfair Display,serif', marginBottom: shop.founded_year ? 5 : 0, textShadow: '0 1px 6px rgba(0,0,0,.6)', maxWidth: 200 }}>
+                "{shop.tagline}"
+              </div>
+            )}
+            {shop.founded_year && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(0,0,0,.42)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', borderRadius: 12, padding: '3px 10px', border: `1px solid ${brand}66` }}>
+                <span style={{ fontSize: 12 }}>🏆</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', letterSpacing: '.04em' }}>Est. {shop.founded_year}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Name + info card below cover — logo offset accounted for */}
+        <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 16px' }}>
+          {/* Name row: padded left to clear the overlapping logo */}
+          <div style={{ paddingLeft: 100, paddingTop: 8, paddingBottom: 4, minHeight: 48 }}>
+            <h1 style={{ fontFamily: 'Playfair Display,serif', color: '#1a1a1f', fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{shop.name}</h1>
+            {shop.business_type && <p style={{ color: '#9b6070', fontSize: 11, margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '.06em' }}>{shop.business_type}</p>}
+          </div>
+
           {/* Info row */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
             {shop.address && (
               <a href={`https://maps.google.com/?q=${mapQuery}`} target="_blank" rel="noopener noreferrer"
                 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#6b4050', textDecoration: 'none', background: '#fff', border: '1px solid #f0e4e8', borderRadius: 8, padding: '4px 10px' }}>
@@ -478,7 +566,7 @@ export default function ShopPage() {
       {/* ══ SOCIAL PROOF BAR ═════════════════════════════════════════════ */}
       <div style={{ maxWidth: 640, margin: '18px auto 0', padding: '0 16px' }}>
         {(salesCount > 5 || custCount > 2 || services.length > 0 || shop.founded_year) && (
-          <div className="fade-up" style={{ display: 'flex', background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8', overflow: 'hidden', boxShadow: '0 2px 12px rgba(200,69,106,.07)' }}>
+          <div className="fade-up reveal" style={{ display: 'flex', background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8', overflow: 'hidden', boxShadow: '0 2px 12px rgba(200,69,106,.07)' }}>
             {[
               salesCount  > 5 && { icon: '🧾', value: salesCount > 999 ? `${(salesCount/1000).toFixed(1)}k+` : `${salesCount}+`, label: 'Sales' },
               custCount   > 2 && { icon: '❤️', value: custCount  > 999 ? `${(custCount /1000).toFixed(1)}k+` : `${custCount}+`,  label: 'Customers' },
@@ -567,21 +655,23 @@ export default function ShopPage() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {svcs.map(svc => (
-                      <div key={svc.id} className="svc-card" onClick={() => openDetail('service', svc)}
-                        style={{ background: '#fff', borderRadius: 16, padding: '16px 18px', border: '1.5px solid #f0e4e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1f', marginBottom: 2 }}>{svc.name}</div>
-                          {svc.description && <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 4, lineHeight: 1.4 }}>{svc.description}</div>}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 11, color: '#9b6070', background: '#fdf5f7', padding: '2px 8px', borderRadius: 6 }}>⏱ {svc.duration_minutes} min</span>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-                          <div style={{ fontWeight: 800, fontSize: 16, color: brand, fontFamily: 'Playfair Display,serif' }}>
-                            {fmtPrice(svc.price_kes, shop.currency)}
+                      <div key={svc.id} className="svc-card reveal" onClick={() => openDetail('service', svc)}
+                        style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8', display: 'flex', alignItems: 'stretch', gap: 0, cursor: 'pointer', overflow: 'hidden' }}>
+                        {/* Left color accent strip */}
+                        <div style={{ width: 4, flexShrink: 0, background: `linear-gradient(to bottom, ${brand}, ${brand}66)`, borderRadius: '0 0 0 0' }} />
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '15px 16px' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1f', marginBottom: 2 }}>{svc.name}</div>
+                            {svc.description && <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 5, lineHeight: 1.4 }}>{svc.description}</div>}
+                            {/* Duration · Price on one line */}
+                            <div style={{ fontSize: 12, color: '#9b6070', fontWeight: 600 }}>
+                              ⏱ {svc.duration_minutes} min
+                              <span style={{ margin: '0 6px', opacity: .4 }}>·</span>
+                              <span style={{ color: brand, fontWeight: 800, fontFamily: 'Playfair Display,serif', fontSize: 13 }}>{fmtPrice(svc.price_kes, shop.currency)}</span>
+                            </div>
                           </div>
                           <a href={`${bookingUrl}?service=${encodeURIComponent(svc.name)}`} onClick={e => e.stopPropagation()}
-                            style={{ padding: '7px 16px', borderRadius: 10, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', boxShadow: `0 2px 8px ${brand}33` }}>
+                            style={{ padding: '8px 16px', borderRadius: 10, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', boxShadow: `0 2px 8px ${brand}33`, flexShrink: 0 }}>
                             Book →
                           </a>
                         </div>
@@ -662,7 +752,7 @@ export default function ShopPage() {
                 const outOfStock = p.track_inventory && p.stock_qty === 0
 
                 return (
-                  <div key={p.id} className="prod-card" onClick={() => openDetail('product', p)}
+                  <div key={p.id} className="prod-card reveal" onClick={() => openDetail('product', p)}
                     style={{ background: '#fff', borderRadius: 16, border: `1.5px solid ${inCart ? brand : '#f0e4e8'}`, overflow: 'hidden', opacity: outOfStock ? 0.55 : 1, position: 'relative' }}>
 
                     {/* Product image */}
@@ -869,7 +959,11 @@ export default function ShopPage() {
             )}
             <button onClick={shareShopLink}
               style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #f0e4e8', background: '#fff', color: '#3d1020', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
-              {copied ? '✅ Copied!' : '🔗 Share this page'}
+              {copied ? '✅ Copied!' : '🔗 Share link'}
+            </button>
+            <button onClick={shareStoryCard} disabled={sharing}
+              style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #f0e4e8', background: sharing ? '#f5edf0' : '#fff', color: '#3d1020', fontWeight: 700, fontSize: 13, cursor: sharing ? 'wait' : 'pointer', fontFamily: 'Nunito,sans-serif', opacity: sharing ? .7 : 1 }}>
+              {sharing ? '⏳ Generating…' : '📲 Share as Story'}
             </button>
           </div>
           <p style={{ fontSize: 11, color: '#c8b0b8', margin: 0 }}>
@@ -877,6 +971,79 @@ export default function ShopPage() {
           </p>
         </div>
       </div>
+
+      {/* ── Off-screen story card (1080×1920 ratio, rendered by html2canvas) ── */}
+      <div ref={storyCardRef} style={{
+        display: 'none', position: 'fixed', left: -9999, top: 0, zIndex: -1,
+        width: 360, height: 640, flexDirection: 'column', overflow: 'hidden',
+        fontFamily: 'Nunito,sans-serif', background: '#fdf5f7',
+      }}>
+        {/* Cover */}
+        <div style={{ flex: '0 0 220px', position: 'relative', background: coverUrl ? `url(${coverUrl}) center/cover no-repeat` : `linear-gradient(135deg,${brand},${brand}66)` }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom,rgba(0,0,0,.04),rgba(0,0,0,.7))' }} />
+          {/* Logo */}
+          {logoUrl && <img src={logoUrl} crossOrigin="anonymous" alt="" style={{ position: 'absolute', bottom: -28, left: 20, width: 60, height: 60, borderRadius: '50%', border: '3px solid #fff', objectFit: 'cover' }} />}
+          {/* Tagline */}
+          <div style={{ position: 'absolute', bottom: 14, right: 14, textAlign: 'right' }}>
+            {shop.tagline && <div style={{ fontSize: 11, fontStyle: 'italic', color: 'rgba(255,255,255,.9)', fontFamily: 'Playfair Display,serif', textShadow: '0 1px 4px rgba(0,0,0,.6)', maxWidth: 160 }}>"{shop.tagline}"</div>}
+            {shop.founded_year && <div style={{ fontSize: 10, fontWeight: 800, color: '#fff', marginTop: 3 }}>🏆 Est. {shop.founded_year}</div>}
+          </div>
+        </div>
+        {/* Body */}
+        <div style={{ flex: 1, padding: '36px 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 22, fontWeight: 700, color: '#1a1a1f', lineHeight: 1.2 }}>{shop.name}</div>
+          {shop.address && <div style={{ fontSize: 11, color: '#6b4050' }}>📍 {shop.address}</div>}
+          {/* Stats row */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            {services.length > 0 && <div style={{ background: `${brand}18`, borderRadius: 8, padding: '6px 10px', fontSize: 11, fontWeight: 700, color: brand }}>💅 {services.length} Services</div>}
+            {openStatus && <div style={{ background: openStatus.open ? '#f0fdf4' : '#fef3c7', borderRadius: 8, padding: '6px 10px', fontSize: 11, fontWeight: 700, color: openStatus.open ? '#059669' : '#92400e' }}>{openStatus.open ? '🟢 Open now' : '🔴 Closed'}</div>}
+          </div>
+          {/* Top services */}
+          {services.slice(0, 3).map(svc => (
+            <div key={svc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #f0e4e8' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#1a1a1f' }}>{svc.name}</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: brand, fontFamily: 'Playfair Display,serif' }}>{fmtPrice(svc.price_kes, shop.currency)}</span>
+            </div>
+          ))}
+          {/* QR-style CTA */}
+          <div style={{ marginTop: 'auto', background: `linear-gradient(135deg,${brand},${brand}cc)`, borderRadius: 12, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.8)' }}>Book online</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,.65)', marginTop: 1 }}>{bookingUrl.replace('https://', '')}</div>
+            </div>
+            <div style={{ fontSize: 22 }}>📅</div>
+          </div>
+          <div style={{ textAlign: 'center', fontSize: 9, color: '#c8b0b8', marginTop: 2 }}>Powered by SalesTrack</div>
+        </div>
+      </div>
+
+      {/* ══ FLOATING ACTION BUTTONS — pinned above sticky bar, mobile ════ */}
+      {(waPhone || shop.phone) && (
+        <div style={{
+          position: 'fixed',
+          bottom: 'calc(74px + env(safe-area-inset-bottom,0px))',
+          right: 16,
+          zIndex: 190,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          alignItems: 'flex-end',
+        }}>
+          {waPhone && (
+            <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${shop.name}! I saw your shop page and would like to enquire 😊`)}`}
+              target="_blank" rel="noopener noreferrer"
+              style={{ width: 52, height: 52, borderRadius: '50%', background: '#25D366', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, textDecoration: 'none', boxShadow: '0 4px 16px rgba(37,211,102,.45)', flexShrink: 0 }}>
+              💬
+            </a>
+          )}
+          {shop.phone && (
+            <a href={`tel:${shop.phone}`}
+              style={{ width: 52, height: 52, borderRadius: '50%', background: '#fff', border: `2px solid ${brand}`, color: brand, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, textDecoration: 'none', boxShadow: `0 4px 16px ${brand}33`, flexShrink: 0 }}>
+              📞
+            </a>
+          )}
+        </div>
+      )}
 
       {/* ══ STICKY BOTTOM BAR (mobile) ════════════════════════════════════ */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #f0e4e8', padding: '10px 16px', zIndex: 200, paddingBottom: 'calc(10px + env(safe-area-inset-bottom,0px))' }}>
@@ -891,12 +1058,6 @@ export default function ShopPage() {
             <a href={bookingUrl}
               style={{ flex: 1, padding: '13px', borderRadius: 14, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', textAlign: 'center', boxShadow: `0 4px 16px ${brand}44` }}>
               📅 Book an Appointment
-            </a>
-          )}
-          {waPhone && (
-            <a href={`https://wa.me/${waPhone}`} target="_blank" rel="noopener noreferrer"
-              style={{ padding: '13px 16px', borderRadius: 14, background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none', flexShrink: 0 }}>
-              💬
             </a>
           )}
         </div>
