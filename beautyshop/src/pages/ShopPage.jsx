@@ -122,6 +122,11 @@ export default function ShopPage() {
   const [products,   setProducts]   = useState([])
    const [staff,      setStaff]      = useState([])
   const [reviews,    setReviews]    = useState([])
+  const [gallery,    setGallery]    = useState([])
+  const [galleryHearts, setGalleryHearts] = useState({})
+  const [beforeAfterPos, setBeforeAfterPos] = useState({})
+  const [galleryCatFilter, setGalleryCatFilter] = useState('')
+  const [galleryModal, setGalleryModal] = useState(null)
   const [salesCount, setSalesCount] = useState(0)
   const [custCount,  setCustCount]  = useState(0)
   const [loading,    setLoading]    = useState(true)
@@ -151,7 +156,7 @@ export default function ShopPage() {
           `slug="${slug}"`, { '$autoCancel': false }
         )
         setShop(shopRes)
-        const [svcs, prods, staffList, reviewsList, sales, custs] = await Promise.all([
+        const [svcs, prods, staffList, reviewsList, galleryItems, sales, custs] = await Promise.all([
           pb.collection(C.SERVICES).getList(1, 200, {
             filter: `shop_id="${shopRes.id}" && is_active=true`,
             sort: 'category,name', '$autoCancel': false,
@@ -168,6 +173,10 @@ export default function ShopPage() {
             filter: `shop_id="${shopRes.id}" && is_approved=true`,
             sort: '-created', '$autoCancel': false,
           }).then(r => r.items).catch(() => []),
+          pb.collection('bs_gallery').getList(1, 200, {
+            filter: `shop_id="${shopRes.id}"`,
+            sort: 'sort_order,created', '$autoCancel': false,
+          }).then(r => r.items).catch(() => []),
           pb.collection(C.SALES).getList(1, 1, {
             filter: `shop_id="${shopRes.id}" && status="completed"`,
             '$autoCancel': false,
@@ -181,6 +190,7 @@ export default function ShopPage() {
         setProducts(prods)
         setStaff(staffList)
         setReviews(reviewsList)
+        setGallery(galleryItems)
         setSalesCount(sales)
         setCustCount(custs)
       } catch {
@@ -567,9 +577,42 @@ export default function ShopPage() {
   const hasAbout    = !!(shop.about_text || shop.founded_year || staff.length > 0 || reviews.length > 0)
   const hasHours    = !!(shop.business_hours && Object.keys(shop.business_hours).length > 0)
 
+  // ── Gallery computed values ────────────────────────────────────────────
+  const galleryImages = gallery.flatMap(item =>
+    (item.images || []).map((filename, idx) => ({
+      id: `${item.id}-${filename}`,
+      url:      `${PB_URL}/api/files/${item.collectionId}/${item.id}/${filename}?thumb=800x800`,
+      thumbUrl: `${PB_URL}/api/files/${item.collectionId}/${item.id}/${filename}?thumb=400x400`,
+      beforeUrl: item.before_image
+        ? `${PB_URL}/api/files/${item.collectionId}/${item.id}/${item.before_image}?thumb=800x800`
+        : null,
+      caption:     item.caption     || '',
+      category:    item.category    || '',
+      serviceName: item.service_name || '',
+      isFeatured:  item.is_featured  || false,
+      recordId:    item.id,
+      isPrimary:   idx === 0,
+    }))
+  )
+
+  // Featured photo first, then rest
+  const sortedGalleryImages = [
+    ...galleryImages.filter(g => g.isFeatured),
+    ...galleryImages.filter(g => !g.isFeatured),
+  ]
+
+  const galleryCategories = [...new Set(galleryImages.map(g => g.category).filter(Boolean))]
+
+  const filteredGallery = galleryCatFilter
+    ? sortedGalleryImages.filter(g => g.category === galleryCatFilter)
+    : sortedGalleryImages
+
+  const hasGallery = galleryImages.length > 0
+
   const tabs = [
     { key: 'services', label: `💅 Services`, count: services.length },
     hasProducts && { key: 'products', label: `🛍️ Shop`,     count: products.length },
+    hasGallery  && { key: 'gallery',  label: `🖼️ Gallery`,  count: galleryImages.length },
     hasAbout    && { key: 'about',    label: `ℹ️ About`,     count: null },
     hasHours    && { key: 'hours',    label: `🕐 Hours`,     count: null },
   ].filter(Boolean)
@@ -603,6 +646,8 @@ export default function ShopPage() {
         .book-btn:hover { filter: brightness(1.08); transform: scale(1.02); }
         .book-btn { transition: all .18s; }
         .tab-pill { transition: all .18s; white-space: nowrap; }
+        .gallery-watermark { pointer-events: none; }
+        div:hover > .gallery-watermark { opacity: 1 !important; }
 
         /* service card left color accent strip */
         .svc-card-inner { position:relative; padding-left:14px; }
@@ -1101,6 +1146,222 @@ export default function ShopPage() {
           </div>
         )}
 
+        {/* ── GALLERY TAB ── */}
+        {tab === 'gallery' && hasGallery && (() => {
+          // Before/after drag handler
+          const handleBADrag = (imgId, e) => {
+            const rect = e.currentTarget.getBoundingClientRect()
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX
+            const pct = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100))
+            setBeforeAfterPos(prev => ({ ...prev, [imgId]: pct }))
+          }
+
+          const toggleHeart = (imgId) => {
+            setGalleryHearts(prev => ({ ...prev, [imgId]: !prev[imgId] }))
+          }
+
+          const featuredImg = filteredGallery.find(g => g.isFeatured) || filteredGallery[0]
+          const gridImages  = filteredGallery.filter(g => g !== featuredImg)
+
+          return (
+            <div className="fade-up">
+
+              {/* ── Category filter pills ── */}
+              {galleryCategories.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 10, scrollbarWidth: 'none', marginBottom: 8 }}>
+                  {['All', ...galleryCategories].map(cat => (
+                    <button key={cat}
+                      onClick={() => setGalleryCatFilter(cat === 'All' ? '' : cat)}
+                      style={{
+                        padding: '6px 16px', borderRadius: 20, border: 'none',
+                        background: (cat === 'All' ? galleryCatFilter === '' : galleryCatFilter === cat)
+                          ? brand : '#fff',
+                        color: (cat === 'All' ? galleryCatFilter === '' : galleryCatFilter === cat)
+                          ? '#fff' : '#6b4050',
+                        fontWeight: 700, fontSize: 12, cursor: 'pointer',
+                        whiteSpace: 'nowrap', flexShrink: 0,
+                        fontFamily: 'Nunito,sans-serif',
+                        border: (cat === 'All' ? galleryCatFilter === '' : galleryCatFilter === cat)
+                          ? 'none' : '1.5px solid #f0e4e8',
+                        boxShadow: (cat === 'All' ? galleryCatFilter === '' : galleryCatFilter === cat)
+                          ? `0 2px 8px ${brand}44` : 'none',
+                      }}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* ── HERO / FEATURED photo — full width ── */}
+              {featuredImg && (
+                <div className="reveal" style={{ marginBottom: 12, borderRadius: 18, overflow: 'hidden', position: 'relative', border: '2px solid #f0e4e8', boxShadow: `0 8px 32px ${brand}22` }}>
+
+                  {featuredImg.isFeatured && (
+                    <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 20, letterSpacing: '.04em' }}>
+                      ⭐ Featured Work
+                    </div>
+                  )}
+
+                  {/* Before/After slider if before_image exists */}
+                  {featuredImg.beforeUrl ? (
+                    <div
+                      style={{ position: 'relative', height: 280, userSelect: 'none', cursor: 'ew-resize', touchAction: 'none' }}
+                      onMouseMove={e => handleBADrag(featuredImg.id, e)}
+                      onTouchMove={e => handleBADrag(featuredImg.id, e)}
+                    >
+                      {/* AFTER image — full width behind */}
+                      <img src={featuredImg.url} alt="After" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      {/* BEFORE image — clipped by slider position */}
+                      <div style={{ position: 'absolute', inset: 0, width: `${beforeAfterPos[featuredImg.id] ?? 50}%`, overflow: 'hidden' }}>
+                        <img src={featuredImg.beforeUrl} alt="Before" style={{ position: 'absolute', inset: 0, width: `${10000 / (beforeAfterPos[featuredImg.id] ?? 50)}%`, height: '100%', objectFit: 'cover', display: 'block' }} />
+                      </div>
+                      {/* Divider line */}
+                      <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${beforeAfterPos[featuredImg.id] ?? 50}%`, width: 3, background: '#fff', boxShadow: '0 0 8px rgba(0,0,0,.5)', transform: 'translateX(-50%)', zIndex: 5 }}>
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 36, height: 36, borderRadius: '50%', background: '#fff', boxShadow: '0 2px 12px rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: brand, userSelect: 'none' }}>⟺</div>
+                      </div>
+                      {/* Before / After labels */}
+                      <div style={{ position: 'absolute', bottom: 12, left: 12, background: 'rgba(0,0,0,.5)', color: '#fff', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6, letterSpacing: '.06em' }}>BEFORE</div>
+                      <div style={{ position: 'absolute', bottom: 12, right: 12, background: `${brand}cc`, color: '#fff', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6, letterSpacing: '.06em' }}>AFTER</div>
+                    </div>
+                  ) : (
+                    <div onClick={() => setGalleryModal(featuredImg)} style={{ cursor: 'zoom-in' }}>
+                      <img src={featuredImg.url} alt={featuredImg.caption || 'Gallery'} style={{ width: '100%', height: 280, objectFit: 'cover', display: 'block' }} />
+                    </div>
+                  )}
+
+                  {/* Caption + actions bar */}
+                  <div style={{ background: '#fff', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {featuredImg.caption && <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1f', marginBottom: 2 }}>{featuredImg.caption}</div>}
+                      {featuredImg.serviceName && (
+                        <div style={{ fontSize: 12, color: brand, fontWeight: 700 }}>
+                          💅 {featuredImg.serviceName}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+                      <button onClick={() => toggleHeart(featuredImg.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: 4, transition: 'transform .15s', transform: galleryHearts[featuredImg.id] ? 'scale(1.25)' : 'scale(1)' }}>
+                        {galleryHearts[featuredImg.id] ? '❤️' : '🤍'}
+                      </button>
+                      {featuredImg.serviceName && waPhone && (
+                        <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${shop.name}! I saw this look on your gallery and I'd love to get it done 😍\n\nService: ${featuredImg.serviceName}${featuredImg.caption ? `\nLook: ${featuredImg.caption}` : ''}\n\nIs this available to book?`)}`}
+                          target="_blank" rel="noopener noreferrer"
+                          style={{ padding: '7px 14px', borderRadius: 10, background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          Request This Look
+                        </a>
+                      )}
+                      {!featuredImg.serviceName && (
+                        <a href={bookingUrl}
+                          style={{ padding: '7px 14px', borderRadius: 10, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 700, fontSize: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          Book Now →
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Masonry 2-column grid for remaining photos ── */}
+              {gridImages.length > 0 && (
+                <div style={{ columns: 2, columnGap: 10 }}>
+                  {gridImages.map((img) => (
+                    <div key={img.id} className="reveal"
+                      style={{ breakInside: 'avoid', marginBottom: 10, borderRadius: 14, overflow: 'hidden', border: '1.5px solid #f0e4e8', background: `${brand}10`, position: 'relative', display: 'block' }}>
+
+                      {/* Before/after on grid item */}
+                      {img.beforeUrl ? (
+                        <div
+                          style={{ position: 'relative', height: 160, userSelect: 'none', cursor: 'ew-resize', touchAction: 'none' }}
+                          onMouseMove={e => handleBADrag(img.id, e)}
+                          onTouchMove={e => handleBADrag(img.id, e)}
+                        >
+                          <img src={img.url} alt="After" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <div style={{ position: 'absolute', inset: 0, width: `${beforeAfterPos[img.id] ?? 50}%`, overflow: 'hidden' }}>
+                            <img src={img.beforeUrl} alt="Before" style={{ position: 'absolute', inset: 0, width: `${10000 / (beforeAfterPos[img.id] ?? 50)}%`, height: '100%', objectFit: 'cover' }} />
+                          </div>
+                          <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${beforeAfterPos[img.id] ?? 50}%`, width: 2, background: '#fff', transform: 'translateX(-50%)', zIndex: 5 }}>
+                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 26, height: 26, borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: brand, boxShadow: '0 1px 6px rgba(0,0,0,.3)' }}>⟺</div>
+                          </div>
+                          <div style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(0,0,0,.5)', color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 4 }}>B</div>
+                          <div style={{ position: 'absolute', bottom: 6, right: 6, background: `${brand}cc`, color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 4 }}>A</div>
+                        </div>
+                      ) : (
+                        <div onClick={() => setGalleryModal(img)} style={{ cursor: 'zoom-in', position: 'relative' }}>
+                          <img
+                            src={img.thumbUrl}
+                            alt={img.caption || 'Gallery'}
+                            loading="lazy"
+                            style={{ width: '100%', display: 'block' }}
+                          />
+                          {/* Hover watermark overlay */}
+                          <div className="gallery-watermark" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0)', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: 6, opacity: 0, transition: 'opacity .2s' }}>
+                            <span style={{ fontSize: 9, color: 'rgba(255,255,255,.7)', fontWeight: 700, background: 'rgba(0,0,0,.4)', padding: '2px 6px', borderRadius: 4 }}>{shop.name}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Caption overlay on non-BA photos */}
+                      {!img.beforeUrl && img.caption && (
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(to top,rgba(0,0,0,.65) 0%,transparent 100%)', padding: '20px 8px 6px', pointerEvents: 'none' }}>
+                          <div style={{ fontSize: 10, color: '#fff', fontWeight: 600, lineHeight: 1.3 }}>{img.caption}</div>
+                        </div>
+                      )}
+
+                      {/* Bottom action bar */}
+                      <div style={{ background: '#fff', padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          {img.serviceName && (
+                            <div style={{ fontSize: 10, color: brand, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>💅 {img.serviceName}</div>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                          <button onClick={() => toggleHeart(img.id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 2, transition: 'transform .15s', transform: galleryHearts[img.id] ? 'scale(1.2)' : 'scale(1)' }}>
+                            {galleryHearts[img.id] ? '❤️' : '🤍'}
+                          </button>
+                          {img.serviceName && waPhone ? (
+                            <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${shop.name}! I love this look from your gallery 😍\n\nService: ${img.serviceName}${img.caption ? `\nLook: ${img.caption}` : ''}\n\nCan I book this?`)}`}
+                              target="_blank" rel="noopener noreferrer"
+                              style={{ fontSize: 10, padding: '4px 8px', borderRadius: 8, background: '#25D366', color: '#fff', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                              Request
+                            </a>
+                          ) : (
+                            <a href={bookingUrl}
+                              style={{ fontSize: 10, padding: '4px 8px', borderRadius: 8, background: `${brand}18`, color: brand, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                              Book
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {filteredGallery.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '48px 20px', background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8' }}>
+                  <div style={{ fontSize: 40, marginBottom: 10 }}>🖼️</div>
+                  <p style={{ color: '#9b6070', margin: 0 }}>No photos in this category yet.</p>
+                </div>
+              )}
+
+              {/* ── Book CTA at the bottom ── */}
+              <div style={{ background: `linear-gradient(135deg,${brand}11,${brand}22)`, border: `1px solid ${brand}33`, borderRadius: 16, padding: '18px', display: 'flex', gap: 14, alignItems: 'center', marginTop: 10 }}>
+                <span style={{ fontSize: 32, flexShrink: 0 }}>📅</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: '#3d1020', marginBottom: 3, fontFamily: 'Playfair Display,serif' }}>Like what you see?</div>
+                  <div style={{ fontSize: 12, color: '#6b4050' }}>Book your appointment with {shop.name} today — takes under 60 seconds.</div>
+                </div>
+                <a href={bookingUrl}
+                  style={{ padding: '10px 18px', borderRadius: 12, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap', boxShadow: `0 3px 12px ${brand}44`, flexShrink: 0 }}>
+                  Book →
+                </a>
+              </div>
+            </div>
+          )
+        })()}
+
         {/* ── HOURS TAB ── */}
         {tab === 'hours' && hasHours && (
           <div className="fade-up">
@@ -1568,6 +1829,42 @@ export default function ShopPage() {
                   </button>
                 </form>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ GALLERY LIGHTBOX (full detail modal) ═════════════════════════ */}
+      {galleryModal && (
+        <div onClick={e => e.target === e.currentTarget && setGalleryModal(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.92)', zIndex: 620, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 16px' }}>
+          <button onClick={() => setGalleryModal(null)}
+            style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: '#fff', cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>✕</button>
+
+          <img src={galleryModal.url} alt={galleryModal.caption || 'Gallery'}
+            className="scale-in"
+            style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 14, objectFit: 'contain', display: 'block' }} />
+
+          {/* Info card below the photo */}
+          <div className="scale-in" style={{ marginTop: 16, background: 'rgba(255,255,255,.1)', backdropFilter: 'blur(10px)', borderRadius: 16, padding: '14px 18px', width: '100%', maxWidth: 480 }}>
+            {galleryModal.caption && (
+              <div style={{ fontWeight: 700, fontSize: 15, color: '#fff', marginBottom: galleryModal.serviceName ? 6 : 0 }}>{galleryModal.caption}</div>
+            )}
+            {galleryModal.serviceName && (
+              <div style={{ fontSize: 13, color: `${brand}dd`, fontWeight: 700, marginBottom: 12 }}>💅 {galleryModal.serviceName}</div>
+            )}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {galleryModal.serviceName && waPhone ? (
+                <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${shop.name}! I love this look from your gallery 😍\n\nService: ${galleryModal.serviceName}${galleryModal.caption ? `\nLook: ${galleryModal.caption}` : ''}\n\nCan I book this?`)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ flex: 1, padding: '11px', borderRadius: 12, background: '#25D366', color: '#fff', fontWeight: 800, fontSize: 14, textDecoration: 'none', textAlign: 'center' }}>
+                  💬 Request This Look
+                </a>
+              ) : null}
+              <a href={bookingUrl}
+                style={{ flex: 1, padding: '11px', borderRadius: 12, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 14, textDecoration: 'none', textAlign: 'center' }}>
+                📅 Book Now
+              </a>
             </div>
           </div>
         </div>

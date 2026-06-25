@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
-import pb, { C } from '../lib/pb'
+import pb, { C, PB_URL } from '../lib/pb'
 import toast from 'react-hot-toast'
 import { Save, Upload, X, Eye, EyeOff, Lock, User, Phone, Mail } from 'lucide-react'
 
@@ -21,7 +21,7 @@ export default function ProfilePage() {
   const [showConfirm, setShowConfirm] = useState(false)
 
   const avatarUrl = admin?.avatar
-    ? `${pb.baseURL}/api/files/${C.ADMINS}/${admin.id}/${admin.avatar}?thumb=200x200`
+    ? `${PB_URL}/api/files/${C.ADMINS}/${admin.id}/${admin.avatar}?thumb=200x200`
     : null
 
   const currentAvatar = avatarPreview || avatarUrl

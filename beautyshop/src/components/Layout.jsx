@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, ShoppingCart, Package, ArchiveX, TrendingUp,
   Receipt, BarChart3, Users, Settings, LogOut, Truck, Zap,
- Tag, DollarSign, Calendar, UserCheck, Menu, X, MoreHorizontal, Star
+  Tag, DollarSign, Calendar, UserCheck, Menu, X, MoreHorizontal, Star, Images
 } from 'lucide-react'
 import RenewalRegretCard from './RenewalRegretCard'
 
@@ -32,6 +32,7 @@ const NAV = (lapsedCount, reviewsPending, role) => {
     { section: 'PEOPLE', roles: ['owner','manager'], items: [
       { to: '/app/customers', icon: Users,     label: 'Customers',            roles: ['owner','manager','cashier','viewer'], badge: lapsedCount > 0 ? lapsedCount : null },
       { to: '/app/reviews',   icon: Star,      label: 'Reviews',               roles: ['owner','manager'], badge: reviewsPending > 0 ? reviewsPending : null },
+      { to: '/app/gallery',   icon: Images,    label: 'Gallery',               roles: ['owner','manager'] },
       { to: '/app/staff',     icon: UserCheck, label: 'Staff & Commissions',  roles: ['owner','manager'] },
       { to: '/app/settings',  icon: Settings,  label: 'Settings',             roles: ['owner'] },
     ]},
@@ -101,8 +102,9 @@ export default function Layout() {
     }).catch(() => {})
   }, [shop, location.pathname])
 
+  const PB_URL = import.meta.env.VITE_PB_URL || 'https://fieldtrack-kenya.fly.dev'
   const logoUrl = shop?.logo
-    ? `${pb.baseURL}/api/files/${C.SHOPS}/${shop.id}/${shop.logo}?thumb=200x200`
+    ? `${PB_URL}/api/files/${C.SHOPS}/${shop.id}/${shop.logo}?thumb=200x200`
     : null
 
   const brandColor = shop?.brand_color || '#c8456a'
@@ -153,7 +155,7 @@ export default function Layout() {
         >
           {admin?.avatar ? (
             <img
-              src={`${pb.baseURL}/api/files/${C.ADMINS}/${admin.id}/${admin.avatar}?thumb=200x200`}
+              src={`${PB_URL}/api/files/${C.ADMINS}/${admin.id}/${admin.avatar}?thumb=200x200`}
               alt={admin?.name}
               style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.3)' }}
             />
@@ -260,7 +262,7 @@ export default function Layout() {
           >
             {admin?.avatar ? (
               <img
-                src={`${pb.baseURL}/api/files/${C.ADMINS}/${admin.id}/${admin.avatar}?thumb=200x200`}
+                src={`${PB_URL}/api/files/${C.ADMINS}/${admin.id}/${admin.avatar}?thumb=200x200`}
                 alt={admin?.name}
                 style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(255,255,255,0.2)' }}
               />

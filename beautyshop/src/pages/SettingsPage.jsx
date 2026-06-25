@@ -54,8 +54,9 @@ export default function SettingsPage() {
   // GOLDMINE — copy state for booking links
   const [copiedKey, setCopiedKey] = useState(null)
 
+  const PB_URL = import.meta.env.VITE_PB_URL || 'https://fieldtrack-kenya.fly.dev'
   const logoUrl = shop?.logo
-    ? `${pb.baseURL}/api/files/${C.SHOPS}/${shop.id}/${shop.logo}?thumb=200x200`
+    ? `${PB_URL}/api/files/${C.SHOPS}/${shop.id}/${shop.logo}?thumb=200x200`
     : null
 
   useEffect(() => {
@@ -417,7 +418,7 @@ export default function SettingsPage() {
           {(coverPreview || shop?.cover_image) && (
             <div style={{ position:'relative', marginBottom:14, borderRadius:12, overflow:'hidden', border:'1.5px solid #f0e4e8' }}>
               <img
-                src={coverPreview || `${pb.baseURL}/api/files/${C.SHOPS}/${shop.id}/${shop.cover_image}?thumb=1200x400`}
+                src={coverPreview || `${PB_URL}/api/files/${C.SHOPS}/${shop.id}/${shop.cover_image}?thumb=1200x400`}
                 alt="cover"
                 style={{ width:'100%', height:160, objectFit:'cover', display:'block' }}
               />

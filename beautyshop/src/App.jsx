@@ -21,6 +21,7 @@ import SettingsPage from './pages/SettingsPage'
 import AppointmentsPage from './pages/AppointmentsPage'
 import StaffPage from './pages/StaffPage'
 import ReviewsPage from './pages/ReviewsPage'
+import GalleryPage from './pages/GalleryPage'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
 import BookingPage from './pages/BookingPage'
 import ShopPage from './pages/ShopPage'
@@ -90,6 +91,7 @@ function AppRoutes() {
         <Route path="appointments" element={<PlanGuard requiredPlan="growth"><AppointmentsPage /></PlanGuard>} />
          <Route path="staff"        element={<RoleGuard allow={['owner','manager']}><PlanGuard requiredPlan="growth"><StaffPage /></PlanGuard></RoleGuard>} />
         <Route path="reviews"      element={<RoleGuard allow={['owner','manager']}><ReviewsPage /></RoleGuard>} />
+        <Route path="gallery"      element={<RoleGuard allow={['owner','manager']}><GalleryPage /></RoleGuard>} />
         <Route path="profile"      element={<ProfilePage />} />
       </Route>
 
