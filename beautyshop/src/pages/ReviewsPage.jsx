@@ -10,6 +10,9 @@ export default function ReviewsPage() {
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('pending') // pending | approved
+  const [replyOpen, setReplyOpen] = useState({})   // { [reviewId]: boolean }
+  const [replyText, setReplyText]   = useState({})   // { [reviewId]: string }
+  const [replySaving, setReplySaving] = useState({}) // { [reviewId]: boolean }
 
   useEffect(() => { if (shop && !authLoading) loadData() }, [shop, authLoading])
 
@@ -45,6 +48,21 @@ export default function ReviewsPage() {
       setReviews(prev => prev.map(r => r.id === review.id ? { ...r, is_approved: false } : r))
     } catch (err) {
       toast.error(err?.message || 'Could not update review')
+    }
+  }
+
+  const saveReply = async (review) => {
+    const text = (replyText[review.id] ?? review.owner_reply ?? '').trim()
+    setReplySaving(prev => ({ ...prev, [review.id]: true }))
+    try {
+      await pb.collection('bs_reviews').update(review.id, { owner_reply: text })
+      setReviews(prev => prev.map(r => r.id === review.id ? { ...r, owner_reply: text } : r))
+      setReplyOpen(prev => ({ ...prev, [review.id]: false }))
+      toast.success(text ? 'Reply saved — visible on your shop page' : 'Reply removed')
+    } catch (err) {
+      toast.error(err?.message || 'Could not save reply')
+    } finally {
+      setReplySaving(prev => ({ ...prev, [review.id]: false }))
     }
   }
 
@@ -101,16 +119,83 @@ export default function ReviewsPage() {
                 </div>
                 <div style={{ fontSize: 11, color: '#9b6070', whiteSpace: 'nowrap' }}>{fmtDate(r.created)}</div>
               </div>
-              <p style={{ fontSize: 13, color: '#3d1020', lineHeight: 1.6, margin: '0 0 12px' }}>{r.review_text}</p>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <p style={{ fontSize: 13, color: '#3d1020', lineHeight: 1.6, margin: '0 0 8px' }}>{r.review_text}</p>
+
+              {/* Existing reply display */}
+              {r.owner_reply && !replyOpen[r.id] && (
+                <div style={{ background: '#fdf5f7', borderRadius: 8, padding: '8px 12px', marginBottom: 8, borderLeft: '3px solid #c8456a' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#c8456a', marginBottom: 3 }}>Your reply</div>
+                  <div style={{ fontSize: 12, color: '#3d1020', lineHeight: 1.5 }}>{r.owner_reply}</div>
+                </div>
+              )}
+
+              {/* Reply textarea (approved reviews only) */}
+              {r.is_approved && replyOpen[r.id] && (
+                <div style={{ marginBottom: 10 }}>
+                  <textarea
+                    rows={3}
+                    value={replyText[r.id] ?? r.owner_reply ?? ''}
+                    onChange={e => setReplyText(prev => ({ ...prev, [r.id]: e.target.value }))}
+                    placeholder="Write a reply visible to everyone on your shop page…"
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #f0e4e8', fontSize: 13, fontFamily: 'Nunito,sans-serif', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                    <button
+                      className="btn-primary"
+                      style={{ fontSize: 12, padding: '6px 14px' }}
+                      disabled={replySaving[r.id]}
+                      onClick={() => saveReply(r)}
+                    >
+                      {replySaving[r.id] ? 'Saving…' : '💬 Save Reply'}
+                    </button>
+                    <button
+                      className="btn-secondary"
+                      style={{ fontSize: 12, padding: '6px 14px' }}
+                      onClick={() => {
+                        setReplyOpen(prev => ({ ...prev, [r.id]: false }))
+                        setReplyText(prev => ({ ...prev, [r.id]: r.owner_reply ?? '' }))
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    {r.owner_reply && (
+                      <button
+                        className="btn-ghost"
+                        style={{ fontSize: 12, padding: '6px 14px', color: '#9b6070' }}
+                        disabled={replySaving[r.id]}
+                        onClick={() => {
+                          setReplyText(prev => ({ ...prev, [r.id]: '' }))
+                          saveReply({ ...r, owner_reply: '' })
+                        }}
+                      >
+                        Remove reply
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {!r.is_approved ? (
                   <button className="btn-primary" style={{ fontSize: 12, padding: '6px 14px' }} onClick={() => approve(r)}>
                     <Check size={14} /> Approve
                   </button>
                 ) : (
-                  <button className="btn-secondary" style={{ fontSize: 12, padding: '6px 14px' }} onClick={() => unapprove(r)}>
-                    Hide from shop page
-                  </button>
+                  <>
+                    <button className="btn-secondary" style={{ fontSize: 12, padding: '6px 14px' }} onClick={() => unapprove(r)}>
+                      Hide from shop page
+                    </button>
+                    <button
+                      className="btn-secondary"
+                      style={{ fontSize: 12, padding: '6px 14px' }}
+                      onClick={() => {
+                        setReplyOpen(prev => ({ ...prev, [r.id]: !prev[r.id] }))
+                        if (!replyText[r.id]) setReplyText(prev => ({ ...prev, [r.id]: r.owner_reply ?? '' }))
+                      }}
+                    >
+                      {r.owner_reply ? '✏️ Edit Reply' : '💬 Reply'}
+                    </button>
+                  </>
                 )}
                 <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 14px', color: '#dc2626' }} onClick={() => remove(r)}>
                   <Trash2 size={14} /> Delete

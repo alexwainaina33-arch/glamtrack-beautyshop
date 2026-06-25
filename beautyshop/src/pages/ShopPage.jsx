@@ -1150,6 +1150,12 @@ export default function ShopPage() {
                         <span style={{ fontSize: 13, color: '#d97706' }}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
                       </div>
                       <p style={{ fontSize: 13, color: '#3d1020', lineHeight: 1.6, margin: 0 }}>{r.review_text}</p>
+                      {r.owner_reply && (
+                        <div style={{ marginTop: 10, background: '#fff', borderRadius: 8, padding: '8px 12px', borderLeft: `3px solid ${brand}` }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: brand, marginBottom: 3 }}>💬 {shop.name} responded</div>
+                          <div style={{ fontSize: 12, color: '#3d1020', lineHeight: 1.5 }}>{r.owner_reply}</div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
