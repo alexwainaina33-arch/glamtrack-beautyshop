@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
-import pb, { C } from '../lib/pb'
+import pb, { C, PB_URL } from '../lib/pb'
 import { fmtKES } from '../lib/utils'
 import { Plus, Search, Upload, Edit2, Trash2, X, FileUp, Download, CheckCircle2, AlertCircle, ChevronRight, Copy, BarChart2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -113,6 +113,8 @@ export default function ProductsPage() {
   const [saving, setSaving]         = useState(false)
   const [imageFiles, setImageFiles] = useState([])
   const [imagePreview, setImagePreview] = useState([])
+  const [existingImages, setExistingImages] = useState([]) // filenames already on the product
+  const [removedImages, setRemovedImages] = useState([])   // filenames marked for deletion this edit
 
   // Bulk import state
   const [showBulk, setShowBulk]         = useState(false)
@@ -145,8 +147,13 @@ export default function ProductsPage() {
     } finally { setLoading(false) }
   }
 
-  const openNew  = () => { setEditing(null); setForm(EMPTY); setImageFiles([]); setImagePreview([]); setShowModal(true) }
-  const openEdit = (p) => { setEditing(p); setForm({...p}); setImageFiles([]); setImagePreview([]); setShowModal(true) }
+  const openNew  = () => { setEditing(null); setForm(EMPTY); setImageFiles([]); setImagePreview([]); setExistingImages([]); setRemovedImages([]); setShowModal(true) }
+  const openEdit = (p) => { setEditing(p); setForm({...p}); setImageFiles([]); setImagePreview([]); setExistingImages(p.images || []); setRemovedImages([]); setShowModal(true) }
+
+  const removeExistingImage = (filename) => {
+    setExistingImages(prev => prev.filter(f => f !== filename))
+    setRemovedImages(prev => [...prev, filename])
+  }
 
   const handleImages = (e) => {
     const files = Array.from(e.target.files)
@@ -159,9 +166,10 @@ export default function ProductsPage() {
     setSaving(true)
     try {
       const data = new FormData()
-      Object.entries(form).forEach(([k,v]) => { if (v !== undefined && v !== null && v !== '') data.append(k, v) })
+      Object.entries(form).forEach(([k,v]) => { if (k !== 'images' && v !== undefined && v !== null && v !== '') data.append(k, v) })
       data.append('shop_id', shop.id)
       imageFiles.forEach(f => data.append('images', f))
+      removedImages.forEach(filename => data.append('images-', filename))
       if (editing) {
         await pb.collection(C.PRODUCTS).update(editing.id, data)
         toast.success('Product updated!')
@@ -579,13 +587,34 @@ export default function ProductsPage() {
                   </div>
                   <div style={{ gridColumn:'1/-1' }}>
                     <label className="label">Product Images (up to 8)</label>
+
+                    {existingImages.length > 0 && (
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10 }}>
+                        {existingImages.map(filename => {
+                          const url = `${PB_URL}/api/files/${editing.collectionId}/${editing.id}/${filename}?thumb=200x200`
+                          return (
+                            <div key={filename} style={{ position:'relative', width:60, height:60 }}>
+                              <img src={url} alt="" style={{ width:60, height:60, objectFit:'cover', borderRadius:7, border:'1.5px solid #f0e4e8' }} />
+                              <button type="button" onClick={()=>removeExistingImage(filename)}
+                                style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#dc2626', border:'2px solid #fff', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', padding:0 }}>
+                                <X size={11}/>
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
                     <div onClick={()=>fileInputRef.current?.click()} style={{ border:'2px dashed #e8c0cc', borderRadius:10, padding:'18px', textAlign:'center', cursor:'pointer', background:'#fff5f7' }}>
                       {imagePreview.length > 0
                         ? <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'center' }}>{imagePreview.map((src,i)=><img key={i} src={src} style={{ width:60, height:60, objectFit:'cover', borderRadius:7 }}/>)}</div>
-                        : <div style={{ color:'#9b6070' }}><Upload size={22} style={{ margin:'0 auto 6px', display:'block' }} /><div style={{ fontSize:12 }}>Click to upload images · JPG, PNG, WebP · Max 10MB</div></div>
+                        : <div style={{ color:'#9b6070' }}><Upload size={22} style={{ margin:'0 auto 6px', display:'block' }} /><div style={{ fontSize:12 }}>{existingImages.length > 0 ? 'Click to add more images' : 'Click to upload images'} · JPG, PNG, WebP · Max 10MB</div></div>
                       }
                     </div>
                     <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp" style={{ display:'none' }} onChange={handleImages} />
+                    {existingImages.length + imageFiles.length >= 8 && (
+                      <div style={{ fontSize:11, color:'#d97706', marginTop:4 }}>Maximum 8 images reached — remove one to add another.</div>
+                    )}
                   </div>
                   <div style={{ gridColumn:'1/-1' }}>
                     <label className="label">Tags (comma separated)</label>
