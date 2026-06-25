@@ -1173,7 +1173,7 @@ export default function ShopPage() {
                     <button key={cat}
                       onClick={() => setGalleryCatFilter(cat === 'All' ? '' : cat)}
                       style={{
-                        padding: '6px 16px', borderRadius: 20, border: 'none',
+                        padding: '6px 16px', borderRadius: 20,
                         background: (cat === 'All' ? galleryCatFilter === '' : galleryCatFilter === cat)
                           ? brand : '#fff',
                         color: (cat === 'All' ? galleryCatFilter === '' : galleryCatFilter === cat)
