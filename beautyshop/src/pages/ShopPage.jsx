@@ -1107,9 +1107,41 @@ export default function ShopPage() {
             </div>
 
             {/* Customer Reviews */}
-            {reviews.length > 0 && (
+            {reviews.length > 0 && (() => {
+              const avgRating = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
+              const dist = [5,4,3,2,1].map(n => ({ star: n, count: reviews.filter(r => r.rating === n).length }))
+              return (
               <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8', padding: '20px' }}>
                 <div style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', color: brand, marginBottom: 14 }}>Customer Reviews</div>
+
+                {/* ── Rating summary header ── */}
+                <div style={{ display: 'flex', gap: 18, alignItems: 'center', background: '#fdf5f7', borderRadius: 14, padding: '16px', marginBottom: 18 }}>
+                  {/* Big average */}
+                  <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                    <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 40, fontWeight: 800, color: brand, lineHeight: 1 }}>{avgRating.toFixed(1)}</div>
+                    <div style={{ fontSize: 16, color: '#d97706', letterSpacing: 1, marginTop: 3 }}>
+                      {'★'.repeat(Math.round(avgRating))}{'☆'.repeat(5 - Math.round(avgRating))}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#9b6070', fontWeight: 600, marginTop: 4 }}>{reviews.length} review{reviews.length !== 1 ? 's' : ''}</div>
+                  </div>
+                  {/* Distribution bars */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {dist.map(({ star, count }) => {
+                      const pct = reviews.length > 0 ? (count / reviews.length) * 100 : 0
+                      return (
+                        <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#9b6070', minWidth: 8, textAlign: 'right' }}>{star}</span>
+                          <span style={{ fontSize: 10, color: '#d97706' }}>★</span>
+                          <div style={{ flex: 1, height: 6, borderRadius: 4, background: '#f0e4e8', overflow: 'hidden' }}>
+                            <div style={{ width: `${pct}%`, height: '100%', background: pct > 0 ? `linear-gradient(90deg,${brand},${brand}cc)` : 'transparent', borderRadius: 4, transition: 'width .4s ease' }} />
+                          </div>
+                          <span style={{ fontSize: 10, color: '#9b6070', minWidth: 14, textAlign: 'right' }}>{count}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {reviews.map(r => (
                     <div key={r.id} style={{ background: '#fdf5f7', borderRadius: 12, padding: '14px 16px' }}>
@@ -1122,7 +1154,8 @@ export default function ShopPage() {
                   ))}
                 </div>
               </div>
-            )}
+              )
+            })()}
 
             {/* Map embed */}
             {shop.address && (
