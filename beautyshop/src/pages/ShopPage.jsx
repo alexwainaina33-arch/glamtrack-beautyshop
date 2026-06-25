@@ -145,6 +145,7 @@ export default function ShopPage() {
   const [savingReview, setSavingReview] = useState(false)
  const [reviewSubmitted, setReviewSubmitted] = useState(false)
   const [hoverRating, setHoverRating] = useState(0)
+  const [reviewNudgeUrl, setReviewNudgeUrl] = useState(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const urlInitDone = useRef(false)
   const heroRef = useRef(null)
@@ -488,16 +489,42 @@ export default function ShopPage() {
     if (!reviewForm.customer_name.trim() || !reviewForm.review_text.trim()) return
     setSavingReview(true)
     try {
+      const name   = reviewForm.customer_name.trim()
+      const rating = reviewForm.rating
+      const text   = reviewForm.review_text.trim()
       await pb.collection('bs_reviews').create({
         shop_id: shop.id,
-        customer_name: reviewForm.customer_name.trim(),
-        rating: reviewForm.rating,
-        review_text: reviewForm.review_text.trim(),
+        customer_name: name,
+        rating,
+        review_text: text,
         is_approved: false,
       })
+      // G3-style WhatsApp nudge — opens immediately so the owner finds out
+      // about a new pending review without relying on the sidebar badge.
+      // Silent no-op if the shop has no phone number on file. Fallback
+      // button shown in the success screen below in case a popup blocker
+      // suppresses the auto-open (same precedent as BookingPage Step 4).
+      const ownerWaPhone = toWaPhone(shop.phone)
+      if (ownerWaPhone) {
+        const nudgeMsg = [
+          `⭐ *New review on your shop page!*`,
+          ``,
+          `${name} left a ${rating}-star review:`,
+          `"${text.length > 120 ? text.slice(0, 120) + '…' : text}"`,
+          ``,
+          `Open Reviews in your dashboard to approve and reply.`,
+          ``,
+          `_${shop.name} · Powered by SalesTrack_`,
+        ].join('\n')
+        const url = `https://wa.me/${ownerWaPhone}?text=${encodeURIComponent(nudgeMsg)}`
+        setReviewNudgeUrl(url)
+        window.open(url, '_blank')
+      } else {
+        setReviewNudgeUrl(null)
+      }
       setReviewSubmitted(true)
       setReviewForm({ customer_name: '', rating: 5, review_text: '' })
-      setTimeout(() => { setReviewModalOpen(false); setReviewSubmitted(false) }, 2200)
+      setTimeout(() => { setReviewModalOpen(false); setReviewSubmitted(false); setReviewNudgeUrl(null) }, 2200)
     } catch (err) {
       console.error('Review submit error:', err)
       alert('Could not submit your review — please try again.')
@@ -1833,7 +1860,13 @@ export default function ShopPage() {
                 <div style={{ textAlign: 'center', padding: '32px 0' }}>
                   <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
                   <div style={{ fontWeight: 700, fontSize: 16, color: '#1a1a1f', marginBottom: 6 }}>Thank you!</div>
-                  <p style={{ fontSize: 13, color: '#9b6070', margin: 0 }}>Your review has been sent to {shop.name} for approval.</p>
+                  <p style={{ fontSize: 13, color: '#9b6070', margin: '0 0 16px' }}>Your review has been sent to {shop.name} for approval.</p>
+                  {reviewNudgeUrl && (
+                    <a href={reviewNudgeUrl} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 12, background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+                      💬 Didn't open? Notify {shop.name} on WhatsApp
+                    </a>
+                  )}
                 </div>
               ) : (
                 <form onSubmit={submitReview} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
