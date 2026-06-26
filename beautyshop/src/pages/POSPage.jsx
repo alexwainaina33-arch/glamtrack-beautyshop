@@ -199,7 +199,9 @@ export default function POSPage() {
         } catch (err) {
           console.error('Sync failed for sale', s.id, err?.message)
           failed++
-          lastError = err?.data?.message || err?.message || 'Unknown error'
+          const fieldErrors = err?.data?.data ? JSON.stringify(err.data.data) : ''
+          lastError = fieldErrors || err?.data?.message || err?.message || 'Unknown error'
+          console.error('Full sync error:', JSON.stringify(err?.data || err))
         }
       }
       const remaining = await getPendingSales()
