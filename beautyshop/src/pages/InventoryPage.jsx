@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDateTime } from '../lib/utils'
-import { Plus, AlertTriangle, ArrowUp, ArrowDown, RefreshCw, X, Filter } from 'lucide-react'
+import { Plus, AlertTriangle, ArrowUp, ArrowDown, RefreshCw, X, Filter, Upload, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function InventoryPage() {
@@ -25,8 +25,26 @@ export default function InventoryPage() {
     const d = new Date(); d.setDate(1); return d.toISOString().slice(0,10)
   })
   const [valTo, setValTo] = useState(() => new Date().toISOString().slice(0,10))
+  const [showBulkImport, setShowBulkImport] = useState(false)
+  const [importData, setImportData] = useState('')
+  const [importing, setImporting] = useState(false)
+  const fileRef = useRef()
+  const [selectedProducts, setSelectedProducts] = useState(new Set())
 
   useEffect(() => { if (shop && !authLoading) loadData() }, [shop, authLoading])
+
+  useEffect(() => {
+    // Auto-alert on low stock items
+    if (products.length > 0) {
+      const lowItems = products.filter(p => p.stock_qty <= (p.reorder_point || 5))
+      const outItems = lowItems.filter(p => p.stock_qty <= 0)
+      if (outItems.length > 0) {
+        setTimeout(() => {
+          toast.error(`❌ ${outItems.length} item(s) out of stock!`, { icon: '🚨', duration: 6000 })
+        }, 1500)
+      }
+    }
+  }, [products])
 
   const loadData = async () => {
     setLoading(true)
@@ -95,6 +113,76 @@ export default function InventoryPage() {
     ? products.filter(p => p.stock_qty <= (p.reorder_point || 5))
     : products
 
+  const handleBulkImportCSV = async () => {
+    if (!importData.trim()) return toast.error('Paste CSV data first')
+    setImporting(true)
+    try {
+      const lines = importData.trim().split('\n').filter(l => l.trim())
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase())
+      const rows = lines.slice(1).map(l => {
+        const vals = l.split(',').map(v => v.trim())
+        const obj = {}
+        headers.forEach((h, i) => { obj[h] = vals[i] || '' })
+        return obj
+      })
+
+      let success = 0, failed = 0
+      for (const row of rows) {
+        try {
+          const productName = row.name || row.product_name
+          if (!productName) continue
+          
+          const qty = Number(row.qty || row.quantity || 0)
+          const cost = Number(row.cost || row.cost_price || 0)
+          const notes = row.notes || row.reference || ''
+
+          // Find product by name
+          const prod = products.find(p => p.name.toLowerCase().trim() === productName.toLowerCase().trim())
+          if (!prod) { failed++; continue }
+
+          const newQty = Math.max(0, (prod.stock_qty || 0) + qty)
+          await pb.collection(C.PRODUCTS).update(prod.id, { stock_qty: newQty })
+          await pb.collection(C.INV_MOVEMENTS).create({
+            shop_id: shop.id,
+            product_id: prod.id,
+            type: 'stock_in',
+            qty: qty,
+            before_qty: prod.stock_qty || 0,
+            after_qty: newQty,
+            cost_per_unit: cost,
+            funding_source: 'bulk_import',
+            notes: notes,
+            created_by: pb.authStore.model?.id
+          })
+          success++
+        } catch (e) { failed++ }
+      }
+      toast.success(`✅ Imported ${success} products${failed > 0 ? ` (${failed} failed)` : ''}`)
+      setShowBulkImport(false)
+      setImportData('')
+      loadData()
+    } finally { setImporting(false) }
+  }
+
+  const toggleProductSelection = (prodId) => {
+    const newSelected = new Set(selectedProducts)
+    if (newSelected.has(prodId)) {
+      newSelected.delete(prodId)
+    } else {
+      newSelected.add(prodId)
+    }
+    setSelectedProducts(newSelected)
+  }
+
+  const calcStockForecast = (product) => {
+    // Estimate days of stock remaining based on recent sales
+    const recentSales = movements.filter(m => m.product_id === product.id && m.type === 'sale').slice(0, 7)
+    if (recentSales.length === 0) return null
+    const avgDaily = recentSales.reduce((s, m) => s + Math.abs(m.qty || 0), 0) / 7
+    if (avgDaily === 0) return null
+    return Math.ceil((product.stock_qty || 0) / avgDaily)
+  }
+
   const totalStockValue = products.reduce((s, p) => s + ((p.stock_qty || 0) * (p.cost_price_kes || 0)), 0)
   const totalRetailValue = products.reduce((s, p) => s + ((p.stock_qty || 0) * (p.price_kes || 0)), 0)
   const lowCount = products.filter(p => p.stock_qty <= (p.reorder_point || 5)).length
@@ -136,9 +224,12 @@ export default function InventoryPage() {
           <div className="page-title">Inventory 📦</div>
           <div className="page-subtitle">{products.length} tracked products</div>
         </div>
-        <button className="btn-primary" onClick={() => openAdjust(null, 'stock_in')} disabled={isLocked} title={isLocked ? 'Account locked — renew to adjust stock' : ''}>
-          {isLocked ? '🔒 Locked' : <><Plus size={16} /> Stock Adjustment</>}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn-secondary" onClick={() => setShowBulkImport(true)} disabled={isLocked}><Upload size={14} /> Bulk Import</button>
+          <button className="btn-primary" onClick={() => openAdjust(null, 'stock_in')} disabled={isLocked} title={isLocked ? 'Account locked — renew to adjust stock' : ''}>
+            {isLocked ? '🔒 Locked' : <><Plus size={16} /> Stock Adjustment</>}
+          </button>
+        </div>
       </div>
 
       {/* Summary cards */}
@@ -202,6 +293,7 @@ export default function InventoryPage() {
                   <th>Barcode</th>
                   <th>On Hand</th>
                   <th>Reorder At</th>
+                  <th>Days Left</th>
                   <th>Cost Value</th>
                   <th>Retail Value</th>
                   <th>Status</th>
@@ -226,6 +318,16 @@ export default function InventoryPage() {
                         <span style={{ color: '#9b6070', fontSize: 12, marginLeft: 4 }}>{p.unit || 'pcs'}</span>
                       </td>
                       <td style={{ color: '#9b6070', fontSize: 13 }}>{p.reorder_point || 5}</td>
+                      <td>
+                        {(() => {
+                          const forecast = calcStockForecast(p)
+                          return forecast ? (
+                            <span style={{ fontWeight: 700, color: forecast < 7 ? '#dc2626' : '#3b82f6' }}>
+                              {forecast} {forecast === 1 ? 'day' : 'days'}
+                            </span>
+                          ) : <span style={{ color: '#9b6070' }}>—</span>
+                        })()}
+                      </td>
                       <td>{fmtKES((p.stock_qty || 0) * (p.cost_price_kes || 0))}</td>
                       <td>{fmtKES((p.stock_qty || 0) * (p.price_kes || 0))}</td>
                       <td>
@@ -458,6 +560,36 @@ export default function InventoryPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Import Modal */}
+      {showBulkImport && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowBulkImport(false)}>
+          <div className="modal" style={{ maxWidth: 560 }}>
+            <div className="modal-header"><span className="modal-title">📋 Bulk Stock Import</span><button onClick={() => setShowBulkImport(false)} className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
+            <div className="modal-body">
+              <div style={{ background: '#f0fdf4', borderRadius: 10, padding: 12, marginBottom: 14, fontSize: 12, color: '#166534' }}>
+                <strong>Format:</strong> Paste CSV with columns: name, qty, cost, notes
+                <div style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 11 }}>
+                  <div>Product Name,Qty,Cost,Notes</div>
+                  <div>Hair Shampoo 500ml,10,350,Supplier Invoice #123</div>
+                  <div>Nail Polish,25,150,Opening stock</div>
+                </div>
+              </div>
+              
+              <textarea style={{
+                width: '100%', height: 200, padding: 12, border: '1px solid #f0e4e8', borderRadius: 8, fontFamily: 'monospace', fontSize: 12, marginBottom: 12, resize: 'vertical'
+              }} placeholder="Paste CSV data here..." value={importData} onChange={e => setImportData(e.target.value)} />
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button className="btn-secondary" onClick={() => setShowBulkImport(false)} disabled={importing}>Cancel</button>
+                <button className="btn-primary" onClick={handleBulkImportCSV} disabled={importing || !importData.trim()}>
+                  {importing ? <><div style={{ width: 14, height: 14, border: '2px solid #fff4', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block', marginRight: 6 }} /> Importing…</> : `<Zap size={14} /> Import ${importData.split('\n').length - 1} items`}
+                </button>
+              </div>
             </div>
           </div>
         </div>

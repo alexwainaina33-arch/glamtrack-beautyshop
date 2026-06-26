@@ -43,6 +43,21 @@ export default function CustomersPage() {
       ])
       setCustomerSales(sales.items)
       setCreditSales(credits)
+
+      // Churn Whisper — compare recent basket avg vs lifetime avg
+      const visits = customer.visit_count || 0
+      const lifetimeAvg = visits > 0 ? (customer.total_spent_kes || 0) / visits : 0
+      const recentSales = sales.items.slice(0, 3)
+      const recentAvg = recentSales.length >= 3
+        ? recentSales.reduce((s, x) => s + (x.total_kes || 0), 0) / recentSales.length
+        : null
+      const showChurnWhisper = (
+        visits >= 4 &&
+        recentAvg !== null &&
+        lifetimeAvg > 0 &&
+        recentAvg < lifetimeAvg * 0.7
+      )
+      setViewCustomer(prev => ({ ...prev, _churnWhisper: showChurnWhisper, _lifetimeAvg: lifetimeAvg, _recentAvg: recentAvg }))
     } catch {}
   }
 
@@ -222,6 +237,17 @@ export default function CustomersPage() {
                 </div>
               </div>
 
+              {viewCustomer._churnWhisper && (
+                <div style={{ background: '#fffbeb', border: '2px solid #f59e0b', borderRadius: 12, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>📉</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#b45309' }}>Spending less than usual</div>
+                    <div style={{ fontSize: 12, color: '#92400e', marginTop: 2 }}>
+                      Recent avg {fmtKES(Math.round(viewCustomer._recentAvg))} vs lifetime avg {fmtKES(Math.round(viewCustomer._lifetimeAvg))} — worth a personal check-in.
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="stat-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
                 {[
                   { label: 'Total Spent', value: fmtKES(viewCustomer.total_spent_kes), color: '#c8456a' },

@@ -39,6 +39,12 @@ export default function POSPage() {
   const [pendingCount, setPendingCount]  = useState(0)
   const [syncing, setSyncing]            = useState(false)
   const [mobileTab, setMobileTab]        = useState('products')
+  const [recentCustomers, setRecentCustomers] = useState([])
+  const [showPaymentConfirm, setShowPaymentConfirm] = useState(false)
+  const [qtyInput, setQtyInput]          = useState('')
+  const [qtyTargetId, setQtyTargetId]    = useState(null)
+  const [customerHistory, setCustomerHistory] = useState(null)
+  const audioRef = useRef(null)
 
   useEffect(() => {
     if (shop && !authLoading) {
@@ -78,6 +84,26 @@ export default function POSPage() {
     let timer
     const handleKey = (e) => {
       const tag = e.target.tagName
+      
+      // Global shortcuts
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (tag === 'INPUT' && e.target.type === 'number' && e.target.placeholder.includes('quantity')) return
+        if (tag === 'INPUT' && e.target.placeholder.includes('Qty')) return
+      }
+      
+      // Ctrl+P: Pay
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') { e.preventDefault(); if (cart.length) setShowPaymentConfirm(true) }
+      // Ctrl+C: Clear cart
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') { e.preventDefault(); if (cart.length) clearCart() }
+      // Ctrl+H: Hold sale
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h') { e.preventDefault(); holdSale() }
+      // Escape: cancel qty input or close modals
+      if (e.key === 'Escape') { setQtyInput(''); setQtyTargetId(null); setShowPaymentConfirm(false) }
+      
+      // Number keys for quick qty when focused on quantity input
+      if (tag === 'INPUT' && (e.currentTarget.placeholder?.includes('quantity') || e.currentTarget.placeholder?.includes('Qty'))) return
+      
+      // Barcode scanning
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       if (e.key === 'Enter' && scanBuffer.length > 2) { handleBarcodeScan(scanBuffer); setScanBuffer('') }
       else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
@@ -87,7 +113,7 @@ export default function POSPage() {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [scanBuffer, products])
+  }, [scanBuffer, products, cart])
 
   const loadData = async () => {
     try {
@@ -99,6 +125,8 @@ export default function POSPage() {
       // Cache locally for offline use
       cacheProducts(prods).catch(() => {})
       cacheCategories(cats).catch(() => {})
+      // Load recent customers
+      loadRecentCustomers()
 
       // Best seller of the day
       try {
@@ -121,6 +149,7 @@ export default function POSPage() {
         if (cachedProds.length > 0) {
           setProducts(cachedProds)
           setCategories(cachedCats)
+          loadRecentCustomers()
           toast('Loaded from local cache', { icon: '📦', duration: 3000 })
         } else {
           toast.error('No cached data — connect to internet first')
@@ -179,8 +208,40 @@ export default function POSPage() {
 
   const handleBarcodeScan = (barcode) => {
     const p = products.find(p => p.barcode === barcode || p.sku === barcode)
-    if (p) { addToCart(p); toast.success(`Added: ${p.name}`, { icon: '📦' }) }
-    else toast.error(`No product: ${barcode}`)
+    if (p) { 
+      addToCart(p)
+      playSound('success')
+      toast.success(`Added: ${p.name}`, { icon: '📦' }) 
+    } else {
+      playSound('error')
+      toast.error(`No product: ${barcode}`)
+    }
+  }
+
+  const playSound = (type = 'success') => {
+    if (typeof window !== 'undefined' && window.AudioContext) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)()
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        
+        if (type === 'success') {
+          osc.frequency.value = 800
+          osc.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.1)
+        } else if (type === 'error') {
+          osc.frequency.value = 400
+          osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.2)
+        }
+        
+        gain.gain.setValueAtTime(0.3, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (type === 'success' ? 0.1 : 0.2))
+        
+        osc.start(ctx.currentTime)
+        osc.stop(ctx.currentTime + (type === 'success' ? 0.1 : 0.2))
+      } catch (e) { }
+    }
   }
 
   const addToCart = (product) => {
@@ -191,6 +252,7 @@ export default function POSPage() {
         if (product.track_inventory && ex.qty >= product.stock_qty) return (toast.error('Insufficient stock!'), prev)
         return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i)
       }
+      playSound('success')
       return [...prev, { ...product, qty: 1, unit_price: product.price_kes }]
     })
   }
@@ -218,11 +280,50 @@ export default function POSPage() {
     } catch(e) { console.error('Customer search error:', e.message) }
   }
 
+  const selectCustomer = async (c) => {
+    setCustomer(c)
+    setCustomerSearch('')
+    setCustomerResults([])
+    playSound('success')
+    // Store as recent customer
+    const stored = JSON.parse(localStorage.getItem(`recent_customers_${shop.id}`) || '[]')
+    const filtered = stored.filter(id => id !== c.id)
+    localStorage.setItem(`recent_customers_${shop.id}`, JSON.stringify([c.id, ...filtered].slice(0, 5)))
+    // Fetch customer history
+    try {
+      const history = await pb.collection(C.SALES).getList(1, 5, {
+        filter: `shop_id="${shop.id}" && customer_id="${c.id}" && status="completed"`,
+        sort: '-created',
+        '$autoCancel': false,
+        '$cancelKey': 'customer-history'
+      })
+      if (history.items.length > 0) {
+        setCustomerHistory({
+          totalSpent: c.total_spent_kes || 0,
+          visitCount: c.visit_count || 0,
+          lastVisit: history.items[0]?.created || null,
+          lastAmount: history.items[0]?.total_kes || 0,
+          avgSpend: c.total_spent_kes && c.visit_count ? c.total_spent_kes / c.visit_count : 0
+        })
+      }
+    } catch (e) { console.error('Customer history error:', e.message) }
+  }
+
+  const loadRecentCustomers = async () => {
+    const stored = JSON.parse(localStorage.getItem(`recent_customers_${shop.id}`) || '[]')
+    if (stored.length === 0) return
+    try {
+      const recents = await Promise.all(stored.map(id => pb.collection(C.CUSTOMERS).getOne(id).catch(() => null)))
+      setRecentCustomers(recents.filter(c => c !== null))
+    } catch (e) { console.error('Recent customers error:', e.message) }
+  }
+
   const quickAddCustomer = async (e) => {
     e.preventDefault(); setSavingCust(true)
     try {
       const c = await pb.collection(C.CUSTOMERS).create({ shop_id: shop.id, name: newCust.name, phone: newCust.phone, loyalty_points: 0, total_spent_kes: 0, visit_count: 0 })
-      setCustomer(c); setCustomerSearch(c.name); setShowQuickCust(false); setNewCust({ name: '', phone: '' })
+      selectCustomer(c)
+      setShowQuickCust(false); setNewCust({ name: '', phone: '' })
       toast.success(`${c.name} added! ✅`)
     } catch { toast.error('Failed') } finally { setSavingCust(false) }
   }
@@ -359,6 +460,29 @@ export default function POSPage() {
       setCompletedSale({ ...sale, items: cart, customer, change, pointsEarned })
       setShowReceipt(true); clearCart(); loadData()
       toast.success(`Sale done! ${receiptNo}`, { icon: '🎉', duration: 4000 })
+
+      // #3 First Sale of the Day — celebrate the first completed sale each calendar day
+      try {
+        const todayKey = `st_first_sale_${shop.id}_${new Date().toDateString()}`
+        if (!sessionStorage.getItem(todayKey)) {
+          const dayStart = new Date(); dayStart.setHours(0,0,0,0)
+          const dayStartStr = dayStart.toISOString().replace('T',' ').replace('Z','.000Z')
+          const todaySales = await pb.collection(C.SALES).getList(1, 2, {
+            filter: `shop_id="${shop.id}" && status="completed" && created>="${dayStartStr}"`,
+            '$autoCancel': false,
+            '$cancelKey': 'pos-first-sale-check'
+          })
+          if (todaySales.totalItems === 1) {
+            sessionStorage.setItem(todayKey, '1')
+            setTimeout(() => {
+              toast.success(
+                `🎉 First sale of the day — ${fmtKES(total)}! Great start.`,
+                { duration: 6000, icon: '☀️' }
+              )
+            }, 1200)
+          }
+        }
+      } catch {}
 
       // G8-A — Best Customer thank-you prompt on every 5th visit
       if (customer && shop?.phone) {
@@ -528,7 +652,7 @@ export default function POSPage() {
             {customerResults.length > 0 && !customer && (
               <div style={{ background: '#fff', border: '1px solid #f0e4e8', borderRadius: 10, marginTop: 4, boxShadow: '0 4px 16px #0002', overflow: 'hidden', zIndex: 10, position: 'relative' }}>
                 {customerResults.map(c => (
-                  <div key={c.id} onClick={() => { setCustomer(c); setCustomerSearch(''); setCustomerResults([]) }} style={{ padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}
+                  <div key={c.id} onClick={() => selectCustomer(c)} style={{ padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}
                     onMouseOver={e => e.currentTarget.style.background = '#fce8ed'} onMouseOut={e => e.currentTarget.style.background = ''}>
                     <span><strong>{c.name}</strong> · {c.phone}</span>
                     <span style={{ color: '#d97706', fontWeight: 700 }}>⭐ {c.loyalty_points || 0}</span>
@@ -536,11 +660,34 @@ export default function POSPage() {
                 ))}
               </div>
             )}
+            {!customerSearch && !customer && recentCustomers.length > 0 && (
+              <div style={{ marginTop: 5 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#9b6070', textTransform: 'uppercase', marginBottom: 3 }}>⏱️ Recent</div>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {recentCustomers.map(c => (
+                    <button key={c.id} onClick={() => selectCustomer(c)} style={{ fontSize: 11, padding: '4px 8px', borderRadius: 6, border: '1px solid #f0e4e8', background: '#fff', cursor: 'pointer', color: '#6b1e38', fontWeight: 600, fontFamily: 'Nunito,sans-serif' }}>
+                      {c.name.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {customer && (
-              <div style={{ marginTop: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 11, color: '#059669' }}>✅ {customer.name} · ⭐ {customer.loyalty_points || 0} pts</span>
+              <div style={{ marginTop: 5 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, color: '#059669' }}>✅ {customer.name} · ⭐ {customer.loyalty_points || 0} pts</span>
+                  <button className="btn-ghost" onClick={() => { setCustomer(null); setCustomerSearch(''); setCustomerHistory(null) }} style={{ color: '#9b6070', fontSize: 9, padding: '2px 5px' }}>✕</button>
+                </div>
+                {customerHistory && (
+                  <div style={{ fontSize: 10, color: '#6b4050', marginTop: 3, paddingTop: 3, borderTop: '1px solid #f0e4e8', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                    <div>💰 Spent: {fmtKES(customerHistory.totalSpent)}</div>
+                    <div>📊 Visits: {customerHistory.visitCount}</div>
+                    <div>📈 Avg: {fmtKES(customerHistory.avgSpend)}</div>
+                    <div>⏱️ Last: {customerHistory.lastAmount ? fmtKES(customerHistory.lastAmount) : 'N/A'}</div>
+                  </div>
+                )}
                 {(customer.loyalty_points || 0) >= 50 && (
-                  <label style={{ fontSize: 11, fontWeight: 600, color: '#d97706', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: '#d97706', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, marginTop: 3 }}>
                     <input type="checkbox" checked={redeemPoints} onChange={e => setRedeemPoints(e.target.checked)} style={{ accentColor: '#d97706' }} />
                     Redeem ({fmtKES(calcMaxRedeemable(customer.loyalty_points))})
                   </label>
@@ -579,6 +726,19 @@ export default function POSPage() {
               <Tag size={12} style={{ color: '#9b6070', marginTop: 12, flexShrink: 0 }} />
               <input className="input" type="number" placeholder="Discount (KES)" value={discount || ''} onChange={e => setDiscount(e.target.value)} style={{ fontSize: 12 }} />
             </div>
+            {/* Quick discount buttons */}
+            {cart.length > 0 && (
+              <div style={{ display: 'flex', gap: 4, marginBottom: 7, flexWrap: 'wrap' }}>
+                {[10, 15, 20].map(pct => (
+                  <button key={pct} onClick={() => setDiscount(Math.round(subtotal * pct / 100))} style={{ fontSize: 10, padding: '4px 8px', borderRadius: 6, border: '1px solid #e8d0d6', background: '#fce8ed', color: '#9b6070', fontWeight: 600, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+                    {pct}%
+                  </button>
+                ))}
+                <button onClick={() => setDiscount(0)} style={{ fontSize: 10, padding: '4px 8px', borderRadius: 6, border: '1px solid #e8d0d6', background: '#fff', color: '#9b6070', fontWeight: 600, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+                  Clear
+                </button>
+              </div>
+            )}
             {[
               { label: 'Subtotal', value: subtotal },
               ...(discountAmt > 0 ? [{ label: '− Discount', value: -discountAmt, red: true }] : []),
@@ -622,7 +782,7 @@ export default function POSPage() {
                 {mpesaAmount && Number(mpesaAmount) < total && <div style={{ background: '#f0f9ff', color: '#0369a1', borderRadius: 8, padding: '5px 11px', fontSize: 12, fontWeight: 700 }}>💵 Cash balance: {fmtKES(cashAmt)}</div>}
               </div>
             )}
-            <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: 14, borderRadius: 12 }} onClick={processSale} disabled={processing || !cart.length || isLocked}>
+            <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: 14, borderRadius: 12 }} onClick={() => setShowPaymentConfirm(true)} disabled={processing || !cart.length || isLocked}>
               {processing ? <><div style={{ width: 15, height: 15, border: '2px solid #fff4', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Processing…</> : isLocked ? '🔒 Account Locked' : `✅ Complete · ${fmtKES(total)}`}
             </button>
             <button onClick={payLater} disabled={processing || !cart.length || !customer || isLocked}
@@ -675,6 +835,61 @@ export default function POSPage() {
 
       {showReceipt && completedSale && (
         <ReceiptModal sale={completedSale} shop={shop} onClose={() => { setShowReceipt(false); setCompletedSale(null) }} />
+      )}
+
+      {/* Payment Confirmation Modal */}
+      {showPaymentConfirm && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowPaymentConfirm(false)}>
+          <div className="modal" style={{ maxWidth: 420 }}>
+            <div className="modal-header"><span className="modal-title">💳 Confirm Payment</span><button onClick={() => setShowPaymentConfirm(false)} className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
+            <div className="modal-body">
+              <div style={{ background: '#f9f3f5', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13, marginBottom: 10 }}>
+                  <div>
+                    <div style={{ color: '#9b6070', fontSize: 11 }}>Items</div>
+                    <div style={{ fontWeight: 700, fontSize: 16, color: '#3d1020' }}>{cart.length}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#9b6070', fontSize: 11 }}>Subtotal</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#3d1020' }}>{fmtKES(subtotal)}</div>
+                  </div>
+                  {discountAmt > 0 && (
+                    <div>
+                      <div style={{ color: '#9b6070', fontSize: 11 }}>Discount</div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: '#dc2626' }}>-{fmtKES(discountAmt)}</div>
+                    </div>
+                  )}
+                  {loyaltyDiscount > 0 && (
+                    <div>
+                      <div style={{ color: '#9b6070', fontSize: 11 }}>Loyalty</div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: '#d97706' }}>-{fmtKES(loyaltyDiscount)}</div>
+                    </div>
+                  )}
+                  {tax > 0 && (
+                    <div>
+                      <div style={{ color: '#9b6070', fontSize: 11 }}>Tax</div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: '#3d1020' }}>{fmtKES(tax)}</div>
+                    </div>
+                  )}
+                </div>
+                <div style={{ borderTop: '2px solid #f0e4e8', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#6b4050' }}>Total Amount</span>
+                  <span style={{ fontSize: 22, fontWeight: 700, color: '#c8456a' }}>{fmtKES(total)}</span>
+                </div>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#6b4050', marginBottom: 4 }}>Payment Method: <span style={{ color: '#c8456a' }}>{paymentMethod === 'visa_mc' ? 'Card' : paymentMethod === 'mpesa' ? 'M-Pesa' : paymentMethod === 'mixed' ? 'Cash + M-Pesa' : 'Cash'}</span></div>
+                {customer && <div style={{ fontSize: 12, fontWeight: 600, color: '#6b4050' }}>Customer: <span style={{ color: '#059669' }}>{customer.name}</span></div>}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn-secondary" onClick={() => setShowPaymentConfirm(false)} style={{ flex: 1 }}>Cancel</button>
+                <button className="btn-primary" onClick={() => { processSale(); setShowPaymentConfirm(false) }} style={{ flex: 1 }}>
+                  ✅ Confirm Payment
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

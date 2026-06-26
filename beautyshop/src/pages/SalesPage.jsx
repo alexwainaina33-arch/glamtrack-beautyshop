@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDateTime, fmtDate } from '../lib/utils'
-import { Eye, Search, RefreshCw, X, Download } from 'lucide-react'
-import { format, startOfDay, endOfDay, subDays } from 'date-fns'
+import { Eye, Search, RefreshCw, X, Download, Undo2, Copy, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { format, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek } from 'date-fns'
 import ReceiptModal from '../components/ReceiptModal'
 import toast from 'react-hot-toast'
 
@@ -21,6 +21,13 @@ export default function SalesPage() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const PER_PAGE = 25
+  const [showRefundModal, setShowRefundModal] = useState(false)
+  const [refundSale, setRefundSale] = useState(null)
+  const [refundReason, setRefundReason] = useState('')
+  const [refundAmount, setRefundAmount] = useState('')
+  const [refundProcessing, setRefundProcessing] = useState(false)
+  const [selectedSales, setSelectedSales] = useState(new Set())
+  const [recentlyVoided, setRecentlyVoided] = useState([])
 
   useEffect(() => { if (shop) loadSales() }, [shop, dateFrom, dateTo, statusFilter, page])
 
@@ -100,6 +107,75 @@ export default function SalesPage() {
     window.open(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
+  const procesRefund = async () => {
+    if (!refundSale) return
+    const amt = Number(refundAmount) || 0
+    if (amt <= 0 || amt > refundSale.total_kes) return toast.error('Enter valid refund amount')
+    if (!refundReason.trim()) return toast.error('Enter refund reason')
+    
+    setRefundProcessing(true)
+    try {
+      const isFullRefund = amt >= refundSale.total_kes
+      await pb.collection(C.SALES).update(refundSale.id, {
+        status: isFullRefund ? 'voided' : 'refunded',
+        payment_status: 'refunded',
+        notes: (refundSale.notes || '') + `\n[REFUND] ${refundReason} - ${fmtKES(amt)} on ${format(new Date(), 'dd/MM/yyyy HH:mm')}`
+      })
+      // Restore stock for refunded items
+      if (isFullRefund) {
+        const items = await pb.collection(C.SALE_ITEMS).getList(1, 200, { filter: `sale_id="${refundSale.id}"` }).then(r => r.items)
+        await Promise.all(items.map(async (item) => {
+          const prod = await pb.collection(C.PRODUCTS).getOne(item.product_id).catch(() => null)
+          if (prod && prod.track_inventory) {
+            const newQty = (prod.stock_qty || 0) + item.qty
+            await pb.collection(C.PRODUCTS).update(prod.id, { stock_qty: newQty })
+          }
+        }))
+      }
+      setRecentlyVoided(prev => [{ id: refundSale.id, receipt: refundSale.receipt_no, amount: amt, timestamp: new Date() }, ...prev].slice(0, 3))
+      toast.success(`✅ Refund processed! ${fmtKES(amt)} from ${refundSale.receipt_no}`)
+      setShowRefundModal(false)
+      loadSales()
+    } catch (err) { toast.error('Refund failed: ' + err?.message) }
+    finally { setRefundProcessing(false) }
+  }
+
+  const repeatSale = (sale) => {
+    // Copy sale to clipboard as JSON so user can recreate in POS
+    const data = {
+      customer_id: sale.expand?.customer_id?.id || null,
+      items: sale.items || [],
+      total_kes: sale.total_kes
+    }
+    localStorage.setItem('repeat_sale_template', JSON.stringify(data))
+    toast.success(`📋 Sale copied! Go to POS and look for "Repeat Sale" option to paste.`, { duration: 5000, icon: '✂️' })
+  }
+
+  const toggleSaleSelection = (saleId) => {
+    const newSelected = new Set(selectedSales)
+    if (newSelected.has(saleId)) {
+      newSelected.delete(saleId)
+    } else {
+      newSelected.add(saleId)
+    }
+    setSelectedSales(newSelected)
+  }
+
+  const applyQuickFilter = (filterType) => {
+    const now = new Date()
+    if (filterType === 'today') {
+      setDateFrom(format(startOfDay(now), 'yyyy-MM-dd'))
+      setDateTo(format(endOfDay(now), 'yyyy-MM-dd'))
+    } else if (filterType === 'week') {
+      setDateFrom(format(startOfWeek(now), 'yyyy-MM-dd'))
+      setDateTo(format(endOfWeek(now), 'yyyy-MM-dd'))
+    } else if (filterType === 'month') {
+      setDateFrom(format(startOfDay(subDays(now, 29)), 'yyyy-MM-dd'))
+      setDateTo(format(endOfDay(now), 'yyyy-MM-dd'))
+    }
+    setPage(1)
+  }
+
   const filtered = sales.filter(s =>
     !search || s.receipt_no?.toLowerCase().includes(search.toLowerCase()) ||
     s.expand?.customer_id?.name?.toLowerCase().includes(search.toLowerCase())
@@ -150,6 +226,26 @@ export default function SalesPage() {
 
       {/* Filters */}
       <div className="card" style={{ marginBottom: 20 }}>
+        {/* Recently voided notification */}
+        {recentlyVoided.length > 0 && (
+          <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, padding: '10px 14px', marginBottom: 14, display: 'flex', gap: 10, alignItems: 'center', fontSize: 12 }}>
+            <AlertCircle size={16} color="#b45309" />
+            <span style={{ flex: 1 }}>Recently refunded: {recentlyVoided.map(v => `${v.receipt} (${fmtKES(v.amount)})`).join(', ')}</span>
+            <button onClick={() => setRecentlyVoided([])} className="btn-ghost" style={{ padding: '2px 6px' }}><X size={12} /></button>
+          </div>
+        )}
+        
+        {/* Quick filters */}
+        <div style={{ marginBottom: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {[['today', '📅 Today'], ['week', '📊 This Week'], ['month', '📈 Last 30 Days']].map(([type, label]) => (
+            <button key={type} onClick={() => applyQuickFilter(type)} style={{
+              padding: '6px 12px', borderRadius: 8, border: '1px solid #f0e4e8', background: '#fff', color: '#8b2550', fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif'
+            }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="sales-filters-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 180px 180px 160px auto', gap: 12, alignItems: 'end' }}>
           <div>
             <label className="label">Search</label>
@@ -258,7 +354,11 @@ export default function SalesPage() {
                           </>
                         )}
                         {!isCashier && sale.status === 'completed' && sale.payment_status !== 'pending' && (
-                          <button className="btn-ghost" style={{ padding: '5px 10px', color: '#dc2626', fontSize: 11 }} onClick={() => voidSale(sale)}>Void</button>
+                          <>
+                            <button onClick={() => { setRefundSale(sale); setRefundAmount(fmtKES(sale.total_kes).replace(/,/g, '')); setShowRefundModal(true) }} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}><Undo2 size={11} style={{ display: 'inline', marginRight: 3 }} /> Refund</button>
+                            <button onClick={() => repeatSale(sale)} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0f9ff', color: '#0369a1', fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}><Copy size={11} style={{ display: 'inline', marginRight: 3 }} /> Repeat</button>
+                            <button className="btn-ghost" style={{ padding: '5px 10px', color: '#dc2626', fontSize: 11 }} onClick={() => voidSale(sale)}>Void</button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -282,6 +382,51 @@ export default function SalesPage() {
 
       {showReceipt && selectedSale && (
         <ReceiptModal sale={selectedSale} shop={shop} onClose={() => { setShowReceipt(false); setSelectedSale(null) }} />
+      )}
+
+      {/* Refund Modal */}
+      {showRefundModal && refundSale && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowRefundModal(false)}>
+          <div className="modal" style={{ maxWidth: 420 }}>
+            <div className="modal-header"><span className="modal-title">⏮️ Process Refund</span><button onClick={() => setShowRefundModal(false)} className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
+            <div className="modal-body">
+              <div style={{ background: '#fff5f5', borderRadius: 12, padding: 12, marginBottom: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#991b1b' }}>Receipt: {refundSale.receipt_no}</div>
+                <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4 }}>Original Total: {fmtKES(refundSale.total_kes)}</div>
+                {refundSale.expand?.customer_id && <div style={{ fontSize: 12, color: '#7f1d1d', marginTop: 2 }}>Customer: {refundSale.expand.customer_id.name}</div>}
+              </div>
+              
+              <div style={{ marginBottom: 12 }}>
+                <label className="label">Refund Amount *</label>
+                <input className="input" type="number" placeholder="0" value={refundAmount} onChange={e => setRefundAmount(e.target.value)} max={refundSale.total_kes} />
+                <div style={{ fontSize: 11, color: '#9b6070', marginTop: 4 }}>Max: {fmtKES(refundSale.total_kes)}</div>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label className="label">Reason *</label>
+                <select className="input" value={refundReason} onChange={e => setRefundReason(e.target.value)} style={{ marginBottom: 8 }}>
+                  <option value="">Select reason…</option>
+                  <option value="Customer not satisfied">Customer not satisfied</option>
+                  <option value="Damaged product">Damaged product</option>
+                  <option value="Wrong item sold">Wrong item sold</option>
+                  <option value="Customer changed mind">Customer changed mind</option>
+                  <option value="System error">System error</option>
+                  <option value="Other">Other</option>
+                </select>
+                {refundReason === 'Other' && (
+                  <input className="input" placeholder="Explain reason…" onChange={e => setRefundReason(e.target.value)} style={{ marginTop: 6 }} />
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn-secondary" onClick={() => setShowRefundModal(false)} style={{ flex: 1 }} disabled={refundProcessing}>Cancel</button>
+                <button className="btn-primary" onClick={procesRefund} style={{ flex: 1, background: '#dc2626' }} disabled={refundProcessing || !refundAmount || !refundReason}>
+                  {refundProcessing ? 'Processing…' : `Process Refund ${fmtKES(Number(refundAmount))}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
