@@ -165,6 +165,8 @@ export default function POSPage() {
       const pending = await getPendingSales()
       if (pending.length === 0) { setSyncing(false); return }
       let synced = 0
+      let failed = 0
+      let lastError = ''
       for (const s of pending) {
         try {
           const salePayload = {
@@ -196,13 +198,16 @@ export default function POSPage() {
           synced++
         } catch (err) {
           console.error('Sync failed for sale', s.id, err?.message)
+          failed++
+          lastError = err?.data?.message || err?.message || 'Unknown error'
         }
       }
       const remaining = await getPendingSales()
       setPendingCount(remaining.length)
       if (synced > 0) toast.success(`Synced ${synced} offline sale${synced > 1 ? 's' : ''}! ✅`)
+      if (failed > 0) toast.error(`${failed} sale${failed > 1 ? 's' : ''} failed to sync: ${lastError}`, { duration: 8000 })
       loadData()
-    } catch (err) { console.error('Sync error:', err) }
+    } catch (err) { toast.error('Sync error: ' + (err?.message || 'Unknown')) }
     finally { setSyncing(false) }
   }
 
