@@ -197,11 +197,19 @@ export default function POSPage() {
           await markSynced(s.id)
           synced++
         } catch (err) {
-          console.error('Sync failed for sale', s.id, err?.message)
-          failed++
-          const fieldErrors = err?.data?.data ? JSON.stringify(err.data.data) : ''
-          lastError = fieldErrors || err?.data?.message || err?.message || 'Unknown error'
-          console.error('Full sync error:', JSON.stringify(err?.data || err))
+          const fieldErrors = err?.data?.data || {}
+          
+          if (fieldErrors?.receipt_no?.code === 'validation_not_unique') {
+            await markSynced(s.id)
+            synced++
+            console.log('Sale already synced, clearing:', s.receipt_no)
+          } else {
+            console.error('Sync failed for sale', s.id, err?.message)
+            failed++
+            const errMsg = err?.data?.data ? JSON.stringify(err.data.data) : ''
+            lastError = errMsg || err?.data?.message || err?.message || 'Unknown error'
+            console.error('Full sync error:', JSON.stringify(err?.data || err))
+          }
         }
       }
       const remaining = await getPendingSales()
