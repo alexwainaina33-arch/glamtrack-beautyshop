@@ -12,6 +12,7 @@ export const C = {
   SHOP_ADMINS:    'bs_shop_admins',
   CATEGORIES:     'bs_categories',
   PRODUCTS:       'bs_products',
+  PRODUCT_VARIANTS: 'bs_product_variants',
   INV_MOVEMENTS:  'bs_inv_movements',
   CUSTOMERS:      'bs_customers',
   SALES:          'bs_sales',

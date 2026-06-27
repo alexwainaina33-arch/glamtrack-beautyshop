@@ -14,26 +14,33 @@ const PLANS = {
       id: 'starter', name: 'Starter', price: 4999, period: 'monthly',
       dailyCost: 167, color: '#f7c5d0', highlight: false, save: null,
       tagline: 'Everything you need to run your shop from your phone',
-      features: [
-        '1 owner + 1 cashier login account',
-        'Full POS — cash, M-Pesa & card payments',
-        'Offline mode — sells without internet',
-        'Hold & resume multiple sales at once',
-        'Barcode scanner & label printing',
-        'Inventory tracking & stock levels',
-        'Low stock WhatsApp alerts (per-item & bulk)',
-        'Expense tracking with photo receipt capture',
-        'Customer profiles & loyalty points system',
-        'Digital receipts sent via WhatsApp',
-        'Free public shop website (shop page & catalogue)',
-        'Daily, weekly & monthly sales reports',
-        'Gross profit shown on every single sale',
-        'Stock valuation report (for your accountant)',
-        'Sales & customer CSV export',
-        'Brand settings — logo, color, receipt footer',
-        'PWA — installs on your phone like a native app',
-        'WhatsApp support',
+      intro: null,
+      featureGroups: [
+        {
+          label: null,
+          items: [
+            '1 owner + 1 cashier login account',
+            'Full POS — cash, M-Pesa & card payments',
+            'Offline mode — sells without internet',
+            'Hold & resume multiple sales at once',
+            'Barcode scanner & label printing',
+            'Inventory tracking & stock levels',
+            'Low stock WhatsApp alerts (per-item & bulk)',
+            'Expense tracking with photo receipt capture',
+            'Customer profiles & loyalty points system',
+            'Digital receipts sent via WhatsApp',
+            'Free public shop website (shop page & catalogue)',
+            'Daily, weekly & monthly sales reports',
+            'Gross profit shown on every single sale',
+            'Stock valuation report (for your accountant)',
+            'Sales & customer CSV export',
+            'Brand settings — logo, color, receipt footer',
+            'PWA — installs on your phone like a native app',
+            'WhatsApp support',
+          ],
+        },
       ],
+      featuresFlat: [],
       missing: [
         'Appointment booking page',
         'Staff commissions & attendance',
@@ -46,31 +53,52 @@ const PLANS = {
       id: 'growth', name: 'Growth', price: 9999, period: 'monthly',
       dailyCost: 333, color: '#e6b800', highlight: true, save: null,
       tagline: 'For shops with staff, bookings and bigger ambitions',
-      features: [
-        'Everything in Starter',
-        'Unlimited staff login accounts',
-        'Staff commission calculator — % or flat per service',
-        'Staff attendance clock in & clock out',
-        'Staff leaderboard & monthly sales targets',
-        'Payout recording with WhatsApp receipt to staff',
-        'Appointment booking page — public link, no app needed',
-        'Multi-service booking cart for customers',
-        'Auto WhatsApp reminders sent to customers',
-        'Staff notified on WhatsApp when booked or reassigned',
-        'AI daily business insight — personalised to your data',
-        'Dead hours map — know your slow times, fill them',
-        'Business health score — track your shop\'s fitness',
-        'Customer cohort retention — 30, 60 & 90 day analysis',
-        'Revenue trend chart — week & month view',
-        'Top 10 products by gross profit margin',
-        'Lender-ready 6-month P&L report',
-        'DSCR calculator — know if you qualify for a loan',
-        'Accounts receivable aging — track who owes you',
-        'WhatsApp auto-reply script generator',
-        'Printable QR business card (scan-to-book)',
-        'Daily branded share card for WhatsApp Status',
-        'Priority WhatsApp support',
+      intro: 'Everything in Starter, plus:',
+      featureGroups: [
+        {
+          label: '👥 Staff & Payroll',
+          items: [
+            'Unlimited staff login accounts',
+            'Staff commission calculator — % or flat per service',
+            'Staff attendance clock in & clock out',
+            'Staff leaderboard & monthly sales targets',
+            'Payout recording with WhatsApp receipt to staff',
+          ],
+        },
+        {
+          label: '📅 Bookings & Customer Automation',
+          items: [
+            'Appointment booking page — public link, no app needed',
+            'Multi-service booking cart for customers',
+            'Auto WhatsApp reminders sent to customers',
+            'Staff notified on WhatsApp when booked or reassigned',
+            'Printable QR business card (scan-to-book)',
+            'WhatsApp auto-reply script generator',
+            'Daily branded share card for WhatsApp Status',
+          ],
+        },
+        {
+          label: '📊 Business Intelligence & Lending',
+          items: [
+            'AI daily business insight — personalised to your data',
+            'Dead hours map — know your slow times, fill them',
+            'Business health score — track your shop\'s fitness',
+            'Customer cohort retention — 30, 60 & 90 day analysis',
+            'Revenue trend chart — week & month view',
+            'Top 10 products by gross profit margin',
+            'Lender-ready 6-month P&L report',
+            'DSCR calculator — know if you qualify for a loan',
+            'Accounts receivable aging — track who owes you',
+          ],
+        },
+        {
+          label: '💬 Support',
+          items: [
+            'Priority WhatsApp support',
+          ],
+        },
       ],
+      featuresFlat: [],
       missing: [
         'Multi-branch management',
         'eTIMS / KRA compliance',
@@ -81,17 +109,28 @@ const PLANS = {
       id: 'enterprise', name: 'Enterprise', price: 24999, period: 'monthly',
       dailyCost: 833, color: '#c8456a', highlight: false, save: null,
       tagline: 'For multi-branch businesses scaling across Kenya',
-      features: [
-        'Everything in Growth',
-        'Unlimited branches under one login',
-        'Multi-branch sales & profit dashboard',
-        'eTIMS integration — KRA-compliant receipts',
-        'Multi-currency support (KES, USD, GBP, EUR)',
-        'Dedicated account manager',
-        'Hands-on onboarding & staff training session',
-        'Custom reports built on request',
-        'Priority phone & WhatsApp support (fastest SLA)',
+      intro: 'Everything in Growth, plus:',
+      featureGroups: [
+        {
+          label: '🏢 Multi-Branch & Compliance',
+          items: [
+            'Unlimited branches under one login',
+            'Multi-branch sales & profit dashboard',
+            'eTIMS integration — KRA-compliant receipts',
+            'Multi-currency support (KES, USD, GBP, EUR)',
+          ],
+        },
+        {
+          label: '🤝 White-Glove Service',
+          items: [
+            'Dedicated account manager',
+            'Hands-on onboarding & staff training session',
+            'Custom reports built on request',
+            'Priority phone & WhatsApp support (fastest SLA)',
+          ],
+        },
       ],
+      featuresFlat: [],
       missing: [],
     },
   ],
@@ -100,26 +139,33 @@ const PLANS = {
       id: 'starter', name: 'Starter', price: 49990, period: 'yearly',
       dailyCost: 137, color: '#f7c5d0', highlight: false, save: '2 months free — save KES 9,998',
       tagline: 'Everything you need to run your shop from your phone',
-      features: [
-        '1 owner + 1 cashier login account',
-        'Full POS — cash, M-Pesa & card payments',
-        'Offline mode — sells without internet',
-        'Hold & resume multiple sales at once',
-        'Barcode scanner & label printing',
-        'Inventory tracking & stock levels',
-        'Low stock WhatsApp alerts (per-item & bulk)',
-        'Expense tracking with photo receipt capture',
-        'Customer profiles & loyalty points system',
-        'Digital receipts sent via WhatsApp',
-        'Free public shop website (shop page & catalogue)',
-        'Daily, weekly & monthly sales reports',
-        'Gross profit shown on every single sale',
-        'Stock valuation report (for your accountant)',
-        'Sales & customer CSV export',
-        'Brand settings — logo, color, receipt footer',
-        'PWA — installs on your phone like a native app',
-        'WhatsApp support',
+      intro: null,
+      featureGroups: [
+        {
+          label: null,
+          items: [
+            '1 owner + 1 cashier login account',
+            'Full POS — cash, M-Pesa & card payments',
+            'Offline mode — sells without internet',
+            'Hold & resume multiple sales at once',
+            'Barcode scanner & label printing',
+            'Inventory tracking & stock levels',
+            'Low stock WhatsApp alerts (per-item & bulk)',
+            'Expense tracking with photo receipt capture',
+            'Customer profiles & loyalty points system',
+            'Digital receipts sent via WhatsApp',
+            'Free public shop website (shop page & catalogue)',
+            'Daily, weekly & monthly sales reports',
+            'Gross profit shown on every single sale',
+            'Stock valuation report (for your accountant)',
+            'Sales & customer CSV export',
+            'Brand settings — logo, color, receipt footer',
+            'PWA — installs on your phone like a native app',
+            'WhatsApp support',
+          ],
+        },
       ],
+      featuresFlat: [],
       missing: [
         'Appointment booking page',
         'Staff commissions & attendance',
@@ -132,31 +178,52 @@ const PLANS = {
       id: 'growth', name: 'Growth', price: 99990, period: 'yearly',
       dailyCost: 274, color: '#e6b800', highlight: true, save: '2 months free — save KES 19,998',
       tagline: 'For shops with staff, bookings and bigger ambitions',
-      features: [
-        'Everything in Starter',
-        'Unlimited staff login accounts',
-        'Staff commission calculator — % or flat per service',
-        'Staff attendance clock in & clock out',
-        'Staff leaderboard & monthly sales targets',
-        'Payout recording with WhatsApp receipt to staff',
-        'Appointment booking page — public link, no app needed',
-        'Multi-service booking cart for customers',
-        'Auto WhatsApp reminders sent to customers',
-        'Staff notified on WhatsApp when booked or reassigned',
-        'AI daily business insight — personalised to your data',
-        'Dead hours map — know your slow times, fill them',
-        'Business health score — track your shop\'s fitness',
-        'Customer cohort retention — 30, 60 & 90 day analysis',
-        'Revenue trend chart — week & month view',
-        'Top 10 products by gross profit margin',
-        'Lender-ready 6-month P&L report',
-        'DSCR calculator — know if you qualify for a loan',
-        'Accounts receivable aging — track who owes you',
-        'WhatsApp auto-reply script generator',
-        'Printable QR business card (scan-to-book)',
-        'Daily branded share card for WhatsApp Status',
-        'Priority WhatsApp support',
+      intro: 'Everything in Starter, plus:',
+      featureGroups: [
+        {
+          label: '👥 Staff & Payroll',
+          items: [
+            'Unlimited staff login accounts',
+            'Staff commission calculator — % or flat per service',
+            'Staff attendance clock in & clock out',
+            'Staff leaderboard & monthly sales targets',
+            'Payout recording with WhatsApp receipt to staff',
+          ],
+        },
+        {
+          label: '📅 Bookings & Customer Automation',
+          items: [
+            'Appointment booking page — public link, no app needed',
+            'Multi-service booking cart for customers',
+            'Auto WhatsApp reminders sent to customers',
+            'Staff notified on WhatsApp when booked or reassigned',
+            'Printable QR business card (scan-to-book)',
+            'WhatsApp auto-reply script generator',
+            'Daily branded share card for WhatsApp Status',
+          ],
+        },
+        {
+          label: '📊 Business Intelligence & Lending',
+          items: [
+            'AI daily business insight — personalised to your data',
+            'Dead hours map — know your slow times, fill them',
+            'Business health score — track your shop\'s fitness',
+            'Customer cohort retention — 30, 60 & 90 day analysis',
+            'Revenue trend chart — week & month view',
+            'Top 10 products by gross profit margin',
+            'Lender-ready 6-month P&L report',
+            'DSCR calculator — know if you qualify for a loan',
+            'Accounts receivable aging — track who owes you',
+          ],
+        },
+        {
+          label: '💬 Support',
+          items: [
+            'Priority WhatsApp support',
+          ],
+        },
       ],
+      featuresFlat: [],
       missing: [
         'Multi-branch management',
         'eTIMS / KRA compliance',
@@ -167,17 +234,28 @@ const PLANS = {
       id: 'enterprise', name: 'Enterprise', price: 249990, period: 'yearly',
       dailyCost: 685, color: '#c8456a', highlight: false, save: '2 months free — save KES 49,998',
       tagline: 'For multi-branch businesses scaling across Kenya',
-      features: [
-        'Everything in Growth',
-        'Unlimited branches under one login',
-        'Multi-branch sales & profit dashboard',
-        'eTIMS integration — KRA-compliant receipts',
-        'Multi-currency support (KES, USD, GBP, EUR)',
-        'Dedicated account manager',
-        'Hands-on onboarding & staff training session',
-        'Custom reports built on request',
-        'Priority phone & WhatsApp support (fastest SLA)',
+      intro: 'Everything in Growth, plus:',
+      featureGroups: [
+        {
+          label: '🏢 Multi-Branch & Compliance',
+          items: [
+            'Unlimited branches under one login',
+            'Multi-branch sales & profit dashboard',
+            'eTIMS integration — KRA-compliant receipts',
+            'Multi-currency support (KES, USD, GBP, EUR)',
+          ],
+        },
+        {
+          label: '🤝 White-Glove Service',
+          items: [
+            'Dedicated account manager',
+            'Hands-on onboarding & staff training session',
+            'Custom reports built on request',
+            'Priority phone & WhatsApp support (fastest SLA)',
+          ],
+        },
       ],
+      featuresFlat: [],
       missing: [],
     },
   ],
@@ -212,6 +290,11 @@ export default function PricingPage() {
   const [period, setPeriod]         = useState('monthly')
   const [loading, setLoading]       = useState(null)
   const [mpesaPlan, setMpesaPlan]   = useState(null)
+  const [collapsedGroups, setCollapsedGroups] = useState({ '📊 Business Intelligence & Lending': true })
+
+  const toggleGroup = (label) => {
+    setCollapsedGroups(prev => ({ ...prev, [label]: !prev[label] }))
+  }
   const plans = PLANS[period]
   const planRefs = useRef({})
 
@@ -418,7 +501,40 @@ export default function PricingPage() {
 
               {/* Features */}
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 16, flex: 1 }}>
-                {plan.features.map(f => (
+                {plan.intro && (
+                  <div style={{ fontSize: 11, fontWeight: 700, color: plan.highlight ? '#e6b800' : '#f7c5d088', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    {plan.intro}
+                  </div>
+                )}
+                {plan.featureGroups.map((group, gi) => {
+                  const isCollapsed = !!collapsedGroups[group.label]
+                  return (
+                    <div key={gi} style={{ marginBottom: group.label ? 14 : 0 }}>
+                      {group.label && (
+                        <div
+                          onClick={() => group.items.length > 5 && toggleGroup(group.label)}
+                          style={{ fontSize: 11.5, fontWeight: 800, color: '#fce8ed', marginBottom: 7, marginTop: gi > 0 ? 4 : 0, cursor: group.items.length > 5 ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                        >
+                          <span>{group.label}</span>
+                          {group.items.length > 5 && (
+                            <span style={{ fontSize: 10, color: '#f7c5d066', fontWeight: 600 }}>
+                              {isCollapsed ? `▸ ${group.items.length} features` : '▾ hide'}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {!isCollapsed && group.items.map(f => (
+                        <div key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 9, fontSize: 12, color: '#f7c5d0aa' }}>
+                          <div style={{ width: 16, height: 16, borderRadius: '50%', background: plan.highlight ? 'rgba(200,69,106,0.3)' : 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                            <Check size={9} color={plan.highlight ? '#c8456a' : '#f7c5d077'} strokeWidth={3} />
+                          </div>
+                          {f}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
+                {plan.featuresFlat.map(f => (
                   <div key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 9, fontSize: 12, color: '#f7c5d0aa' }}>
                     <div style={{ width: 16, height: 16, borderRadius: '50%', background: plan.highlight ? 'rgba(200,69,106,0.3)' : 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
                       <Check size={9} color={plan.highlight ? '#c8456a' : '#f7c5d077'} strokeWidth={3} />

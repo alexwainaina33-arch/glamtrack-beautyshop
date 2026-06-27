@@ -77,16 +77,45 @@ function parseCsv(text) {
   const lines = text.split('\n').filter(l => l.trim() && !l.trim().startsWith('#'))
   if (lines.length < 2) return { headers: [], rows: [] }
   const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase().replace(/\s+/g,'_'))
-  const rows = lines.slice(1).map(line => {
-    const vals = parseCsvLine(line)
-    const obj = {}
-    headers.forEach((h, i) => { obj[h] = vals[i] || '' })
-    return obj
-  }).filter(r => r.name || r.product_name)
+  const rows = lines.slice(1)
+    .map(line => {
+      const vals = parseCsvLine(line)
+      const obj = {}
+      headers.forEach((h, i) => { obj[h] = vals[i] || '' })
+      return obj
+    })
+    // Only drop rows that are completely empty (every field blank) — a true blank line.
+    // Rows with SOME data but a missing name must stay, so validateRow can flag them.
+    .filter(r => Object.values(r).some(v => v && v.trim()))
   return { headers, rows }
 }
 
 // ─── VALIDATION ───────────────────────────────────────────────────
+// Scans the whole parsed batch for duplicate SKU/barcode values across rows.
+// Returns a map of rowIndex -> array of duplicate-warning strings for that row.
+function findDuplicates(rows) {
+  const dupes = {}
+  const seenSku = {}
+  const seenBarcode = {}
+  rows.forEach((row, i) => {
+    const sku = (row.sku || '').trim().toLowerCase()
+    const barcode = (row.barcode || '').trim()
+    if (sku) {
+      if (seenSku[sku] !== undefined) {
+        dupes[i] = [...(dupes[i]||[]), `SKU "${row.sku}" also used in row ${seenSku[sku]+1}`]
+        dupes[seenSku[sku]] = [...(dupes[seenSku[sku]]||[]), `SKU "${row.sku}" also used in row ${i+1}`]
+      } else { seenSku[sku] = i }
+    }
+    if (barcode) {
+      if (seenBarcode[barcode] !== undefined) {
+        dupes[i] = [...(dupes[i]||[]), `Barcode "${barcode}" also used in row ${seenBarcode[barcode]+1}`]
+        dupes[seenBarcode[barcode]] = [...(dupes[seenBarcode[barcode]]||[]), `Barcode "${barcode}" also used in row ${i+1}`]
+      } else { seenBarcode[barcode] = i }
+    }
+  })
+  return dupes
+}
+
 function validateRow(row, categories, index) {
   const errors = []
   const name = row.name || row.product_name || ''
@@ -115,6 +144,11 @@ export default function ProductsPage() {
   const [imagePreview, setImagePreview] = useState([])
   const [existingImages, setExistingImages] = useState([]) // filenames already on the product
   const [removedImages, setRemovedImages] = useState([])   // filenames marked for deletion this edit
+
+  // Variant state — list of variant rows for the product currently open in the modal
+  const [variants, setVariants] = useState([])         // [{ id?, name, sku, barcode, price_kes, cost_price_kes, stock_qty, reorder_point, sort_order }]
+  const [deletedVariantIds, setDeletedVariantIds] = useState([]) // existing variant ids removed this edit
+  const [variantsLoading, setVariantsLoading] = useState(false)
 
   // Bulk import state
   const [showBulk, setShowBulk]         = useState(false)
@@ -147,12 +181,58 @@ export default function ProductsPage() {
     } finally { setLoading(false) }
   }
 
-  const openNew  = () => { setEditing(null); setForm(EMPTY); setImageFiles([]); setImagePreview([]); setExistingImages([]); setRemovedImages([]); setShowModal(true) }
-  const openEdit = (p) => { setEditing(p); setForm({...p}); setImageFiles([]); setImagePreview([]); setExistingImages(p.images || []); setRemovedImages([]); setShowModal(true) }
+  const openNew  = () => {
+    setEditing(null); setForm(EMPTY); setImageFiles([]); setImagePreview([]); setExistingImages([]); setRemovedImages([])
+    setVariants([]); setDeletedVariantIds([])
+    setShowModal(true)
+  }
+  const openEdit = async (p) => {
+    setEditing(p); setForm({...p}); setImageFiles([]); setImagePreview([]); setExistingImages(p.images || []); setRemovedImages([])
+    setDeletedVariantIds([])
+    setShowModal(true)
+    if (p.has_variants) {
+      setVariantsLoading(true)
+      try {
+        const res = await pb.collection(C.PRODUCT_VARIANTS).getList(1, 100, {
+          filter: `product_id="${p.id}"`,
+          sort: 'sort_order',
+          '$autoCancel': false,
+          '$cancelKey': `variants-${p.id}`,
+        })
+        setVariants(res.items.map(v => ({ ...v, _existing: true })))
+      } catch {
+        setVariants([])
+      } finally {
+        setVariantsLoading(false)
+      }
+    } else {
+      setVariants([])
+    }
+  }
 
   const removeExistingImage = (filename) => {
     setExistingImages(prev => prev.filter(f => f !== filename))
     setRemovedImages(prev => [...prev, filename])
+  }
+
+  // ── Variant row management ──
+  const addVariantRow = () => {
+    setVariants(prev => [...prev, {
+      _tempId: `tmp_${Date.now()}_${prev.length}`,
+      name: '', sku: '', barcode: '', price_kes: '', cost_price_kes: '', stock_qty: '', reorder_point: '',
+      sort_order: prev.length,
+    }])
+  }
+  const updateVariantRow = (key, field, value) => {
+    setVariants(prev => prev.map(v => (v.id || v._tempId) === key ? { ...v, [field]: value } : v))
+  }
+  const removeVariantRow = (v) => {
+    if (v._existing && v.id) setDeletedVariantIds(prev => [...prev, v.id])
+    setVariants(prev => prev.filter(x => (x.id || x._tempId) !== (v.id || v._tempId)))
+  }
+  const toggleHasVariants = (checked) => {
+    setForm(f => ({ ...f, has_variants: checked }))
+    if (checked && variants.length === 0) addVariantRow()
   }
 
   const handleImages = (e) => {
@@ -163,20 +243,72 @@ export default function ProductsPage() {
 
   const handleSave = async (e) => {
     e.preventDefault()
+
+    // Validate variants before anything is saved
+    if (form.has_variants) {
+      if (variants.length === 0) { toast.error('Add at least one variant, or turn off "Has Variants"'); return }
+      const bad = variants.find(v => !v.name?.trim() || !v.price_kes || Number(v.price_kes) <= 0)
+      if (bad) { toast.error('Every variant needs a name and a price greater than 0'); return }
+    }
+
     setSaving(true)
     try {
+      // When variants are on, the product's own price/stock become computed fallbacks —
+      // never shown to the user, just kept valid for required fields & shop-page display
+      const formToSave = { ...form }
+      if (form.has_variants) {
+        const prices = variants.map(v => Number(v.price_kes) || 0).filter(p => p > 0)
+        formToSave.price_kes = prices.length ? Math.min(...prices) : 0
+        formToSave.stock_qty = variants.reduce((sum, v) => sum + (Number(v.stock_qty) || 0), 0)
+      }
+
       const data = new FormData()
-      Object.entries(form).forEach(([k,v]) => { if (k !== 'images' && v !== undefined && v !== null && v !== '') data.append(k, v) })
+      Object.entries(formToSave).forEach(([k,v]) => { if (k !== 'images' && v !== undefined && v !== null && v !== '') data.append(k, v) })
       data.append('shop_id', shop.id)
       imageFiles.forEach(f => data.append('images', f))
       removedImages.forEach(filename => data.append('images-', filename))
+
+      let productId = editing?.id
       if (editing) {
         await pb.collection(C.PRODUCTS).update(editing.id, data)
-        toast.success('Product updated!')
       } else {
-        await pb.collection(C.PRODUCTS).create(data)
-        toast.success('Product created!')
+        const created = await pb.collection(C.PRODUCTS).create(data)
+        productId = created.id
       }
+
+      // Sync variant rows: delete removed, update existing, create new
+      if (form.has_variants) {
+        for (const delId of deletedVariantIds) {
+          try { await pb.collection(C.PRODUCT_VARIANTS).delete(delId) } catch {}
+        }
+        for (let i = 0; i < variants.length; i++) {
+          const v = variants[i]
+          const payload = {
+            product_id: productId,
+            name: v.name.trim(),
+            sku: v.sku || '',
+            barcode: v.barcode || '',
+            price_kes: Number(v.price_kes) || 0,
+            cost_price_kes: Number(v.cost_price_kes) || 0,
+            stock_qty: Number(v.stock_qty) || 0,
+            reorder_point: Number(v.reorder_point) || 0,
+            sort_order: i,
+          }
+          if (v._existing && v.id) {
+            await pb.collection(C.PRODUCT_VARIANTS).update(v.id, payload)
+          } else {
+            await pb.collection(C.PRODUCT_VARIANTS).create(payload)
+          }
+        }
+      } else if (editing) {
+        // has_variants was switched off — clean up any leftover variant rows for this product
+        try {
+          const leftover = await pb.collection(C.PRODUCT_VARIANTS).getList(1, 100, { filter:`product_id="${productId}"`, '$autoCancel': false })
+          for (const v of leftover.items) await pb.collection(C.PRODUCT_VARIANTS).delete(v.id)
+        } catch {}
+      }
+
+      toast.success(editing ? 'Product updated!' : 'Product created!')
       setShowModal(false)
       loadData()
     } catch (err) { toast.error(err?.message || 'Save failed') }
@@ -214,10 +346,11 @@ export default function ProductsPage() {
     reader.onload = (ev) => {
       const { rows } = parseCsv(ev.target.result)
       setBulkRows(rows)
+      const dupes = findDuplicates(rows)
       const validation = rows.map((row, i) => ({
         row: i + 1,
         name: row.name || row.product_name || 'Unnamed',
-        errors: validateRow(row, categories, i),
+        errors: [...validateRow(row, categories, i), ...(dupes[i] || [])],
         warnings: [],
       }))
       setBulkValidation(validation)
@@ -465,7 +598,9 @@ export default function ProductsPage() {
                         {p.barcode && <div style={{ fontFamily:'monospace', fontSize:11, background:'#f5edf0', padding:'2px 7px', borderRadius:5, display:'inline-block' }}>{p.barcode}</div>}
                         {p.sku && <div style={{ fontSize:11, color:'#9b6070', marginTop:2 }}>SKU: {p.sku}</div>}
                       </td>
-                      <td style={{ fontWeight:600 }}>{fmtKES(p.price_kes)}</td>
+                      <td style={{ fontWeight:600 }}>
+                        {p.has_variants ? <>from {fmtKES(p.price_kes)}</> : fmtKES(p.price_kes)}
+                      </td>
                       <td style={{ color:'#9b6070' }}>{fmtKES(p.cost_price_kes)}</td>
                       <td>
                         {margin !== null
@@ -539,23 +674,29 @@ export default function ProductsPage() {
                       {['piece','ml','g','kg','litre','box','set','dozen','service'].map(u=><option key={u} value={u}>{u}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label className="label">Selling Price (KES) *</label>
-                    <input className="input" type="number" required min={0} step="0.01" value={form.price_kes} onChange={e=>setForm(f=>({...f,price_kes:e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="label">Cost Price (KES)</label>
-                    <input className="input" type="number" min={0} step="0.01" value={form.cost_price_kes} onChange={e=>setForm(f=>({...f,cost_price_kes:e.target.value}))} />
-                    {form.price_kes && form.cost_price_kes && (
-                      <div style={{ fontSize:11, color:'#059669', marginTop:3 }}>
-                        Margin: {(((form.price_kes - form.cost_price_kes) / form.price_kes) * 100).toFixed(1)}%
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="label">Compare Price (KES)</label>
-                    <input className="input" type="number" min={0} step="0.01" value={form.compare_price_kes} onChange={e=>setForm(f=>({...f,compare_price_kes:e.target.value}))} placeholder="Crossed-out original price" />
-                  </div>
+                  {!form.has_variants && (
+                    <div>
+                      <label className="label">Selling Price (KES) *</label>
+                      <input className="input" type="number" required min={0} step="0.01" value={form.price_kes} onChange={e=>setForm(f=>({...f,price_kes:e.target.value}))} />
+                    </div>
+                  )}
+                  {!form.has_variants && (
+                    <div>
+                      <label className="label">Cost Price (KES)</label>
+                      <input className="input" type="number" min={0} step="0.01" value={form.cost_price_kes} onChange={e=>setForm(f=>({...f,cost_price_kes:e.target.value}))} />
+                      {form.price_kes && form.cost_price_kes && (
+                        <div style={{ fontSize:11, color:'#059669', marginTop:3 }}>
+                          Margin: {(((form.price_kes - form.cost_price_kes) / form.price_kes) * 100).toFixed(1)}%
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {!form.has_variants && (
+                    <div>
+                      <label className="label">Compare Price (KES)</label>
+                      <input className="input" type="number" min={0} step="0.01" value={form.compare_price_kes} onChange={e=>setForm(f=>({...f,compare_price_kes:e.target.value}))} placeholder="Crossed-out original price" />
+                    </div>
+                  )}
                   <div>
                     <label className="label">Brand</label>
                     <input className="input" value={form.brand} onChange={e=>setForm(f=>({...f,brand:e.target.value}))} placeholder="e.g. Cantu, ORS" />
@@ -568,15 +709,19 @@ export default function ProductsPage() {
                       <option value="archived">Archived</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="label">Stock Quantity</label>
-                    <input className="input" type="number" min={0} value={form.stock_qty} onChange={e=>setForm(f=>({...f,stock_qty:e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="label">Reorder Point</label>
-                    <input className="input" type="number" min={0} value={form.reorder_point} onChange={e=>setForm(f=>({...f,reorder_point:e.target.value}))} />
-                    <div style={{ fontSize:11, color:'#9b6070', marginTop:3 }}>Alert when stock drops to this level</div>
-                  </div>
+                  {!form.has_variants && (
+                    <div>
+                      <label className="label">Stock Quantity</label>
+                      <input className="input" type="number" min={0} value={form.stock_qty} onChange={e=>setForm(f=>({...f,stock_qty:e.target.value}))} />
+                    </div>
+                  )}
+                  {!form.has_variants && (
+                    <div>
+                      <label className="label">Reorder Point</label>
+                      <input className="input" type="number" min={0} value={form.reorder_point} onChange={e=>setForm(f=>({...f,reorder_point:e.target.value}))} />
+                      <div style={{ fontSize:11, color:'#9b6070', marginTop:3 }}>Alert when stock drops to this level</div>
+                    </div>
+                  )}
                   <div style={{ gridColumn:'1/-1', display:'flex', gap:20, flexWrap:'wrap' }}>
                     {[{key:'track_inventory',label:'Track Inventory'},{key:'is_service',label:'Is a Service'},{key:'is_taxable',label:'Taxable (VAT)'}].map(({key,label})=>(
                       <label key={key} style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, fontWeight:500 }}>
@@ -584,7 +729,39 @@ export default function ProductsPage() {
                         {label}
                       </label>
                     ))}
+                    <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, fontWeight:500 }}>
+                      <input type="checkbox" checked={!!form.has_variants} onChange={e=>toggleHasVariants(e.target.checked)} style={{ accentColor:'#c8456a', width:15, height:15 }} />
+                      Has Variants (size, colour, storage…)
+                    </label>
                   </div>
+
+                  {form.has_variants && (
+                    <div style={{ gridColumn:'1/-1' }}>
+                      <label className="label">Variants *</label>
+                      <div style={{ fontSize:11, color:'#9b6070', marginBottom:10 }}>Each variant needs its own name and price. Stock and reorder point are optional.</div>
+                      {variantsLoading ? (
+                        <div style={{ textAlign:'center', padding:16 }}><div className="spinner" style={{ margin:'0 auto' }} /></div>
+                      ) : (
+                        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                          {variants.map(v => {
+                            const key = v.id || v._tempId
+                            return (
+                              <div key={key} style={{ display:'grid', gridTemplateColumns:'1.4fr 1fr 1fr 0.8fr 30px', gap:6, alignItems:'center', background:'#fdf5f7', border:'1px solid #f0e4e8', borderRadius:8, padding:8 }}>
+                                <input className="input" style={{ fontSize:12, padding:'6px 8px' }} placeholder="Name (e.g. 128GB / Black)" value={v.name} onChange={e=>updateVariantRow(key,'name',e.target.value)} />
+                                <input className="input" style={{ fontSize:12, padding:'6px 8px' }} type="number" min={0} step="0.01" placeholder="Price KES" value={v.price_kes} onChange={e=>updateVariantRow(key,'price_kes',e.target.value)} />
+                                <input className="input" style={{ fontSize:12, padding:'6px 8px' }} type="number" min={0} step="0.01" placeholder="Cost KES" value={v.cost_price_kes} onChange={e=>updateVariantRow(key,'cost_price_kes',e.target.value)} />
+                                <input className="input" style={{ fontSize:12, padding:'6px 8px' }} type="number" min={0} placeholder="Stock" value={v.stock_qty} onChange={e=>updateVariantRow(key,'stock_qty',e.target.value)} />
+                                <button type="button" onClick={()=>removeVariantRow(v)} className="btn-ghost" style={{ padding:4, color:'#dc2626' }} title="Remove variant"><Trash2 size={13}/></button>
+                              </div>
+                            )
+                          })}
+                          <button type="button" onClick={addVariantRow} className="btn-secondary" style={{ alignSelf:'flex-start', fontSize:12, padding:'6px 12px' }}>
+                            <Plus size={13}/> Add Variant
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div style={{ gridColumn:'1/-1' }}>
                     <label className="label">Product Images (up to 8)</label>
 
@@ -765,10 +942,11 @@ export default function ProductsPage() {
                         const { rows } = parseCsv(normalized)
                         if (rows.length > 0) {
                           setBulkRows(rows)
+                          const dupes = findDuplicates(rows)
                           const validation = rows.map((row, i) => ({
                             row: i + 1,
                             name: row.name || row.product_name || 'Unnamed',
-                            errors: validateRow(row, categories, i),
+                            errors: [...validateRow(row, categories, i), ...(dupes[i] || [])],
                             warnings: [],
                           }))
                           setBulkValidation(validation)

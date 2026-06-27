@@ -1,132 +1,5 @@
 [
     {
-    "id": "bscol_reviews0001",
-    "listRule": "is_approved = true || (@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id)",
-    "viewRule": "is_approved = true || (@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id)",
-    "createRule": "",
-    "updateRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
-    "deleteRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
-    "name": "bs_reviews",
-    "type": "base",
-    "fields": [
-        {
-            "autogeneratePattern": "[a-z0-9]{15}",
-            "hidden": false,
-            "id": "text3208210256",
-            "max": 15,
-            "min": 15,
-            "name": "id",
-            "pattern": "^[a-z0-9]+$",
-            "presentable": false,
-            "primaryKey": true,
-            "required": true,
-            "system": true,
-            "type": "text"
-        },
-        {
-            "cascadeDelete": true,
-            "collectionId": "bscol_shops00001",
-            "hidden": false,
-            "id": "bsrv_shopid",
-            "maxSelect": 1,
-            "minSelect": 0,
-            "name": "shop_id",
-            "presentable": false,
-            "required": true,
-            "system": false,
-            "type": "relation"
-        },
-        {
-            "autogeneratePattern": "",
-            "hidden": false,
-            "id": "bsrv_cname",
-            "max": 0,
-            "min": 0,
-            "name": "customer_name",
-            "pattern": "",
-            "presentable": true,
-            "primaryKey": false,
-            "required": true,
-            "system": false,
-            "type": "text"
-        },
-        {
-            "hidden": false,
-            "id": "bsrv_rating",
-            "max": 5,
-            "min": 1,
-            "name": "rating",
-            "onlyInt": true,
-            "presentable": false,
-            "required": true,
-            "system": false,
-            "type": "number"
-        },
-        {
-            "autogeneratePattern": "",
-            "hidden": false,
-            "id": "bsrv_text",
-            "max": 0,
-            "min": 0,
-            "name": "review_text",
-            "pattern": "",
-            "presentable": false,
-            "primaryKey": false,
-            "required": true,
-            "system": false,
-            "type": "text"
-        },
-        {
-            "hidden": false,
-            "id": "bsrv_apprv",
-            "name": "is_approved",
-            "presentable": false,
-            "required": false,
-            "system": false,
-            "type": "bool"
-        },
-        {
-            "autogeneratePattern": "",
-            "hidden": false,
-            "id": "bsrv_reply",
-            "max": 0,
-            "min": 0,
-            "name": "owner_reply",
-            "pattern": "",
-            "presentable": false,
-            "primaryKey": false,
-            "required": false,
-            "system": false,
-            "type": "text"
-        },
-        {
-            "hidden": false,
-            "id": "autodate2990389176",
-            "name": "created",
-            "onCreate": true,
-            "onUpdate": false,
-            "presentable": false,
-            "system": false,
-            "type": "autodate"
-        },
-        {
-            "hidden": false,
-            "id": "autodate3332085495",
-            "name": "updated",
-            "onCreate": true,
-            "onUpdate": true,
-            "presentable": false,
-            "system": false,
-            "type": "autodate"
-        }
-    ],
-    "indexes": [
-        "CREATE INDEX idx_bs_reviews_shop ON bs_reviews (shop_id)",
-        "CREATE INDEX idx_bs_reviews_approved ON bs_reviews (is_approved)"
-    ],
-    "system": false
-},
-    {
         "id": "bscol_admins0001",
         "listRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins'",
         "viewRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins'",
@@ -1977,6 +1850,115 @@
         "system": false
     },
     {
+        "id": "bscol_insgt0001",
+        "listRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
+        "viewRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
+        "createRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins'",
+        "updateRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
+        "deleteRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
+        "name": "bs_insights",
+        "type": "base",
+        "fields": [
+            {
+                "autogeneratePattern": "[a-z0-9]{15}",
+                "hidden": false,
+                "id": "text3208210256",
+                "max": 15,
+                "min": 15,
+                "name": "id",
+                "pattern": "^[a-z0-9]+$",
+                "presentable": false,
+                "primaryKey": true,
+                "required": true,
+                "system": true,
+                "type": "text"
+            },
+            {
+                "cascadeDelete": true,
+                "collectionId": "bscol_shops00001",
+                "hidden": false,
+                "id": "bsin_shopid",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "shop_id",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsin_itype",
+                "max": 50,
+                "min": 0,
+                "name": "insight_type",
+                "pattern": "",
+                "presentable": true,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "bsin_shwat",
+                "max": "",
+                "min": "",
+                "name": "shown_at",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "date"
+            },
+            {
+                "hidden": false,
+                "id": "bsin_dism0",
+                "name": "dismissed",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "bool"
+            },
+            {
+                "hidden": false,
+                "id": "bsin_dsnp0",
+                "maxSize": 0,
+                "name": "data_snapshot",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "json"
+            },
+            {
+                "hidden": false,
+                "id": "autodate2990389176",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            },
+            {
+                "hidden": false,
+                "id": "autodate3332085495",
+                "name": "updated",
+                "onCreate": true,
+                "onUpdate": true,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            }
+        ],
+        "indexes": [
+            "CREATE INDEX idx_bs_insights_shop ON bs_insights (shop_id)",
+            "CREATE INDEX idx_bs_insights_type ON bs_insights (insight_type)",
+            "CREATE INDEX idx_bs_insights_shown ON bs_insights (shown_at)"
+        ],
+        "system": false
+    },
+    {
         "id": "bscol_invmv0001",
         "listRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
         "viewRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
@@ -2187,115 +2169,6 @@
         "indexes": [
             "CREATE INDEX idx_bs_inv_movements_shop ON bs_inv_movements (shop_id)",
             "CREATE INDEX idx_bs_inv_movements_product ON bs_inv_movements (product_id)"
-        ],
-        "system": false
-    },
-    {
-        "id": "bscol_insgt0001",
-        "listRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
-        "viewRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
-        "createRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins'",
-        "updateRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
-        "deleteRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
-        "name": "bs_insights",
-        "type": "base",
-        "fields": [
-            {
-                "autogeneratePattern": "[a-z0-9]{15}",
-                "hidden": false,
-                "id": "text3208210256",
-                "max": 15,
-                "min": 15,
-                "name": "id",
-                "pattern": "^[a-z0-9]+$",
-                "presentable": false,
-                "primaryKey": true,
-                "required": true,
-                "system": true,
-                "type": "text"
-            },
-            {
-                "cascadeDelete": true,
-                "collectionId": "bscol_shops00001",
-                "hidden": false,
-                "id": "bsin_shopid",
-                "maxSelect": 1,
-                "minSelect": 0,
-                "name": "shop_id",
-                "presentable": false,
-                "required": true,
-                "system": false,
-                "type": "relation"
-            },
-            {
-                "autogeneratePattern": "",
-                "hidden": false,
-                "id": "bsin_itype",
-                "max": 50,
-                "min": 0,
-                "name": "insight_type",
-                "pattern": "",
-                "presentable": true,
-                "primaryKey": false,
-                "required": true,
-                "system": false,
-                "type": "text"
-            },
-            {
-                "hidden": false,
-                "id": "bsin_shwat",
-                "max": "",
-                "min": "",
-                "name": "shown_at",
-                "presentable": false,
-                "required": false,
-                "system": false,
-                "type": "date"
-            },
-            {
-                "hidden": false,
-                "id": "bsin_dism0",
-                "name": "dismissed",
-                "presentable": false,
-                "required": false,
-                "system": false,
-                "type": "bool"
-            },
-            {
-                "hidden": false,
-                "id": "bsin_dsnp0",
-                "maxSize": 0,
-                "name": "data_snapshot",
-                "presentable": false,
-                "required": false,
-                "system": false,
-                "type": "json"
-            },
-            {
-                "hidden": false,
-                "id": "autodate2990389176",
-                "name": "created",
-                "onCreate": true,
-                "onUpdate": false,
-                "presentable": false,
-                "system": false,
-                "type": "autodate"
-            },
-            {
-                "hidden": false,
-                "id": "autodate3332085495",
-                "name": "updated",
-                "onCreate": true,
-                "onUpdate": true,
-                "presentable": false,
-                "system": false,
-                "type": "autodate"
-            }
-        ],
-        "indexes": [
-            "CREATE INDEX idx_bs_insights_shop ON bs_insights (shop_id)",
-            "CREATE INDEX idx_bs_insights_type ON bs_insights (insight_type)",
-            "CREATE INDEX idx_bs_insights_shown ON bs_insights (shown_at)"
         ],
         "system": false
     },
@@ -2527,6 +2400,15 @@
             },
             {
                 "hidden": false,
+                "id": "bspr_hasvar",
+                "name": "has_variants",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "bool"
+            },
+            {
+                "hidden": false,
                 "id": "bspr_txabl",
                 "name": "is_taxable",
                 "presentable": false,
@@ -2602,6 +2484,172 @@
             "CREATE INDEX idx_bs_products_shop ON bs_products (shop_id)",
             "CREATE INDEX idx_bs_products_barcode ON bs_products (barcode)",
             "CREATE INDEX idx_bs_products_status ON bs_products (status)"
+        ],
+        "system": false
+    },
+    {
+        "id": "bscol_pvar00001",
+        "listRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && product_id.shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
+        "viewRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && product_id.shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
+        "createRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
+        "updateRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && product_id.shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
+        "deleteRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && product_id.shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
+        "name": "bs_product_variants",
+        "type": "base",
+        "fields": [
+            {
+                "autogeneratePattern": "[a-z0-9]{15}",
+                "hidden": false,
+                "id": "text3208210258",
+                "max": 15,
+                "min": 15,
+                "name": "id",
+                "pattern": "^[a-z0-9]+$",
+                "presentable": false,
+                "primaryKey": true,
+                "required": true,
+                "system": true,
+                "type": "text"
+            },
+            {
+                "cascadeDelete": true,
+                "collectionId": "bscol_prods0001",
+                "hidden": false,
+                "id": "bspv_prodid",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "product_id",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bspv_name00",
+                "max": 0,
+                "min": 0,
+                "name": "name",
+                "pattern": "",
+                "presentable": true,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bspv_sku000",
+                "max": 0,
+                "min": 0,
+                "name": "sku",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bspv_bcode0",
+                "max": 0,
+                "min": 0,
+                "name": "barcode",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "bspv_pkes00",
+                "max": null,
+                "min": 0,
+                "name": "price_kes",
+                "onlyInt": false,
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "bspv_cost00",
+                "max": null,
+                "min": 0,
+                "name": "cost_price_kes",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "bspv_stqty0",
+                "max": null,
+                "min": 0,
+                "name": "stock_qty",
+                "onlyInt": true,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "bspv_rop000",
+                "max": null,
+                "min": 0,
+                "name": "reorder_point",
+                "onlyInt": true,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "bspv_sortor",
+                "max": null,
+                "min": 0,
+                "name": "sort_order",
+                "onlyInt": true,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "autodate2990389178",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            },
+            {
+                "hidden": false,
+                "id": "autodate3332085497",
+                "name": "updated",
+                "onCreate": true,
+                "onUpdate": true,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            }
+        ],
+        "indexes": [
+            "CREATE INDEX idx_bs_product_variants_product ON bs_product_variants (product_id)",
+            "CREATE INDEX idx_bs_product_variants_barcode ON bs_product_variants (barcode)"
         ],
         "system": false
     },
@@ -2690,6 +2738,133 @@
         ],
         "indexes": [
             "CREATE INDEX idx_bs_report_shares_shop ON bs_report_shares (shop_id)"
+        ],
+        "system": false
+    },
+    {
+        "id": "bscol_reviews0001",
+        "listRule": "is_approved = true || (@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id)",
+        "viewRule": "is_approved = true || (@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id)",
+        "createRule": "",
+        "updateRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
+        "deleteRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && shop_id.bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id && (@request.auth.role = 'owner' || @request.auth.role = 'manager')",
+        "name": "bs_reviews",
+        "type": "base",
+        "fields": [
+            {
+                "autogeneratePattern": "[a-z0-9]{15}",
+                "hidden": false,
+                "id": "text3208210256",
+                "max": 15,
+                "min": 15,
+                "name": "id",
+                "pattern": "^[a-z0-9]+$",
+                "presentable": false,
+                "primaryKey": true,
+                "required": true,
+                "system": true,
+                "type": "text"
+            },
+            {
+                "cascadeDelete": true,
+                "collectionId": "bscol_shops00001",
+                "hidden": false,
+                "id": "bsrv_shopid",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "shop_id",
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsrv_cname",
+                "max": 0,
+                "min": 0,
+                "name": "customer_name",
+                "pattern": "",
+                "presentable": true,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "bsrv_rating",
+                "max": 5,
+                "min": 1,
+                "name": "rating",
+                "onlyInt": true,
+                "presentable": false,
+                "required": true,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsrv_text",
+                "max": 0,
+                "min": 0,
+                "name": "review_text",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": true,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "bsrv_apprv",
+                "name": "is_approved",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "bool"
+            },
+            {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "bsrv_reply",
+                "max": 0,
+                "min": 0,
+                "name": "owner_reply",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "autodate2990389176",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            },
+            {
+                "hidden": false,
+                "id": "autodate3332085495",
+                "name": "updated",
+                "onCreate": true,
+                "onUpdate": true,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            }
+        ],
+        "indexes": [
+            "CREATE INDEX idx_bs_reviews_shop ON bs_reviews (shop_id)",
+            "CREATE INDEX idx_bs_reviews_approved ON bs_reviews (is_approved)"
         ],
         "system": false
     },
@@ -3413,8 +3588,8 @@
     },
     {
         "id": "bscol_shops00001",
-        "listRule": "",
-        "viewRule": "",
+        "listRule": "slug != \"\"",
+        "viewRule": "slug != \"\"",
         "createRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && @request.auth.role = 'owner'",
         "updateRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && @request.auth.role = 'owner' && bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
         "deleteRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && @request.auth.role = 'owner' && bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
