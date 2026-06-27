@@ -44,6 +44,8 @@ export default function POSPage() {
   const [qtyInput, setQtyInput]          = useState('')
   const [qtyTargetId, setQtyTargetId]    = useState(null)
   const [customerHistory, setCustomerHistory] = useState(null)
+  const [variantsByProduct, setVariantsByProduct] = useState({}) // { [product_id]: [variant, ...] }
+  const [variantPopupProduct, setVariantPopupProduct] = useState(null)
   const audioRef = useRef(null)
 
   useEffect(() => {
@@ -122,6 +124,22 @@ export default function POSPage() {
         pb.collection(C.CATEGORIES).getFullList({ filter: `shop_id="${shop.id}"`, sort: 'sort_order', '$autoCancel': false, '$cancelKey': 'pos-cats' })
       ])
       setProducts(prods); setCategories(cats)
+
+      // Load variants for any product that has them — one query, grouped by product_id
+      const variantProductIds = prods.filter(p => p.has_variants).map(p => p.id)
+      if (variantProductIds.length > 0) {
+        try {
+          const filterStr = variantProductIds.map(id => `product_id="${id}"`).join(' || ')
+          const allVariants = await pb.collection(C.PRODUCT_VARIANTS).getFullList({
+            filter: filterStr, sort: 'sort_order', '$autoCancel': false, '$cancelKey': 'pos-variants',
+          })
+          const grouped = {}
+          allVariants.forEach(v => { (grouped[v.product_id] = grouped[v.product_id] || []).push(v) })
+          setVariantsByProduct(grouped)
+        } catch { setVariantsByProduct({}) }
+      } else {
+        setVariantsByProduct({})
+      }
       // Cache locally for offline use
       cacheProducts(prods).catch(() => {})
       cacheCategories(cats).catch(() => {})
@@ -259,21 +277,35 @@ export default function POSPage() {
     }
   }
 
-  const addToCart = (product) => {
-    if (product.track_inventory && product.stock_qty <= 0) return toast.error('Out of stock!')
+  const addToCart = (product, variant = null) => {
+    const stockSource = variant || product
+    if (product.track_inventory && stockSource.stock_qty <= 0) return toast.error('Out of stock!')
+    const cartKey = variant ? `${product.id}__${variant.id}` : product.id
     setCart(prev => {
-      const ex = prev.find(i => i.id === product.id)
+      const ex = prev.find(i => i.cartKey === cartKey)
       if (ex) {
-        if (product.track_inventory && ex.qty >= product.stock_qty) return (toast.error('Insufficient stock!'), prev)
-        return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i)
+        if (product.track_inventory && ex.qty >= stockSource.stock_qty) return (toast.error('Insufficient stock!'), prev)
+        return prev.map(i => i.cartKey === cartKey ? { ...i, qty: i.qty + 1 } : i)
       }
       playSound('success')
-      return [...prev, { ...product, qty: 1, unit_price: product.price_kes }]
+      const name = variant ? `${product.name} — ${variant.name}` : product.name
+      return [...prev, {
+        ...product,
+        cartKey,
+        name,
+        variant_id: variant?.id || null,
+        variant_name: variant?.name || null,
+        stock_qty: stockSource.stock_qty,           // the relevant stock to check against (variant's or product's own)
+        cost_price_kes: variant ? variant.cost_price_kes : product.cost_price_kes,
+        qty: 1,
+        unit_price: variant ? variant.price_kes : product.price_kes,
+      }]
     })
+    setVariantPopupProduct(null)
   }
 
-  const updateQty  = (id, delta) => setCart(p => p.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i))
-  const removeItem = (id) => setCart(p => p.filter(i => i.id !== id))
+  const updateQty  = (cartKey, delta) => setCart(p => p.map(i => i.cartKey === cartKey ? { ...i, qty: Math.max(1, i.qty + delta) } : i))
+  const removeItem = (cartKey) => setCart(p => p.filter(i => i.cartKey !== cartKey))
   const clearCart  = () => { setCart([]); setCustomer(null); setDiscount(0); setCashTendered(''); setMpesaAmount(''); setRedeemPoints(false); setCustomerSearch('') }
 
   const searchCustomers = async (q) => {
@@ -398,7 +430,16 @@ export default function POSPage() {
       // Deduct stock
       await Promise.all(cart.filter(i => i.track_inventory).map(async (item, idx) => {
         const nq = Math.max(0, (item.stock_qty || 0) - item.qty)
-        await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `pay-later-stock-${idx}` })
+        if (item.variant_id) {
+          await pb.collection(C.PRODUCT_VARIANTS).update(item.variant_id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `pay-later-variant-stock-${idx}` })
+          try {
+            const siblings = await pb.collection(C.PRODUCT_VARIANTS).getFullList({ filter: `product_id="${item.id}"`, '$autoCancel': false, '$cancelKey': `pay-later-siblings-${idx}` })
+            const total = siblings.reduce((s, v) => s + (v.id === item.variant_id ? nq : (v.stock_qty || 0)), 0)
+            await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: total }, { '$autoCancel': false, '$cancelKey': `pay-later-parent-stock-${idx}` })
+          } catch {}
+        } else {
+          await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `pay-later-stock-${idx}` })
+        }
         await pb.collection(C.INV_MOVEMENTS).create({ shop_id: shop.id, product_id: item.id, type: 'sale', qty: -item.qty, before_qty: item.stock_qty, after_qty: nq, reference: receiptNo, created_by: admin?.id }, { '$autoCancel': false, '$cancelKey': `pay-later-inv-${idx}` })
       }))
       // Update customer total_spent and visit_count (credit still counts as a visit)
@@ -458,13 +499,23 @@ export default function POSPage() {
         share_token: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36)
       })
       await Promise.all(cart.map((item, idx) => pb.collection(C.SALE_ITEMS).create({
-        sale_id: sale.id, product_id: item.id, product_name: item.name,
+        sale_id: sale.id, product_id: item.id,
+        product_name: item.variant_name ? `${item.name}` : item.name,
         qty: item.qty, unit_price_kes: item.unit_price, unit_cost_kes: item.cost_price_kes || 0,
         total_kes: item.unit_price * item.qty,
       }, { '$autoCancel': false, '$cancelKey': `sale-item-${idx}` })))
       await Promise.all(cart.filter(i => i.track_inventory).map(async (item, idx) => {
         const nq = Math.max(0, (item.stock_qty || 0) - item.qty)
-        await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `stock-update-${idx}` })
+        if (item.variant_id) {
+          await pb.collection(C.PRODUCT_VARIANTS).update(item.variant_id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `variant-stock-${idx}` })
+          try {
+            const siblings = await pb.collection(C.PRODUCT_VARIANTS).getFullList({ filter: `product_id="${item.id}"`, '$autoCancel': false, '$cancelKey': `siblings-${idx}` })
+            const total = siblings.reduce((s, v) => s + (v.id === item.variant_id ? nq : (v.stock_qty || 0)), 0)
+            await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: total }, { '$autoCancel': false, '$cancelKey': `parent-stock-${idx}` })
+          } catch {}
+        } else {
+          await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `stock-update-${idx}` })
+        }
         await pb.collection(C.INV_MOVEMENTS).create({ shop_id: shop.id, product_id: item.id, type: 'sale', qty: -item.qty, before_qty: item.stock_qty, after_qty: nq, reference: receiptNo, created_by: admin?.id }, { '$autoCancel': false, '$cancelKey': `inv-move-${idx}` })
       }))
       if (customer) {
@@ -614,10 +665,19 @@ export default function POSPage() {
           </div>
           <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 10, alignContent: 'start', minHeight: 0 }}>
             {filtered.map(p => {
-              const out = p.track_inventory && p.stock_qty <= 0
-              const inCart = cart.find(i => i.id === p.id)
+              const variants = variantsByProduct[p.id] || []
+              const out = p.has_variants
+                ? variants.every(v => v.stock_qty <= 0) && variants.length > 0
+                : p.track_inventory && p.stock_qty <= 0
+              const inCartQty = cart.filter(i => i.id === p.id).reduce((s, i) => s + i.qty, 0)
+              const inCart = inCartQty > 0 ? { qty: inCartQty } : null
+              const handleTileClick = () => {
+                if (out) return
+                if (p.has_variants) { setVariantPopupProduct(p); return }
+                addToCart(p)
+              }
               return (
-                <div key={p.id} className={`product-tile ${out ? 'out-of-stock' : ''}`} onClick={() => !out && addToCart(p)} style={{ outline: inCart ? '2px solid #c8456a' : 'none' }}>
+                <div key={p.id} className={`product-tile ${out ? 'out-of-stock' : ''}`} onClick={handleTileClick} style={{ outline: inCart ? '2px solid #c8456a' : 'none' }}>
                   {inCart && <div style={{ position: 'absolute', top: 6, right: 6, background: '#c8456a', color: '#fff', borderRadius: '50%', width: 20, height: 20, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{inCart.qty}</div>}
                   {bestSellerId === p.id && !inCart && (
                     <div style={{ position: 'absolute', top: 6, left: 6, background: 'linear-gradient(135deg,#e6b800,#f59e0b)', color: '#fff', borderRadius: 6, fontSize: 9, fontWeight: 800, padding: '2px 5px', letterSpacing: '0.04em', lineHeight: 1.3 }}>🔥 TOP</div>
@@ -630,8 +690,11 @@ export default function POSPage() {
   {p.is_service ? '✂️' : categories.find(c => c.id === p.category_id)?.icon || '📦'}
 </div>
                   <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>{p.name}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#c8456a' }}>{fmtKES(p.price_kes)}</div>
-                  {p.track_inventory && <div style={{ fontSize: 10, color: p.stock_qty <= 5 ? '#dc2626' : '#9b6070' }}>{out ? '❌ Out' : `${p.stock_qty} left`}</div>}
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#c8456a' }}>{p.has_variants ? `from ${fmtKES(p.price_kes)}` : fmtKES(p.price_kes)}</div>
+                  {p.has_variants
+                    ? <div style={{ fontSize: 10, color: '#9b6070' }}>{out ? '❌ Out' : `${variants.length} option${variants.length !== 1 ? 's' : ''}`}</div>
+                    : (p.track_inventory && <div style={{ fontSize: 10, color: p.stock_qty <= 5 ? '#dc2626' : '#9b6070' }}>{out ? '❌ Out' : `${p.stock_qty} left`}</div>)
+                  }
                 </div>
               )
             })}
@@ -719,16 +782,16 @@ export default function POSPage() {
                 <p style={{ fontSize: 13 }}>Cart empty · Click a product or scan</p>
               </div>
             ) : cart.map(item => (
-              <div key={item.id} className="cart-item">
+              <div key={item.cartKey} className="cart-item">
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 12, fontWeight: 600 }}>{item.name}</div>
                   <div style={{ fontSize: 11, color: '#9b6070' }}>{fmtKES(item.unit_price)}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <button onClick={() => updateQty(item.id, -1)} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid #e8d0d6', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Minus size={10} /></button>
+                  <button onClick={() => updateQty(item.cartKey, -1)} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid #e8d0d6', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Minus size={10} /></button>
                   <span style={{ fontSize: 13, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
-                  <button onClick={() => updateQty(item.id, 1)} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid #e8d0d6', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={10} /></button>
-                  <button onClick={() => removeItem(item.id)} style={{ width: 22, height: 22, borderRadius: 6, border: 'none', background: '#fee2e2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={10} color="#dc2626" /></button>
+                  <button onClick={() => updateQty(item.cartKey, 1)} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid #e8d0d6', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={10} /></button>
+                  <button onClick={() => removeItem(item.cartKey)} style={{ width: 22, height: 22, borderRadius: 6, border: 'none', background: '#fee2e2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={10} color="#dc2626" /></button>
                 </div>
                 <div style={{ width: 58, textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#c8456a' }}>{fmtKES(item.unit_price * item.qty)}</div>
               </div>
@@ -807,6 +870,54 @@ export default function POSPage() {
           </div>
         </div>
       </div>
+
+      {/* Variant Picker Popup */}
+      {variantPopupProduct && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setVariantPopupProduct(null)}>
+          <div className="modal" style={{ maxWidth: 380 }}>
+            <div className="modal-header">
+              <span className="modal-title">{variantPopupProduct.name}</span>
+              <button onClick={() => setVariantPopupProduct(null)} className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button>
+            </div>
+            <div className="modal-body">
+              <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 10 }}>Choose an option</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {(variantsByProduct[variantPopupProduct.id] || []).map(v => {
+                  const vOut = variantPopupProduct.track_inventory && v.stock_qty <= 0
+                  const low = variantPopupProduct.track_inventory && v.stock_qty > 0 && v.stock_qty <= (v.reorder_point || 5)
+                  return (
+                    <button
+                      key={v.id}
+                      disabled={vOut}
+                      onClick={() => addToCart(variantPopupProduct, v)}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '12px 14px', borderRadius: 10,
+                        border: `1.5px solid ${vOut ? '#f0e4e8' : '#e8c0cc'}`,
+                        background: vOut ? '#f9f3f5' : '#fff5f7',
+                        cursor: vOut ? 'not-allowed' : 'pointer', textAlign: 'left',
+                        opacity: vOut ? 0.55 : 1,
+                      }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: '#3d1020' }}>{v.name}</span>
+                      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: '#c8456a' }}>{fmtKES(v.price_kes)}</span>
+                        {variantPopupProduct.track_inventory && (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: vOut ? '#dc2626' : low ? '#d97706' : '#059669' }}>
+                            {vOut ? 'Out of stock' : `${v.stock_qty} left`}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  )
+                })}
+                {(variantsByProduct[variantPopupProduct.id] || []).length === 0 && (
+                  <div style={{ textAlign: 'center', padding: 20, color: '#9b6070', fontSize: 13 }}>No variants set up for this product yet.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Held Sales Modal */}
       {showHeld && (
