@@ -66,13 +66,37 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 24px;height:68px;
 .hero{min-height:100vh;
   background:linear-gradient(160deg,var(--dark) 0%,var(--dark-mid) 55%,var(--dark-deep) 100%);
   display:flex;align-items:center;justify-content:center;
-  text-align:center;padding:120px 24px 80px;position:relative;overflow:hidden}
+  text-align:center;padding:120px 24px 110px;position:relative;overflow:hidden}
 .hero-orbs{position:absolute;inset:0;pointer-events:none}
 .orb{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none}
 .orb1{width:500px;height:500px;background:var(--rose);opacity:.07;top:-10%;left:60%}
 .orb2{width:350px;height:350px;background:var(--gold);opacity:.05;top:60%;left:-5%}
 .orb3{width:280px;height:280px;background:var(--rose-dark);opacity:.06;top:20%;right:-5%}
 .hero-inner{position:relative;z-index:1;width:100%;max-width:800px;margin:0 auto}
+.hero-inner-split{max-width:1140px;display:grid;grid-template-columns:1.05fr .95fr;
+  gap:56px;align-items:center;text-align:left}
+.hero-text-col .hero-sub{margin:0 0 36px}
+.hero-text-col .hero-btns{justify-content:flex-start}
+.hero-text-col .trust-row{justify-content:flex-start}
+.hero-visual-col{display:flex;align-items:center;justify-content:center}
+.hero-visual-frame{position:relative;width:100%;max-width:380px;aspect-ratio:4/5;
+  border-radius:26px;overflow:hidden;
+  background:linear-gradient(160deg,rgba(200,69,106,.12),rgba(26,10,14,.4));
+  border:1px solid rgba(255,255,255,.08);box-shadow:0 32px 70px rgba(0,0,0,.4)}
+.hero-visual-frame svg{width:100%;height:100%;display:block}
+.hero-float-card{position:absolute;background:rgba(255,255,255,.97);border-radius:14px;
+  padding:12px 16px;box-shadow:0 16px 36px rgba(0,0,0,.32);animation:floatCard 4s ease-in-out infinite}
+.hero-float-1{top:9%;left:-7%;animation-delay:0s}
+.hero-float-2{bottom:13%;right:-9%;animation-delay:1.3s}
+.hfc-label{font-size:9px;color:#9b6070;font-weight:800;text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:2px}
+.hfc-value{font-family:var(--font-serif);font-size:17px;font-weight:700;color:#3d1020}
+@keyframes floatCard{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@media(max-width:960px){
+  .hero-inner-split{grid-template-columns:1fr;text-align:center;gap:38px}
+  .hero-text-col .hero-btns,.hero-text-col .trust-row{justify-content:center}
+  .hero-visual-frame{max-width:260px}
+}
 .hero-badge{display:inline-flex;align-items:center;gap:8px;
   background:rgba(230,184,0,.1);border:1px solid rgba(230,184,0,.28);
   border-radius:30px;padding:6px 16px;font-size:12px;color:var(--gold);
@@ -184,6 +208,7 @@ section{padding:88px 24px}
 .wow-card-competitor::before{content:'💡'}
 
 /* ─── DEMO MOCKUP ─────────────────────────────── */
+.section-transition{height:64px;background:linear-gradient(180deg,var(--dark-mid) 0%,var(--off) 100%)}
 .demo-section{background:var(--off);padding:88px 24px}
 .demo-inner{max-width:var(--max);margin:0 auto;
   display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
@@ -546,29 +571,66 @@ footer{background:var(--dark);padding:64px 24px 32px;
     <div class="orb orb2"></div>
     <div class="orb orb3"></div>
   </div>
-  <div class="hero-inner">
-    <div class="fade-up">
-      <div class="hero-badge">🌍 Built for African businesses</div>
+  <div class="hero-inner hero-inner-split">
+    <div class="hero-text-col">
+      <div class="fade-up">
+        <div class="hero-badge">🌍 Built for African businesses</div>
+      </div>
+      <h1 class="fade-up d1">
+        Run your shop.<br/>
+        <span class="accent">Skip the laptop.</span>
+      </h1>
+      <p class="hero-sub fade-up d2">
+        SalesTrack turns the phone already in your hand into a full point-of-sale, stock tracker and profit report — no computer, no card reader, no learning curve.
+      </p>
+      <div class="hero-btns fade-up d3">
+        <a href="#try-demo"><button class="btn-hero-primary">Try free demo — no card needed ✦</button></a>
+        <a href="#features"><button class="btn-hero-outline">▶ See all features</button></a>
+      </div>
+      <div class="trust-row fade-up d4">
+        <div class="trust-item">✓ 7-day free trial</div>
+        <div class="trust-dot"></div>
+        <div class="trust-item">✓ No card required</div>
+        <div class="trust-dot"></div>
+        <div class="trust-item">✓ Works offline</div>
+      </div>
     </div>
-    <h1 class="fade-up d1">
-      Run your business<br/>
-      <span class="accent">from your phone.</span>
-    </h1>
-    <p class="hero-sub fade-up d2">
-      SalesTrack replaces your receipt book, spreadsheet, WhatsApp reminders and accountant's reports — all in one app that works on any Android phone.
-    </p>
-    <div class="hero-btns fade-up d3">
-      <a href="#try-demo"><button class="btn-hero-primary">Try free demo — no card needed ✦</button></a>
-      <a href="#features"><button class="btn-hero-outline">▶ See all features</button></a>
-    </div>
-    <div class="trust-row fade-up d4">
-      <div class="trust-item">✓ 7-day free trial</div>
-      <div class="trust-dot"></div>
-      <div class="trust-item">✓ No card required</div>
-      <div class="trust-dot"></div>
-      <div class="trust-item">✓ M-Pesa payments built in</div>
-      <div class="trust-dot"></div>
-      <div class="trust-item">✓ Works offline</div>
+    <div class="hero-visual-col fade-up d2">
+      <div class="hero-visual-frame">
+        <svg viewBox="0 0 420 520" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <linearGradient id="heroSkin" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#a8674a"/>
+              <stop offset="100%" stop-color="#8a4f37"/>
+            </linearGradient>
+          </defs>
+          <rect width="420" height="520" fill="transparent"/>
+          <rect x="10" y="20" width="56" height="84" rx="6" fill="#c8456a" opacity=".18"/>
+          <rect x="76" y="34" width="56" height="70" rx="6" fill="#e6b800" opacity=".14"/>
+          <rect x="284" y="26" width="56" height="78" rx="6" fill="#c8456a" opacity=".16"/>
+          <rect x="350" y="40" width="56" height="64" rx="6" fill="#e6b800" opacity=".14"/>
+          <rect x="0" y="400" width="420" height="120" rx="14" fill="rgba(255,255,255,.04)"/>
+          <rect x="0" y="400" width="420" height="6" fill="#e6b800" opacity=".5"/>
+          <ellipse cx="200" cy="225" rx="56" ry="62" fill="url(#heroSkin)"/>
+          <path d="M 144 272 Q 142 360 152 414 L 248 414 Q 258 360 256 272 Z" fill="#6b1e38"/>
+          <path d="M 152 414 L 144 272 Q 200 252 256 272 L 248 414 Z" fill="#8b2550"/>
+          <path d="M 152 188 Q 200 154 248 188 Q 253 217 243 236 Q 200 207 157 236 Q 147 217 152 188 Z" fill="#e6b800"/>
+          <path d="M 248 296 Q 286 306 296 344 Q 298 364 286 374 L 267 364 Q 272 336 248 322 Z" fill="#8b2550"/>
+          <ellipse cx="290" cy="368" rx="15" ry="19" fill="url(#heroSkin)"/>
+          <rect x="274" y="352" width="32" height="54" rx="6" fill="#1a0a0e" stroke="#e6b800" stroke-width="2"/>
+          <rect x="279" y="360" width="22" height="33" rx="2" fill="#c8456a" opacity=".55"/>
+          <path d="M 152 296 Q 114 309 109 347 Q 107 367 119 374 L 137 363 Q 131 335 153 322 Z" fill="#6b1e38"/>
+          <ellipse cx="112" cy="365" rx="14" ry="18" fill="url(#heroSkin)"/>
+        </svg>
+        <div class="hero-float-card hero-float-1">
+          <div class="hfc-label">Sale complete</div>
+          <div class="hfc-value">KES 2,450</div>
+        </div>
+        <div class="hero-float-card hero-float-2">
+          <div class="hfc-label">Low stock</div>
+          <div class="hfc-value" style="color:#d97706">3 left</div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -768,6 +830,8 @@ footer{background:var(--dark);padding:64px 24px 32px;
     </div>
   </div>
 </section>
+
+<div class="section-transition"></div>
 
 <!-- DEMO MOCKUP -->
 <section class="demo-section" id="demo">

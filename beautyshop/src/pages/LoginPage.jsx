@@ -20,6 +20,7 @@ const BUSINESS_TYPES = [
   { value: 'hardware',   label: 'Hardware & Auto',    emoji: '🔧', categories: ['Building Materials', 'Electrical', 'Plumbing', 'Tools', 'Auto Parts', 'Paint'] },
   { value: 'beauty',     label: 'Beauty Supply',      emoji: '💄', categories: ['Skincare', 'Haircare', 'Makeup', 'Fragrance', 'Tools & Accessories', 'Wigs'] },
   { value: 'electronics', label: 'Phone & Electronics', emoji: '📱', categories: ['Smartphones', 'Feature Phones', 'Chargers & Cables', 'Cases & Screen Protectors', 'Earphones & Headphones', 'Power Banks', 'Memory & Storage', 'Smartwatches & Bands', 'Phone Accessories', 'Laptops & Tablets', 'Repairs & Services'] },
+  { value: 'agrovet',    label: 'Agrovet & Farm Supply', emoji: '🌾', categories: ['Fertilizers', 'Seeds', 'Pesticides & Herbicides', 'Animal Feed', 'Veterinary Supplies', 'Farm Tools'] },
   { value: 'other',      label: 'Other Business',     emoji: '🏪', categories: ['Products', 'Services', 'General'] },
 ]
 
@@ -102,6 +103,14 @@ const DEMO_PRODUCTS = {
     { name: 'USB-C Charging Cable 1m', selling_price_kes: 350, cost_price_kes: 120, stock_qty: 50, unit: 'piece' },
     { name: 'Phone Case (Universal)', selling_price_kes: 500, cost_price_kes: 150, stock_qty: 30, unit: 'piece' },
     { name: 'Screen Replacement - Samsung (Service)', selling_price_kes: 3500, cost_price_kes: 800, stock_qty: 999, unit: 'service' },
+  ],
+  agrovet: [
+    { name: 'Fertilizers DAP 50kg', selling_price_kes: 3800, cost_price_kes: 3200, stock_qty: 40, unit: 'bag' },
+    { name: 'Fertilizers CAN 50kg', selling_price_kes: 3200, cost_price_kes: 2700, stock_qty: 35, unit: 'bag' },
+    { name: 'Seeds Hybrid Maize 2kg', selling_price_kes: 950, cost_price_kes: 700, stock_qty: 60, unit: 'packet' },
+    { name: 'Pesticides Roundup Herbicide 1L', selling_price_kes: 850, cost_price_kes: 600, stock_qty: 30, unit: 'bottle' },
+    { name: 'Animal Dairy Meal 70kg', selling_price_kes: 2900, cost_price_kes: 2450, stock_qty: 25, unit: 'bag' },
+    { name: 'Veterinary Dewormer for Cattle', selling_price_kes: 650, cost_price_kes: 420, stock_qty: 20, unit: 'bottle' },
   ],
   other: [
     { name: 'Sample Product 1', selling_price_kes: 500, cost_price_kes: 200, stock_qty: 50, unit: 'piece' },
