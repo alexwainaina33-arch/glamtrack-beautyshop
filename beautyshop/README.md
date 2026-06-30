@@ -1,189 +1,87 @@
-# 💄 GlamTrack — Beauty Shop POS & Management System
+# 📈 SalesTrack
 
-> A full-featured, multi-tenant beauty shop management system built on the shared **fieldtrack-kenya** PocketBase backend.
+### Run your business from your phone.
 
----
+A mobile-first, offline-capable, multi-tenant POS and business management platform — purpose-built for small and medium businesses across East Africa. Salons, electronics shops, pharmacies, boutiques, restaurants, hardware stores, agrovets — one platform, zero laptop required.
 
-## 🚀 What This System Does
-
-| Module | Features |
-|--------|----------|
-| **Point of Sale** | Barcode/QR scanner, cart, cash/M-Pesa/card payment, change calculation, customer lookup |
-| **Products** | Add/edit/delete, multi-image upload, bulk CSV import, variant SKUs, cost & selling price |
-| **Inventory** | Real-time stock tracking, movements log, reorder alerts, stock-in/out/adjustment |
-| **Sales** | Full sales history, receipts, void sales, eTIMS status, export |
-| **Expenses** | Categorised expenses, receipt upload, salary/electricity/rent/etc, date filters |
-| **Reports** | P&L Statement, Balance Sheet, Sales Report, Expense Breakdown, Stock Valuation — all exportable |
-| **Customers** | Customer profiles, purchase history, loyalty points, search |
-| **Settings** | Shop info, eTIMS/KRA config, staff management with role-based access |
+**🔗 Live:** [getsalestrack.vercel.app](https://getsalestrack.vercel.app)
 
 ---
 
-## 🏗️ Multi-Tenant Architecture
+## The Problem
 
-This project **shares** the `fieldtrack-kenya.fly.dev` PocketBase backend but uses its **own collection namespace** (`bs_` prefix):
+Most small business owners in Kenya and across East Africa run their entire operation from a single Android phone, on patchy mobile data, with no laptop and no dedicated POS hardware. Every mainstream POS/SaaS product on the market assumes the opposite — desktop-first, USD pricing, card-payment defaults, no WhatsApp integration. SalesTrack was built from the ground up for the reality on the ground, not adapted from a Western product.
 
-```
-sg_* collections  →  Existing FieldTrack project
-bs_* collections  →  GlamTrack beauty shop (this project)
-```
+## The Approach
 
-Both projects use the **same `sg_admins`** collection for authentication. Each shop admin is assigned to a specific shop via `bs_shop_admins`.
-
----
-
-## 📋 Quick Setup
-
-### 1. Copy this folder to your computer
-
-```
-C:\Users\san\glamtrack\
-```
-
-### 2. Install dependencies
-
-```powershell
-cd C:\Users\san\glamtrack
-npm install
-```
-
-### 3. Create `.env` file
-
-```
-VITE_PB_URL=https://fieldtrack-kenya.fly.dev
-```
-
-### 4. Import PocketBase Schema
-
-1. Go to https://fieldtrack-kenya.fly.dev/_/
-2. Log in as superadmin
-3. Settings → Import Collections
-4. Upload `pb-schema.json` (in this folder)
-5. This creates all `bs_*` collections without affecting `sg_*` collections
-
-### 5. Create Your First Shop
-
-In PocketBase admin:
-1. Go to `bs_shops` collection → New record
-2. Fill: `name`, `slug` (e.g. `glamour-hair`), `phone`, `currency: KES`, `is_active: true`
-
-### 6. Assign Admin to Shop
-
-In `bs_shop_admins`:
-- `shop_id` → your shop ID
-- `admin_id` → your sg_admins ID  
-- `role` → `owner`
-
-### 7. Run locally
-
-```powershell
-npm run dev
-# Opens on http://localhost:5174
-```
-
-### 8. Add Expense Categories (first time)
-
-Go to Settings → Expenses Categories → click the default category buttons to add:
-- Salaries, Electricity, Water, Rent, Transport, etc.
+- **Mobile-first, not mobile-friendly.** Every screen is designed for a phone first, not shrunk down from a desktop layout.
+- **Offline-first.** Sales process normally with zero internet connection and sync automatically the moment connectivity returns.
+- **WhatsApp-native.** Booking confirmations, digital receipts, low-stock alerts, review requests, renewal reminders — all delivered the way East African businesses actually communicate.
+- **Installs like an app, costs nothing like one.** Progressive Web App architecture means zero app-store friction and zero install cost, with full home-screen shortcuts.
 
 ---
 
-## 🚢 Deploy to Vercel
+## ✨ Feature Highlights
 
-```powershell
-cd C:\Users\san\glamtrack
-git init
-git add .
-git commit -m "Initial GlamTrack commit"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/glamtrack.git
-git push -u origin main
-```
+### Point of Sale & Inventory
+Offline-capable POS with barcode/QR scanner support (any USB or Bluetooth scanner, zero config), real-time stock tracking, product variants (size/color SKUs), supplier and funding-source tracking on every stock movement, and automatic low-stock WhatsApp alerts.
 
-Then on Vercel:
-1. Import the GitHub repo
-2. Add environment variable: `VITE_PB_URL = https://fieldtrack-kenya.fly.dev`
-3. Deploy ✅
+### Financial Reporting That Actually Holds Up
+Full P&L, automated Balance Sheet, and Cash Flow Statement — all computed from the same underlying transaction data, so the numbers always agree with each other. Plus a **Lender Pack**: a single printable document with a 6-month revenue history, DSCR calculator, and AR aging — built so an owner can walk into a bank with real, verifiable proof of income.
 
-**To update after changes:**
-```powershell
-git add .
-git commit -m "Describe changes"
-git push
-# Vercel auto-redeploys
-```
+### A Free Professional Website for Every Shop
+Every shop gets a branded public page out of the box — hero banner, live open/closed status, photo gallery with before/after sliders, staff profiles, customer reviews with owner replies, Google Maps embed, and a downloadable price list. No web design skill, no extra cost, no separate tool.
+
+### Public Booking, Zero Friction
+Customers book appointments directly with no login, no app download — multi-service cart, staff selection, instant WhatsApp confirmation.
+
+### Staff & Commission Management
+Two clean staff models — system users with role-based access (owner/manager/cashier/viewer), and service providers who earn commission without needing a login at all. Commission calculator, payout tracking, attendance, and performance leaderboards.
+
+### AI-Powered Insights
+Daily, personalized business insights generated from a shop's own sales data — dead-hours detection, churn risk flags, business health scoring, and revenue forecasting.
+
+### Built to Retain, Not Just Acquire
+Renewal reminders, graceful read-only mode after expiry (never a hard lockout), automated referral credits, and a relentless WhatsApp-first communication layer across every feature.
 
 ---
 
-## 🔑 Barcode Scanner
-
-The POS page works with **any USB or Bluetooth barcode scanner**. Scanners emulate keyboard input — just plug in and scan, no configuration needed. The system reads the barcode, finds the product, and adds it to the cart automatically.
-
----
-
-## 🧾 eTIMS / KRA Integration
-
-The system has eTIMS built in. To go live:
-
-1. Register on [KRA eTIMS Portal](https://etims.kra.go.ke)
-2. Get your device serial number
-3. Enter PIN + Serial in **Settings → eTIMS / KRA**
-4. Replace the `submitEtims()` stub in `src/pages/POSPage.jsx` with real KRA API calls
-
-Every receipt shows "eTIMS Compliant" and the KRA reference number once live.
-
----
-
-## 📊 P&L Formula
+## 🏗️ Tech Stack
 
 ```
-Revenue
-− Cost of Sales (from product cost prices)
-= GROSS PROFIT
-
-Gross Profit
-− Operating Expenses (salary, electricity, rent, etc.)
-= NET PROFIT / (LOSS)
+Frontend     React 18 + Vite — Progressive Web App, offline-capable via IndexedDB
+Backend      PocketBase
+Hosting      Vercel (frontend + serverless functions) + Fly.io (backend)
+Monitoring   Sentry
+Backups      Automated, encrypted, off-site
 ```
+
+Built as a true multi-tenant platform from day one — every business's data is fully isolated at both the application and database layer.
 
 ---
 
-## 🗂️ Project Structure
+## 💰 Pricing
 
-```
-src/
-├── pages/
-│   ├── LoginPage.jsx       ← Auth
-│   ├── DashboardPage.jsx   ← Overview + charts
-│   ├── POSPage.jsx         ← Point of Sale + scanner
-│   ├── ProductsPage.jsx    ← Product management + bulk import
-│   ├── InventoryPage.jsx   ← Stock levels + movements
-│   ├── SalesPage.jsx       ← Sales history + receipts
-│   ├── ExpensesPage.jsx    ← Expense tracking
-│   ├── ReportsPage.jsx     ← P&L, Balance Sheet, Reports
-│   ├── CustomersPage.jsx   ← Customer management
-│   └── SettingsPage.jsx    ← Shop + eTIMS + Staff
-├── components/
-│   ├── Layout.jsx          ← Sidebar navigation
-│   └── ReceiptModal.jsx    ← Printable eTIMS receipt
-├── context/
-│   └── AuthContext.jsx     ← Auth + shop state
-└── lib/
-    ├── pb.js               ← PocketBase client
-    └── utils.js            ← Formatters, helpers
-```
+| Plan | Price (KES/month) | For |
+|------|---------|-----|
+| **Starter** | 4,999 | Core POS, inventory, sales, expenses, customer management, free shop website |
+| **Growth** | 9,999 | + Staff & commissions, appointment booking, AI insights, Lender Pack |
+| **Enterprise** | 24,999 | + Multi-branch & compliance tooling *(in active development)* |
+
+7-day free trial. No card required to start. Yearly billing includes 2 months free.
 
 ---
 
-## 💅 Design
+## 📍 Status
 
-- **Rose & Gold** luxury color palette
-- **Playfair Display** serif headings
-- **Nunito** clean body font
-- Mobile-responsive layout
-- Smooth animations throughout
+SalesTrack is live in production, processing real transactions for real businesses in Kenya, with active development continuing weekly. Built and maintained independently, end to end — from database architecture to UI polish to deployment infrastructure.
 
 ---
 
-Built with ❤️ on React + Vite + PocketBase
+## 🤝 Interested?
 
+Whether you're a business owner who wants to see SalesTrack running your shop, a developer curious about the architecture, or just exploring — reach out via [WhatsApp](https://wa.me/254716555043) or visit the [live demo](https://getsalestrack.vercel.app/login).
+
+---
+
+<p align="center">Built in Kenya, for the businesses that keep East Africa running. 🇰🇪</p>
