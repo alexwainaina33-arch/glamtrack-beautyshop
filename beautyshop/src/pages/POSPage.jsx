@@ -212,6 +212,27 @@ export default function POSPage() {
               total_kes: item.unit_price * item.qty,
             }, { '$autoCancel': false, '$cancelKey': `sync-item-${s.id}-${idx}` })
           ))
+          for (const item of items) {
+            if (!item.track_inventory) continue
+            try {
+              if (item.variant_id) {
+                const currentVariant = await pb.collection(C.PRODUCT_VARIANTS).getOne(item.variant_id, { '$autoCancel': false, '$cancelKey': `sync-variant-fetch-${item.variant_id}` })
+                const nq = Math.max(0, (currentVariant.stock_qty || 0) - item.qty)
+                await pb.collection(C.PRODUCT_VARIANTS).update(item.variant_id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `sync-variant-stock-${item.variant_id}` })
+                const siblings = await pb.collection(C.PRODUCT_VARIANTS).getFullList({ filter: `product_id="${item.id}"`, '$autoCancel': false, '$cancelKey': `sync-siblings-${item.id}` })
+                const total = siblings.reduce((sum, v) => sum + (v.id === item.variant_id ? nq : (v.stock_qty || 0)), 0)
+                await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: total }, { '$autoCancel': false, '$cancelKey': `sync-parent-stock-${item.id}` })
+                await pb.collection(C.INV_MOVEMENTS).create({ shop_id: s.shop_id, product_id: item.id, type: 'sale', qty: -item.qty, before_qty: currentVariant.stock_qty, after_qty: nq, reference: s.receipt_no, created_by: s.served_by || null }, { '$autoCancel': false, '$cancelKey': `sync-inv-${item.variant_id}-${Date.now()}` })
+              } else {
+                const currentProduct = await pb.collection(C.PRODUCTS).getOne(item.id, { '$autoCancel': false, '$cancelKey': `sync-product-fetch-${item.id}` })
+                const nq = Math.max(0, (currentProduct.stock_qty || 0) - item.qty)
+                await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `sync-stock-${item.id}` })
+                await pb.collection(C.INV_MOVEMENTS).create({ shop_id: s.shop_id, product_id: item.id, type: 'sale', qty: -item.qty, before_qty: currentProduct.stock_qty, after_qty: nq, reference: s.receipt_no, created_by: s.served_by || null }, { '$autoCancel': false, '$cancelKey': `sync-inv-${item.id}-${Date.now()}` })
+              }
+            } catch (stockErr) {
+              console.error('Stock deduction failed during sync for item', item.id, stockErr?.message)
+            }
+          }
           await markSynced(s.id)
           synced++
         } catch (err) {
