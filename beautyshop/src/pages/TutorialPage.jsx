@@ -119,7 +119,7 @@ export default function TutorialPage() {
 
         {/* Trust badges */}
         <div style={{ display:'flex', gap:8, justifyContent:'center', flexWrap:'wrap', marginBottom:24 }}>
-          {['✅ 14-day free trial', '🔒 No credit card required', '❌ Cancel anytime', '📱 M-Pesa supported'].map(b => (
+          {['✅ 7-day free trial', '🔒 No credit card required', '❌ Cancel anytime', '💳 Secure card payment supported'].map(b => (
             <span key={b} style={{
               background:'rgba(255,255,255,0.06)',
               border:'1px solid rgba(255,255,255,0.1)',

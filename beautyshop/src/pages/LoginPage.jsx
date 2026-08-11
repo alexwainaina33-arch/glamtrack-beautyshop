@@ -291,7 +291,7 @@ function CelebrationScreen({ bizName, adminName, onDone }) {
         <strong style={{ color: '#fce8ed' }}>{bizName}</strong> is live on SalesTrack.
       </p>
       <p style={{ color: '#f7c5d055', fontSize: 12, margin: '0 0 24px' }}>
-        Your 14-day free trial has started. Demo products have been added so you can start selling immediately.
+        Your 7-day free trial has started. Demo products have been added so you can start selling immediately.
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 24 }}>
@@ -313,7 +313,7 @@ function CelebrationScreen({ bizName, adminName, onDone }) {
       {/* WhatsApp virality button */}
       <button
         onClick={() => {
-          const msg = `🎉 My shop *${bizName}* is now live on SalesTrack!\n\nI can now manage sales, inventory & staff right from my phone 📱\n\nTry it free for 14 days 👉 https://glamtrack-beautyshop.vercel.app`
+          const msg = `🎉 My shop *${bizName}* is now live on SalesTrack!\n\nI can now manage sales, inventory & staff right from my phone 📱\n\nTry it free for 7 days 👉 https://getsalestrack.vercel.app`
           try { navigator.clipboard.writeText(msg) } catch {}
           const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`
           const a = document.createElement('a'); a.href = wa; a.target = '_blank'; a.rel = 'noopener noreferrer'
@@ -628,9 +628,9 @@ export default function LoginPage() {
       const initials = bizName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'SHOP'
       const rand = Math.random().toString(36).slice(2, 6).toUpperCase()
       fd.append('referral_code', `${initials}${rand}`)
-      // Subscription fields — 14-day free trial
+      // Subscription fields — 7-day free trial
       fd.append('subscription_status', 'trial')
-      const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+      const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
       fd.append('trial_ends_at', trialEnd.toISOString().replace('T', ' ').replace('Z', '.000Z'))
       if (referralCode.trim()) fd.append('referral_code_used', referralCode.trim().toUpperCase())
       // Track signup attribution — reads UTM param if present, falls back to 'organic'
