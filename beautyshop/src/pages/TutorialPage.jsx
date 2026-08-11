@@ -138,7 +138,7 @@ export default function TutorialPage() {
           boxShadow:'0 8px 28px #c8456a55',
           display:'flex', alignItems:'center', justifyContent:'center', gap:10
         }}>
-          Choose your plan — from KES 4,999/mo <ChevronRight size={18} />
+          Choose your plan — from KES 2,499/mo <ChevronRight size={18} />
         </button>
 
         <div style={{ display:'flex', justifyContent:'center', gap:20, marginTop:14 }}>

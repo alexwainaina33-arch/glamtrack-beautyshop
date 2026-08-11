@@ -64,9 +64,9 @@ Built as a true multi-tenant platform from day one — every business's data is 
 
 | Plan | Price (KES/month) | For |
 |------|---------|-----|
-| **Starter** | 4,999 | Core POS, inventory, sales, expenses, customer management, free shop website |
-| **Growth** | 9,999 | + Staff & commissions, appointment booking, AI insights, Lender Pack |
-| **Enterprise** | 24,999 | + Multi-branch & compliance tooling *(in active development)* |
+| **Starter** | 2,499 | Core POS, inventory, sales, expenses, customer management, free shop website |
+| **Growth** | 4,499 | + Staff & commissions, appointment booking, Smart Business Insights, Lender Pack |
+| **Enterprise** | 6,499 | + Multi-branch & compliance tooling *(in active development)* |
 
 7-day free trial. No card required to start. Yearly billing includes 2 months free.
 

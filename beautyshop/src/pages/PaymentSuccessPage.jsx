@@ -5,14 +5,14 @@ import pb, { C } from '../lib/pb'
 import { useAuth } from '../context/AuthContext'
 
 const PLAN_DAILY_COSTS = {
-  starter:    { monthly: 167, yearly: 137 },
-  growth:     { monthly: 333, yearly: 274 },
-  enterprise: { monthly: 833, yearly: 685 },
+  starter:    { monthly: 83, yearly: 68 },
+  growth:     { monthly: 150, yearly: 123 },
+  enterprise: { monthly: 217, yearly: 178 },
 }
 
 const PLAN_MESSAGES = {
   starter:    'Less than a loaf of bread — for your entire business records, stock alerts, and daily profit reports.',
-  growth:     'Less than your cheapest product — for unlimited sales tracking, staff commissions, and AI insights.',
+  growth:     'Less than your cheapest product — for unlimited sales tracking, staff commissions, and Smart Business Insights.',
   enterprise: 'Your business now runs on autopilot — every branch, every staff member, every sale tracked from one phone.',
 }
 
@@ -21,7 +21,7 @@ const FEATURES = [
   'Stock alerts before you run out',
   'Profit reports in seconds',
   'Works offline on any phone',
-  'M-Pesa payments built in',
+  'Cash, card and recorded M-Pesa sales',
   'WhatsApp summaries daily',
 ]
 
@@ -32,7 +32,7 @@ function MomentumReceipt({ shop, planName, planPeriod }) {
   const planKey   = (planName || 'growth').toLowerCase()
   const periodKey = (planPeriod || 'monthly').toLowerCase()
   const dailyCost = PLAN_DAILY_COSTS[planKey]?.[periodKey]
-    || parseInt(localStorage.getItem('st_dailycost') || '333')
+    || parseInt(localStorage.getItem('st_dailycost') || '150')
   const message   = PLAN_MESSAGES[planKey] || PLAN_MESSAGES.growth
 
   useEffect(() => {
@@ -73,7 +73,7 @@ function MomentumReceipt({ shop, planName, planPeriod }) {
       {data && data.count > 0 ? (
         <>
           {[
-            { label: 'Plan cost', value: `KES ${parseInt(localStorage.getItem('st_price') || '9999').toLocaleString('en-KE')}` },
+            { label: 'Plan cost', value: `KES ${parseInt(localStorage.getItem('st_price') || '4499').toLocaleString('en-KE')}` },
             { label: 'Sales last 30 days', value: `${data.count.toLocaleString('en-KE')} transactions` },
             { label: 'Revenue tracked', value: `KES ${data.totalRev.toLocaleString('en-KE', { minimumFractionDigits: 2 })}` },
             { label: 'SalesTrack costs you', value: `KES ${dailyCost}/day` },

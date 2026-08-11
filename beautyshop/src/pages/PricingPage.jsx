@@ -11,8 +11,8 @@ const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_KEY || ''
 const PLANS = {
   monthly: [
     {
-      id: 'starter', name: 'Starter', price: 4999, period: 'monthly',
-      dailyCost: 167, color: '#f7c5d0', highlight: false, save: null,
+      id: 'starter', name: 'Starter', price: 2499, period: 'monthly',
+      dailyCost: 83, color: '#f7c5d0', highlight: false, save: null,
       tagline: 'Everything you need to run your shop from your phone',
       intro: null,
       featureGroups: [
@@ -20,7 +20,7 @@ const PLANS = {
           label: null,
           items: [
             '1 owner + 1 cashier login account',
-            'Full POS — cash, M-Pesa & card payments',
+            'Full POS — cash, card & recorded M-Pesa sales',
             'Offline mode — sells without internet',
             'Hold & resume multiple sales at once',
             'Barcode scanner & label printing',
@@ -50,8 +50,8 @@ const PLANS = {
       ],
     },
     {
-      id: 'growth', name: 'Growth', price: 9999, period: 'monthly',
-      dailyCost: 333, color: '#e6b800', highlight: true, save: null,
+      id: 'growth', name: 'Growth', price: 4499, period: 'monthly',
+      dailyCost: 150, color: '#e6b800', highlight: true, save: null,
       tagline: 'For shops with staff, bookings and bigger ambitions',
       intro: 'Everything in Starter, plus:',
       featureGroups: [
@@ -105,8 +105,8 @@ const PLANS = {
       ],
     },
     {
-      id: 'enterprise', name: 'Enterprise', price: 24999, period: 'monthly',
-      dailyCost: 833, color: '#c8456a', highlight: false, save: null,
+      id: 'enterprise', name: 'Enterprise', price: 6499, period: 'monthly',
+      dailyCost: 217, color: '#c8456a', highlight: false, save: null,
       tagline: 'For multi-branch businesses scaling across Kenya',
       intro: 'Everything in Growth, plus:',
       featureGroups: [
@@ -134,8 +134,8 @@ const PLANS = {
   ],
   yearly: [
     {
-      id: 'starter', name: 'Starter', price: 49990, period: 'yearly',
-      dailyCost: 137, color: '#f7c5d0', highlight: false, save: '2 months free — save KES 9,998',
+      id: 'starter', name: 'Starter', price: 24990, period: 'yearly',
+      dailyCost: 68, color: '#f7c5d0', highlight: false, save: '2 months free — save KES 4,998',
       tagline: 'Everything you need to run your shop from your phone',
       intro: null,
       featureGroups: [
@@ -143,7 +143,7 @@ const PLANS = {
           label: null,
           items: [
             '1 owner + 1 cashier login account',
-            'Full POS — cash, M-Pesa & card payments',
+            'Full POS — cash, card & recorded M-Pesa sales',
             'Offline mode — sells without internet',
             'Hold & resume multiple sales at once',
             'Barcode scanner & label printing',
@@ -173,8 +173,8 @@ const PLANS = {
       ],
     },
     {
-      id: 'growth', name: 'Growth', price: 99990, period: 'yearly',
-      dailyCost: 274, color: '#e6b800', highlight: true, save: '2 months free — save KES 19,998',
+      id: 'growth', name: 'Growth', price: 44990, period: 'yearly',
+      dailyCost: 123, color: '#e6b800', highlight: true, save: '2 months free — save KES 8,998',
       tagline: 'For shops with staff, bookings and bigger ambitions',
       intro: 'Everything in Starter, plus:',
       featureGroups: [
@@ -228,8 +228,8 @@ const PLANS = {
       ],
     },
     {
-      id: 'enterprise', name: 'Enterprise', price: 249990, period: 'yearly',
-      dailyCost: 685, color: '#c8456a', highlight: false, save: '2 months free — save KES 49,998',
+      id: 'enterprise', name: 'Enterprise', price: 64990, period: 'yearly',
+      dailyCost: 178, color: '#c8456a', highlight: false, save: '2 months free — save KES 12,998',
       tagline: 'For multi-branch businesses scaling across Kenya',
       intro: 'Everything in Growth, plus:',
       featureGroups: [
@@ -567,7 +567,7 @@ export default function PricingPage() {
         )}
 
         <p style={{ textAlign: 'center', color: '#f7c5d033', fontSize: 12 }}>
-          All plans include SSL security · Daily backups · 99.9% uptime · M-Pesa & card payments
+          All plans include SSL security · Digital receipts · Offline selling · Cancel anytime
         </p>
         <div style={{ textAlign: 'center', marginTop: 12, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={() => navigate('/login')} style={{ background: 'none', border: 'none', color: '#f7c5d044', fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>← Back to login</button>
