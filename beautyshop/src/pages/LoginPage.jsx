@@ -424,7 +424,8 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const logoRef = useRef(null)
 
-  const [mode, setMode] = useState('login')     // 'login' | 'register' | 'forgot'
+  const startTrialFromUrl = new URLSearchParams(window.location.search).get('start') === 'trial'
+  const [mode, setMode] = useState(startTrialFromUrl ? 'register' : 'login')     // 'login' | 'register' | 'forgot'
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [showPwd, setShowPwd] = useState(false)

@@ -1,1717 +1,506 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>SalesTrack — Run Your Business From Your Phone</title>
-<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"/>
-<link rel="apple-touch-icon" href="/icons/icon-192.png"/>
-<meta name="description" content="SalesTrack is the all-in-one POS, inventory, appointments, analytics and CRM built for African businesses. Salons, retail shops, restaurants, pharmacies and more. Start free — no card required."/>
-<meta name="keywords" content="POS Kenya, business management software Kenya, salon POS, retail POS Africa, inventory management Kenya, SalesTrack, M-Pesa POS"/>
-<meta property="og:title" content="SalesTrack — Run Your Business From Your Phone"/>
-<meta property="og:description" content="POS, Inventory, Appointments, Analytics & CRM — all in one app. Built for African businesses. From KES 2,499/month. No card required."/>
-<meta property="og:type" content="website"/>
-<meta property="og:url" content="https://getsalestrack.vercel.app"/>
-<meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:title" content="SalesTrack — Run Your Business From Your Phone"/>
-<meta name="twitter:description" content="POS, Inventory, Appointments, Analytics & CRM. Built for African businesses. Try free today."/>
-<link rel="canonical" href="https://getsalestrack.vercel.app"/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
-<script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SalesTrack &mdash; Know what you sold. Know what you made.</title>
+<meta name="description" content="SalesTrack helps Kenyan businesses run sales, stock, customers and expenses from one connected system.">
 <style>
-/* ─── TOKENS ──────────────────────────────────── */
-:root{
-  --rose:#c8456a;--rose-dark:#8b2550;--rose-light:#fce8ed;
-  --gold:#e6b800;--gold-dark:#b38f00;
-  --dark:#1a0a0e;--dark-mid:#3d1020;--dark-deep:#6b1e38;
-  --white:#fff;--off:#fdf8f9;--muted:#9b6070;--border:#f0e0e6;
-  --green:#059669;--red:#dc2626;--blue:#3b82f6;--amber:#d97706;
-  --font-serif:'Playfair Display',serif;
-  --font-sans:'Nunito',sans-serif;
-  --max:1200px;--radius:16px;
+:root{--ink:#240610;--wine:#5f1230;--rose:#ce2f68;--pink:#e33c79;--gold:#f2ad32;--cream:#fffaf1;--paper:#fffefa;--green:#054a36;--green2:#0a6349;--muted:#725f66;--line:#eadedb;--shadow:0 26px 70px rgba(36,6,16,.13);--serif:Georgia,'Times New Roman',serif;--sans:Inter,system-ui,-apple-system,'Segoe UI',sans-serif}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--sans);line-height:1.5}img{display:block;max-width:100%}a{text-decoration:none;color:inherit}.wrap{width:min(1280px,calc(100% - 48px));margin:auto}.eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--rose);font-weight:950;margin-bottom:11px}.title{font:800 clamp(42px,4.8vw,66px)/.96 var(--serif);letter-spacing:-.045em;margin:0}.copy{color:var(--muted);font-size:16px;max-width:700px}.btn{display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:14px 18px;font-weight:900;font-size:13px;border:1px solid transparent}.btn.primary{background:linear-gradient(100deg,#b41952,#e23a78);color:#fff}.btn.secondary{background:#fff;border-color:#e8d9d4}.top{height:66px;background:linear-gradient(90deg,#21040f,#43091d);color:#fff;display:flex;align-items:center;position:sticky;top:0;z-index:80}.nav{display:flex;align-items:center;justify-content:space-between}.brand{font-weight:900}.navlinks{display:flex;gap:26px;font-size:13px;font-weight:800}.hero{padding:58px 0 0;background:radial-gradient(circle at 78% 12%,rgba(229,59,120,.18),transparent 31%),var(--cream);overflow:hidden}.hero-grid{display:grid;grid-template-columns:.72fr 1.48fr;gap:44px;align-items:center}.hero h1{font:800 clamp(60px,6.6vw,98px)/.91 var(--serif);letter-spacing:-.05em;margin:0}.hero h1 span{color:var(--pink)}.hero p{max-width:470px;color:var(--muted);font-size:16px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0 15px}.hero-screen{position:relative}.hero-screen img{width:100%;border:8px solid #2d0a17;border-radius:20px;box-shadow:0 36px 86px rgba(36,6,16,.25)}.hero-note{position:absolute;right:20px;top:30px;background:#2a0916;color:#fff;padding:12px 15px;border-radius:10px;font-size:12px;font-weight:900;box-shadow:0 16px 34px rgba(48,5,21,.25)}.proofbar{margin-top:38px;background:#fff;border-block:1px solid var(--line)}.proofgrid{display:grid;grid-template-columns:repeat(5,1fr)}.proof{padding:16px;border-right:1px solid var(--line);font-size:11px;font-weight:850}.proof:last-child{border-right:0}.section{padding:86px 0}.intro{display:flex;justify-content:space-between;gap:40px;align-items:end;margin-bottom:34px}.screen-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px;box-shadow:var(--shadow)}.screen-card img{width:100%;border-radius:13px}.split{display:grid;grid-template-columns:1.18fr .82fr;gap:40px;align-items:center}.split.reverse{grid-template-columns:.82fr 1.18fr}.split.reverse .screen-card{order:2}.story h3{font:800 38px/1 var(--serif);margin:0 0 12px}.story p{color:var(--muted);margin:0 0 14px}.story ul{padding-left:18px;color:#5f4c53}.story li{margin:7px 0}.profit{padding:72px 0;background:linear-gradient(115deg,#043e2f,#075741);color:#fff}.profit-grid{display:grid;grid-template-columns:.7fr 1.3fr;gap:48px;align-items:center}.profit .eyebrow{color:#8fdab6}.profit p{color:#d5ece3}.ledger{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;color:var(--ink);border-radius:16px;overflow:hidden}.metric{padding:22px 16px;border-right:1px solid #e6ece9}.metric:last-child{border:0;background:#e9f7f0}.metric small{display:block;color:#7d6f73}.metric strong{font-size:18px}.industry{padding:84px 0}.industry-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:30px}.industry-card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(48,15,26,.06)}.industry-card img{width:100%;height:235px;object-fit:cover}.industry-card div{padding:16px}.industry-card h3{font:800 23px/1 var(--serif);margin:0 0 7px}.industry-card p{margin:0;color:var(--muted);font-size:12px}.questions{padding:82px 0;background:#fff}.qgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px}.q{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px}.q b{display:block;font:800 21px/1.05 var(--serif);margin-bottom:8px}.q p{margin:0;color:var(--muted);font-size:13px}.pricing{padding:82px 0;background:#240610;color:#fff}.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}.plan{border:1px solid rgba(255,255,255,.13);border-radius:17px;padding:24px;background:rgba(255,255,255,.045)}.plan.hot{border-color:var(--pink)}.price{font:800 36px/1 var(--serif);margin:12px 0 18px}.plan ul{padding-left:18px;color:#eedde3;font-size:12px}.plan .btn{width:100%}.faq{padding:78px 0}.faqgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:25px}.faq details{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 17px}.closing{padding:72px 0;text-align:center;background:linear-gradient(115deg,#54102a,#71183a);color:#fff}.closing h2{font:800 clamp(38px,5vw,62px)/.93 var(--serif);margin:0 0 15px}.footer{padding:26px 0;background:#20040f;color:#fff}
+
+
+.customer-web-clean{padding:88px 0;background:linear-gradient(180deg,#fffaf1 0%,#fff7f7 100%)}
+.customer-clean-head{display:grid;grid-template-columns:.9fr 1.1fr;gap:42px;align-items:end;margin-bottom:32px}
+.customer-clean-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.customer-clean-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 14px 32px rgba(36,6,16,.06)}
+.customer-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#fff0f4;margin-bottom:17px;font-size:20px}
+.customer-clean-card h3{font:800 24px/1 var(--serif);margin:0 0 9px}
+.customer-clean-card p{margin:0;color:var(--muted);font-size:13px}
+.customer-flow{margin-top:26px;background:#240610;color:#fff;border-radius:18px;padding:22px 24px}
+.customer-flow-label{font-size:9px;letter-spacing:.17em;color:#ffc44b;font-weight:950;margin-bottom:12px}
+.customer-flow-steps{display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:900;font-size:14px}
+.customer-flow-steps b{color:#e8457c}
+.customer-flow p{margin:14px 0 0;color:#dbcbd1;font-size:12px;max-width:900px}
+@media(max-width:820px){
+  .customer-web-clean{padding:54px 0}
+  .customer-clean-head{display:block}
+  .customer-clean-head .copy{margin-top:14px}
+  .customer-clean-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .customer-clean-card{padding:16px}
+  .customer-clean-card h3{font-size:19px}
+  .customer-clean-card p{font-size:11px}
+  .customer-flow{padding:18px}
+  .customer-flow-steps{display:grid;grid-template-columns:1fr;gap:7px}
+  .customer-flow-steps b{display:none}
 }
-*{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{font-family:var(--font-sans);color:var(--dark);background:var(--white);overflow-x:hidden}
-a{color:inherit;text-decoration:none}
-img{max-width:100%;display:block}
+@media(max-width:820px){.wrap{width:min(100% - 24px,600px)}.navlinks a:not(:last-child){display:none}.hero{padding-top:32px}.hero-grid{display:block}.hero h1{font-size:49px}.actions{display:grid}.actions .btn{width:100%}.hero-screen{margin-top:24px}.hero-screen img{border-width:5px;border-radius:14px}.hero-note{right:8px;top:12px;font-size:8px;padding:8px 9px}.proofgrid{display:block}.proof{border-right:0;border-bottom:1px solid var(--line)}.section,.industry,.questions,.faq{padding:54px 0}.intro,.split,.split.reverse,.profit-grid{display:block}.split.reverse .screen-card{order:initial}.screen-card{margin-bottom:18px}.story h3{font-size:31px}.title{font-size:38px}.profit{padding:52px 0}.ledger{display:block;margin-top:22px}.metric{display:flex;justify-content:space-between;border-right:0;border-bottom:1px solid #e6ece9;padding:12px 14px}.industry-grid{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x mandatory}.industry-card{min-width:82%;scroll-snap-align:start}.industry-card img{height:230px}.qgrid,.plans,.faqgrid{display:block}.q,.plan,.faq details{margin-bottom:12px}.pricing{padding:56px 0}}
 
-/* ─── NAV ─────────────────────────────────────── */
-nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 24px;height:68px;
-  display:flex;align-items:center;justify-content:space-between;
-  background:rgba(26,10,14,.94);backdrop-filter:blur(20px);
-  border-bottom:1px solid rgba(255,255,255,.07)}
-.nav-logo{display:flex;align-items:center;gap:10px}
-.nav-logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--gold),var(--rose));
-  border-radius:10px;display:flex;align-items:center;justify-content:center}
-.nav-logo-icon svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.5}
-.nav-logo-name{font-family:var(--font-serif);color:#fce8ed;font-size:20px;font-weight:700}
-.nav-links{display:flex;align-items:center;gap:28px}
-.nav-links a{color:rgba(252,232,237,.65);font-size:14px;font-weight:600;transition:color .2s}
-.nav-links a:hover{color:#fce8ed}
-.nav-cta{display:flex;align-items:center;gap:10px}
-.btn-nav{padding:9px 20px;border-radius:10px;font-size:14px;font-weight:700;
-  cursor:pointer;font-family:var(--font-sans);transition:all .2s;border:none}
-.btn-nav-outline{background:transparent;border:1.5px solid rgba(255,255,255,.22);color:#fce8ed}
-.btn-nav-outline:hover{background:rgba(255,255,255,.08)}
-.btn-nav-primary{background:linear-gradient(135deg,var(--rose),var(--rose-dark));
-  color:#fff;box-shadow:0 4px 14px rgba(200,69,106,.4)}
-.btn-nav-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(200,69,106,.5)}
-.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:6px;background:none;border:none}
-.hamburger span{width:22px;height:2px;background:#fce8ed;border-radius:2px;transition:all .3s;display:block}
+/* S3.14 FINAL CONVERSION POLISH
+   Scope: navigation/anchor safety + mobile readability only.
+   Approved product proof, pricing, copy and conversion sections remain unchanged. */
 
-/* ─── HERO ────────────────────────────────────── */
-.hero{min-height:100vh;
-  background:linear-gradient(160deg,var(--dark) 0%,var(--dark-mid) 55%,var(--dark-deep) 100%);
-  display:flex;align-items:center;justify-content:center;
-  text-align:center;padding:120px 24px 110px;position:relative;overflow:hidden}
-.hero-orbs{position:absolute;inset:0;pointer-events:none}
-.orb{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none}
-.orb1{width:500px;height:500px;background:var(--rose);opacity:.07;top:-10%;left:60%}
-.orb2{width:350px;height:350px;background:var(--gold);opacity:.05;top:60%;left:-5%}
-.orb3{width:280px;height:280px;background:var(--rose-dark);opacity:.06;top:20%;right:-5%}
-.hero-inner{position:relative;z-index:1;width:100%;max-width:800px;margin:0 auto}
-.hero-inner-split{max-width:1140px;display:grid;grid-template-columns:1.05fr .95fr;
-  gap:56px;align-items:center;text-align:left}
-.hero-text-col .hero-sub{margin:0 0 36px}
-.hero-text-col .hero-btns{justify-content:flex-start}
-.hero-text-col .trust-row{justify-content:flex-start}
-.hero-visual-col{display:flex;align-items:center;justify-content:center}
-.hero-visual-frame{position:relative;width:100%;max-width:380px;aspect-ratio:4/5;
-  border-radius:26px;overflow:hidden;
-  background:linear-gradient(160deg,rgba(200,69,106,.12),rgba(26,10,14,.4));
-  border:1px solid rgba(255,255,255,.08);box-shadow:0 32px 70px rgba(0,0,0,.4)}
-.hero-visual-frame svg{width:100%;height:100%;display:block}
-.hero-float-card{position:absolute;background:rgba(255,255,255,.97);border-radius:14px;
-  padding:12px 16px;box-shadow:0 16px 36px rgba(0,0,0,.32);animation:floatCard 4s ease-in-out infinite}
-.hero-float-1{top:9%;left:-7%;animation-delay:0s}
-.hero-float-2{bottom:13%;right:-9%;animation-delay:1.3s}
-.hfc-label{font-size:9px;color:#9b6070;font-weight:800;text-transform:uppercase;
-  letter-spacing:.05em;margin-bottom:2px}
-.hfc-value{font-family:var(--font-serif);font-size:17px;font-weight:700;color:#3d1020}
-@keyframes floatCard{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
-@media(max-width:960px){
-  .hero-inner-split{grid-template-columns:1fr;text-align:center;gap:38px}
-  .hero-text-col .hero-btns,.hero-text-col .trust-row{justify-content:center}
-  .hero-visual-frame{max-width:260px}
+/* A normal-flow header prevents sticky-header collisions in long-page captures
+   and keeps every conversion section visually independent. */
+.top{
+  position:relative;
+  top:auto;
+  z-index:20;
 }
-.hero-badge{display:inline-flex;align-items:center;gap:8px;
-  background:rgba(230,184,0,.1);border:1px solid rgba(230,184,0,.28);
-  border-radius:30px;padding:6px 16px;font-size:12px;color:var(--gold);
-  font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:28px}
-.hero h1{font-family:var(--font-serif);font-size:clamp(38px,6.5vw,76px);
-  font-weight:900;color:#fce8ed;line-height:1.06;margin-bottom:22px}
-.hero h1 .accent{color:var(--gold)}
-.hero h1 .break{display:block}
-.hero-sub{font-size:clamp(16px,2vw,19px);color:rgba(252,232,237,.62);
-  max-width:520px;margin:0 auto 40px;line-height:1.65;font-weight:400}
-.hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:56px}
-.btn-hero-primary{padding:16px 36px;border-radius:14px;
-  background:linear-gradient(135deg,var(--rose),var(--rose-dark));
-  color:#fff;border:none;font-size:16px;font-weight:700;cursor:pointer;
-  font-family:var(--font-sans);box-shadow:0 8px 28px rgba(200,69,106,.48);
-  transition:all .2s;display:inline-flex;align-items:center;gap:9px;min-height:52px}
-.btn-hero-primary:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(200,69,106,.6)}
-.btn-hero-outline{padding:16px 36px;border-radius:14px;
-  background:rgba(255,255,255,.05);color:#fce8ed;
-  border:1.5px solid rgba(255,255,255,.18);font-size:16px;font-weight:700;
-  cursor:pointer;font-family:var(--font-sans);transition:all .2s;
-  display:inline-flex;align-items:center;gap:9px;backdrop-filter:blur(8px);min-height:52px}
-.btn-hero-outline:hover{background:rgba(255,255,255,.1)}
 
-/* Trust row */
-.trust-row{display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap}
-.trust-item{display:flex;align-items:center;gap:7px;font-size:12px;
-  color:rgba(252,232,237,.45);font-weight:600}
-.trust-dot{width:5px;height:5px;border-radius:50%;background:rgba(252,232,237,.2)}
-
-/* ─── TICKER ──────────────────────────────────── */
-.ticker-wrap{background:var(--rose-dark);padding:11px 0;overflow:hidden;white-space:nowrap}
-.ticker-track{display:inline-flex;gap:0;animation:ticker 32s linear infinite}
-.ticker-track:hover{animation-play-state:paused}
-.ticker-item{display:inline-flex;align-items:center;gap:10px;padding:0 32px;
-  font-size:12px;font-weight:700;color:rgba(252,232,237,.85);text-transform:uppercase;
-  letter-spacing:.07em}
-.ticker-item::after{content:'✦';color:var(--gold);font-size:10px}
-@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-
-/* ─── SECTION COMMONS ─────────────────────────── */
-section{padding:88px 24px}
-.container{max-width:var(--max);margin:0 auto}
-.section-badge{display:inline-block;background:var(--rose-light);color:var(--rose-dark);
-  font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
-  padding:4px 14px;border-radius:20px;margin-bottom:14px}
-.section-eyebrow{font-size:11px;font-weight:800;text-transform:uppercase;
-  letter-spacing:.12em;color:var(--rose);margin-bottom:12px;display:block}
-.section-title{font-family:var(--font-serif);font-size:clamp(28px,4vw,46px);
-  font-weight:700;color:var(--dark);margin-bottom:14px;line-height:1.13}
-.section-sub{font-size:17px;color:var(--muted);max-width:560px;line-height:1.65}
-.center{text-align:center}
-.center .section-sub{margin:0 auto}
-
-/* ─── SOCIAL PROOF BAR ────────────────────────── */
-.proof-bar{background:var(--dark);padding:44px 24px}
-.proof-inner{max-width:var(--max);margin:0 auto;
-  display:flex;align-items:center;justify-content:space-between;
-  gap:32px;flex-wrap:wrap}
-.proof-stat{text-align:center}
-.proof-val{font-family:var(--font-serif);font-size:34px;font-weight:700;color:#fce8ed}
-.proof-lbl{font-size:11px;color:rgba(252,232,237,.42);text-transform:uppercase;
-  letter-spacing:.1em;margin-top:3px;font-weight:700}
-.proof-divider{width:1px;height:44px;background:rgba(255,255,255,.08)}
-.proof-logos{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
-.proof-pill{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);
-  border-radius:7px;padding:7px 16px;font-size:11px;color:rgba(252,232,237,.4);
-  font-weight:700;letter-spacing:.04em}
-
-/* ─── FEATURES ────────────────────────────────── */
-.features{background:var(--off)}
-.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
-  gap:20px;margin-top:52px}
-.feature-card{background:var(--white);border-radius:var(--radius);padding:30px;
-  border:1px solid var(--border);transition:all .25s;position:relative;overflow:hidden}
-.feature-card::before{content:'';position:absolute;inset:0;
-  background:linear-gradient(135deg,rgba(200,69,106,.04),transparent);
-  opacity:0;transition:opacity .25s}
-.feature-card:hover{transform:translateY(-5px);
-  box-shadow:0 18px 48px rgba(200,69,106,.1);border-color:rgba(200,69,106,.3)}
-.feature-card:hover::before{opacity:1}
-.feature-icon{width:54px;height:54px;border-radius:14px;display:flex;
-  align-items:center;justify-content:center;margin-bottom:20px;font-size:26px}
-.feature-card h3{font-family:var(--font-serif);font-size:20px;font-weight:700;
-  margin-bottom:10px;color:var(--dark)}
-.feature-card p{font-size:14px;color:var(--muted);line-height:1.7}
-.feature-tag{position:absolute;top:16px;right:16px;background:var(--rose-light);
-  color:var(--rose);font-size:10px;font-weight:800;padding:3px 10px;
-  border-radius:20px;text-transform:uppercase;letter-spacing:.06em}
-.feature-tag.gold{background:rgba(230,184,0,.12);color:var(--gold-dark)}
-.feature-tag.green{background:rgba(5,150,105,.1);color:var(--green)}
-
-/* ─── KILLER FEATURES (the "wow" strip) ──────── */
-.wow-strip{background:linear-gradient(160deg,var(--dark),var(--dark-mid));
-  padding:88px 24px;position:relative;overflow:hidden}
-.wow-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:52px}
-.wow-card{border-radius:20px;padding:32px;border:1px solid rgba(255,255,255,.08);
-  background:rgba(255,255,255,.04);transition:all .25s;position:relative;overflow:hidden}
-.wow-card:hover{border-color:rgba(200,69,106,.4);background:rgba(200,69,106,.07);
-  transform:translateY(-3px)}
-.wow-card-icon{font-size:36px;margin-bottom:16px}
-.wow-card-tag{display:inline-block;background:rgba(230,184,0,.12);color:var(--gold);
-  font-size:10px;font-weight:800;padding:3px 10px;border-radius:20px;
-  text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
-.wow-card h3{font-family:var(--font-serif);font-size:20px;color:#fce8ed;margin-bottom:10px}
-.wow-card p{font-size:13px;color:rgba(252,232,237,.78);line-height:1.7}
-.wow-card-competitor{font-size:11px;color:#f4a6bb;font-weight:700;margin-top:14px;
-  display:flex;align-items:center;gap:5px}
-.wow-card-competitor::before{content:'💡'}
-
-/* ─── DEMO MOCKUP ─────────────────────────────── */
-.section-transition{height:64px;background:linear-gradient(180deg,var(--dark-mid) 0%,var(--off) 100%)}
-.demo-section{background:var(--off);padding:88px 24px}
-.demo-inner{max-width:var(--max);margin:0 auto;
-  display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
-.demo-text .section-title{color:var(--dark)}
-.demo-features{display:flex;flex-direction:column;gap:18px;margin-top:30px}
-.demo-feat{display:flex;align-items:flex-start;gap:14px}
-.demo-feat-icon{width:40px;height:40px;border-radius:11px;
-  background:var(--rose-light);display:flex;align-items:center;
-  justify-content:center;flex-shrink:0;font-size:18px;border:1px solid rgba(200,69,106,.15)}
-.demo-feat-title{font-size:14px;font-weight:700;color:var(--dark);margin-bottom:3px}
-.demo-feat-desc{font-size:12px;color:var(--muted);line-height:1.55}
-.demo-mock{background:rgba(26,10,14,.95);border-radius:20px;overflow:hidden;
-  box-shadow:0 28px 72px rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.07)}
-.mock-bar{background:rgba(255,255,255,.05);padding:11px 16px;
-  display:flex;align-items:center;gap:9px;border-bottom:1px solid rgba(255,255,255,.07)}
-.mock-dots{display:flex;gap:5px}
-.mock-dot{width:10px;height:10px;border-radius:50%}
-.mock-content{padding:16px}
-.mock-stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
-.mock-stat{background:rgba(255,255,255,.05);border-radius:10px;padding:10px;
-  border:1px solid rgba(255,255,255,.07)}
-.mock-stat-val{font-size:15px;font-weight:700;color:#fce8ed;font-family:var(--font-serif)}
-.mock-stat-lbl{font-size:9px;color:rgba(252,232,237,.38);text-transform:uppercase;margin-top:2px}
-.mock-chart{background:rgba(255,255,255,.03);border-radius:10px;padding:12px;
-  border:1px solid rgba(255,255,255,.06)}
-.bars{display:flex;align-items:flex-end;gap:4px;height:64px}
-.bar{flex:1;border-radius:3px 3px 0 0;background:var(--rose);opacity:.5}
-.bar.hi{opacity:1}
-
-/* ─── WHO IT'S FOR ────────────────────────────── */
-.who-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
-  gap:16px;margin-top:52px}
-.who-card{border-radius:var(--radius);padding:30px 24px;border:1px solid var(--border);
-  text-align:center;transition:all .25s;cursor:default}
-.who-card:hover{transform:translateY(-4px);box-shadow:0 14px 36px rgba(0,0,0,.08)}
-.who-emoji{font-size:42px;margin-bottom:14px}
-.who-card h3{font-family:var(--font-serif);font-size:18px;margin-bottom:8px;color:var(--dark)}
-.who-card p{font-size:13px;color:var(--muted);line-height:1.6}
-
-/* ─── LENDER PACK CALLOUT ─────────────────────── */
-.lender-callout{background:linear-gradient(135deg,#0f1f10,#1a3a1c);padding:88px 24px;
-  position:relative;overflow:hidden}
-.lender-inner{max-width:900px;margin:0 auto;
-  display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
-.lender-text .section-title{color:#fce8ed}
-.lender-text .section-sub{color:rgba(252,232,237,.55)}
-.lender-badge-green{display:inline-block;background:rgba(5,150,105,.15);
-  color:#34d399;font-size:11px;font-weight:800;text-transform:uppercase;
-  letter-spacing:.1em;padding:4px 14px;border-radius:20px;margin-bottom:14px}
-.lender-doc{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
-  border-radius:16px;padding:24px;font-size:12px}
-.lender-doc-header{display:flex;justify-content:space-between;align-items:center;
-  margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08)}
-.lender-doc-title{font-family:var(--font-serif);color:#fce8ed;font-size:15px;font-weight:700}
-.lender-doc-stamp{background:rgba(5,150,105,.2);color:#34d399;font-size:9px;
-  font-weight:800;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.07em}
-.lender-row{display:flex;justify-content:space-between;
-  padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);
-  color:rgba(252,232,237,.6);font-size:11px}
-.lender-row:last-child{border-bottom:none}
-.lender-val{color:#fce8ed;font-weight:700}
-.lender-val.green{color:#34d399}
-.lender-val.amber{color:var(--gold)}
-.dscr-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:12px;overflow:hidden}
-.dscr-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#059669,#34d399);width:82%}
-
-/* ─── PRICING ─────────────────────────────────── */
-.pricing{background:var(--dark);padding:88px 24px}
-.pricing .section-title{color:#fce8ed}
-.pricing .section-sub{color:rgba(252,232,237,.5)}
-.period-toggle{display:inline-flex;background:rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.1);border-radius:30px;padding:4px;gap:2px;
-  margin:28px 0 44px}
-.period-btn{padding:9px 26px;border-radius:24px;border:none;font-size:13px;font-weight:700;
-  cursor:pointer;font-family:var(--font-sans);transition:all .2s;position:relative;
-  color:rgba(252,232,237,.45);background:transparent}
-.period-btn.active{background:linear-gradient(135deg,var(--rose),var(--rose-dark));color:#fff}
-.save-badge{position:absolute;top:-9px;right:-6px;background:var(--gold);color:#1a0a0e;
-  font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px;white-space:nowrap}
-.plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;
-  max-width:880px;margin:0 auto}
-.plan-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
-  border-radius:20px;padding:30px 24px;display:flex;flex-direction:column;
-  transition:all .2s;position:relative}
-.plan-card.popular{border:2px solid var(--rose);background:rgba(200,69,106,.09)}
-.plan-popular-badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);
-  background:linear-gradient(135deg,var(--rose),var(--rose-dark));color:#fff;
-  font-size:10px;font-weight:800;padding:4px 18px;border-radius:20px;
-  white-space:nowrap;box-shadow:0 4px 14px rgba(200,69,106,.5)}
-.plan-name{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
-  color:rgba(252,232,237,.45);margin-bottom:8px}
-.plan-name.gold{color:var(--gold)}
-.plan-price{font-family:var(--font-serif);font-size:34px;font-weight:700;color:#fce8ed;line-height:1}
-.plan-price span{font-size:13px;color:rgba(252,232,237,.38);
-  font-family:var(--font-sans);font-weight:400}
-.plan-save{font-size:11px;color:var(--green);font-weight:700;margin:4px 0 18px;min-height:16px}
-.plan-divider{height:1px;background:rgba(255,255,255,.09);margin:16px 0}
-.plan-feat{display:flex;align-items:flex-start;gap:9px;margin-bottom:9px;
-  font-size:12px;color:rgba(252,232,237,.72)}
-.plan-feat-check{width:16px;height:16px;border-radius:50%;
-  background:rgba(200,69,106,.22);display:flex;align-items:center;
-  justify-content:center;flex-shrink:0;margin-top:1px;font-size:9px}
-.plan-feat.miss{color:rgba(252,232,237,.22);text-decoration:line-through}
-.plan-feat.miss .plan-feat-check{background:rgba(255,255,255,.04)}
-.plan-btn{margin-top:auto;padding:13px;border-radius:12px;border:none;
-  font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font-sans);
-  transition:all .2s;text-align:center;display:block;min-height:46px}
-.plan-btn-primary{background:linear-gradient(135deg,var(--rose),var(--rose-dark));
-  color:#fff;box-shadow:0 4px 16px rgba(200,69,106,.38)}
-.plan-btn-primary:hover{transform:translateY(-1px)}
-.plan-btn-outline{background:rgba(255,255,255,.06);color:#fce8ed;
-  border:1px solid rgba(255,255,255,.13)}
-.plan-btn-outline:hover{background:rgba(255,255,255,.11)}
-.pricing-note{text-align:center;color:rgba(252,232,237,.28);font-size:12px;margin-top:28px}
-
-/* ─── AFFILIATE ───────────────────────────────── */
-.affiliate{background:linear-gradient(135deg,#fef9ec,#fce8ed);padding:88px 24px}
-.affiliate-inner{max-width:920px;margin:0 auto;
-  display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
-.aff-steps{display:flex;flex-direction:column;gap:22px;margin-top:26px}
-.aff-step{display:flex;align-items:flex-start;gap:14px}
-.aff-num{width:36px;height:36px;border-radius:50%;background:var(--rose);
-  color:#fff;display:flex;align-items:center;justify-content:center;
-  font-size:15px;font-weight:800;flex-shrink:0}
-.aff-step-title{font-size:14px;font-weight:700;color:var(--dark);margin-bottom:3px}
-.aff-step-desc{font-size:13px;color:var(--muted);line-height:1.55}
-.aff-calc{background:var(--white);border-radius:var(--radius);padding:30px;
-  box-shadow:0 10px 40px rgba(0,0,0,.1)}
-.aff-calc h3{font-family:var(--font-serif);font-size:22px;margin-bottom:6px;color:var(--dark)}
-.aff-calc-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
-.calc-row{display:flex;justify-content:space-between;align-items:center;
-  padding:10px 0;border-bottom:1px solid var(--border)}
-.calc-label{font-size:13px;color:var(--muted)}
-.calc-val{font-size:14px;font-weight:700;color:var(--dark)}
-.calc-total{display:flex;justify-content:space-between;align-items:center;
-  padding:14px 0 0}
-.calc-total-val{color:var(--green);font-family:var(--font-serif);font-size:28px;font-weight:700}
-.aff-cta-btn{margin-top:20px;width:100%;padding:14px;border-radius:12px;
-  background:linear-gradient(135deg,var(--gold-dark),var(--gold));
-  color:#1a0a0e;border:none;font-size:14px;font-weight:800;cursor:pointer;
-  font-family:var(--font-sans);transition:all .2s;min-height:48px}
-.aff-cta-btn:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(230,184,0,.38)}
-.aff-input{padding:12px 14px;border-radius:11px;border:1.5px solid var(--border);
-  background:#fff;color:var(--dark);font-size:14px;font-family:var(--font-sans);
-  outline:none;width:100%;box-sizing:border-box;transition:border-color .2s;
-  -webkit-appearance:none}
-.aff-input:focus{border-color:var(--rose)}
-select.aff-input{cursor:pointer}
-
-/* ─── TESTIMONIALS ────────────────────────────── */
-.testimonials{background:var(--off)}
-.testi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-  gap:20px;margin-top:52px}
-.testi-card{background:var(--white);border-radius:var(--radius);padding:26px;
-  border:1px solid var(--border);transition:box-shadow .2s}
-.testi-card:hover{box-shadow:0 8px 28px rgba(200,69,106,.08)}
-.testi-stars{color:var(--gold);font-size:15px;margin-bottom:13px;letter-spacing:2px}
-.testi-text{font-size:14px;color:var(--dark);line-height:1.7;
-  margin-bottom:18px;font-style:italic}
-.testi-author{display:flex;align-items:center;gap:11px}
-.testi-avatar{width:40px;height:40px;border-radius:50%;
-  background:linear-gradient(135deg,var(--rose),var(--rose-dark));
-  color:#fff;display:flex;align-items:center;justify-content:center;
-  font-weight:700;font-size:16px;flex-shrink:0}
-.testi-name{font-size:13px;font-weight:700;color:var(--dark)}
-.testi-biz{font-size:11px;color:var(--muted)}
-
-/* ─── INTEGRATIONS ────────────────────────────── */
-.integrations{background:var(--white)}
-.int-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
-  gap:12px;margin-top:44px}
-.int-card{border:1px solid var(--border);border-radius:13px;padding:18px;
-  text-align:center;transition:all .2s}
-.int-card:hover{border-color:var(--rose);transform:translateY(-2px);
-  box-shadow:0 6px 20px rgba(200,69,106,.1)}
-.int-icon{font-size:30px;margin-bottom:9px}
-.int-name{font-size:12px;font-weight:700;color:var(--dark)}
-.int-status{font-size:10px;margin-top:3px;font-weight:600}
-
-/* ─── FAQ ─────────────────────────────────────── */
-.faq{background:var(--off)}
-.faq-list{max-width:720px;margin:44px auto 0;display:flex;flex-direction:column;gap:3px}
-.faq-item{background:var(--white);border-radius:13px;border:1px solid var(--border);overflow:hidden}
-.faq-q{padding:18px 22px;font-size:15px;font-weight:700;cursor:pointer;
-  display:flex;justify-content:space-between;align-items:center;color:var(--dark)}
-.faq-q .icon{font-size:20px;color:var(--rose);transition:transform .25s;flex-shrink:0}
-.faq-a{padding:0 22px;font-size:14px;color:var(--muted);line-height:1.72;
-  max-height:0;overflow:hidden;transition:all .32s}
-.faq-item.open .faq-a{max-height:240px;padding:0 22px 18px}
-.faq-item.open .faq-q .icon{transform:rotate(45deg)}
-
-/* ─── DEMO LEAD CAPTURE ───────────────────────── */
-.lead-section{background:linear-gradient(160deg,var(--dark-mid),var(--dark));
-  padding:88px 24px;position:relative;overflow:hidden}
-.lead-inner{max-width:680px;margin:0 auto;text-align:center}
-.lead-inner .section-title{color:#fce8ed}
-.lead-inner .section-sub{color:rgba(252,232,237,.55);margin:0 auto 36px}
-.lead-form{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
-  border-radius:20px;padding:32px;text-align:left;backdrop-filter:blur(12px)}
-.lead-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-.lf-group{display:flex;flex-direction:column;gap:6px}
-.lf-group.full{grid-column:1/-1}
-.lf-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
-  color:rgba(252,232,237,.75)}
-.lf-input{padding:12px 14px;border-radius:11px;
-  border:1.5px solid rgba(255,255,255,.12);
-  background:rgba(255,255,255,.07);color:#fce8ed;
-  font-size:14px;font-family:var(--font-sans);outline:none;
-  transition:border-color .2s;-webkit-appearance:none;width:100%}
-.lf-input:focus{border-color:var(--rose)}
-.lf-input option{background:#3d1020;color:#fce8ed}
-.lead-submit{width:100%;padding:15px;border-radius:13px;border:none;
-  background:linear-gradient(135deg,var(--rose),var(--rose-dark));
-  color:#fff;font-size:15px;font-weight:700;cursor:pointer;
-  font-family:var(--font-sans);box-shadow:0 6px 24px rgba(200,69,106,.45);
-  transition:all .2s;min-height:52px;display:flex;align-items:center;
-  justify-content:center;gap:9px}
-.lead-submit:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(200,69,106,.55)}
-.lead-submit:disabled{opacity:.55;cursor:not-allowed;transform:none}
-.lead-note{font-size:11px;color:rgba(252,232,237,.5);text-align:center;margin-top:12px}
-.lead-success{display:none;text-align:center;padding:24px}
-.lead-success-icon{font-size:56px;margin-bottom:12px}
-.lead-success h3{font-family:var(--font-serif);color:#fce8ed;font-size:22px;margin-bottom:8px}
-.lead-success p{color:rgba(252,232,237,.55);font-size:14px;line-height:1.6;margin-bottom:20px}
-
-/* ─── FINAL CTA ───────────────────────────────── */
-.final-cta{background:linear-gradient(160deg,var(--dark),var(--dark-mid));
-  padding:108px 24px;text-align:center;position:relative;overflow:hidden}
-.final-cta .section-title{color:#fce8ed;font-size:clamp(30px,5vw,54px)}
-.final-cta .section-sub{color:rgba(252,232,237,.5);max-width:500px;margin:14px auto 40px}
-.final-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
-.share-row{margin-top:40px;display:flex;align-items:center;justify-content:center;
-  gap:12px;flex-wrap:wrap}
-.share-lbl{font-size:12px;color:rgba(252,232,237,.35)}
-.share-btn{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;
-  justify-content:center;transition:transform .2s;cursor:pointer;border:none}
-.share-btn:hover{transform:scale(1.12)}
-.share-btn svg{width:20px;height:20px;fill:#fff}
-
-/* ─── FOOTER ──────────────────────────────────── */
-footer{background:var(--dark);padding:64px 24px 32px;
-  border-top:1px solid rgba(255,255,255,.05)}
-.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;
-  max-width:var(--max);margin:0 auto 44px}
-.footer-brand-name{font-family:var(--font-serif);color:#fce8ed;font-size:22px;margin-bottom:12px}
-.footer-brand p{font-size:13px;color:rgba(252,232,237,.58);
-  line-height:1.65;max-width:260px}
-.footer-col h4{font-size:11px;font-weight:800;text-transform:uppercase;
-  letter-spacing:.1em;color:rgba(252,232,237,.5);margin-bottom:16px}
-.footer-col a{display:block;font-size:13px;color:rgba(252,232,237,.72);
-  margin-bottom:10px;transition:color .2s}
-.footer-col a:hover{color:#fce8ed}
-.footer-bottom{border-top:1px solid rgba(255,255,255,.06);padding-top:24px;
-  max-width:var(--max);margin:0 auto;display:flex;justify-content:space-between;
-  align-items:center;flex-wrap:wrap;gap:12px}
-.footer-bottom p{font-size:12px;color:rgba(252,232,237,.45)}
-.social-icons{display:flex;gap:10px}
-.social-icon{width:34px;height:34px;border-radius:8px;
-  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);
-  display:flex;align-items:center;justify-content:center;
-  transition:all .2s;cursor:pointer}
-.social-icon:hover{background:var(--rose);border-color:var(--rose)}
-.social-icon svg{width:16px;height:16px;fill:rgba(252,232,237,.55)}
-.social-icon:hover svg{fill:#fff}
-
-/* ─── MOBILE MENU ─────────────────────────────── */
-.mobile-menu{display:none;position:fixed;inset:0;background:var(--dark);
-  z-index:99;padding:84px 28px 40px;flex-direction:column;gap:6px;
-  overflow-y:auto}
-.mobile-menu.open{display:flex}
-.mobile-menu-link{color:rgba(252,232,237,.8);font-size:20px;font-weight:700;
-  font-family:var(--font-serif);padding:14px 0;
-  border-bottom:1px solid rgba(255,255,255,.06);display:block}
-.mobile-menu-cta{margin-top:20px;padding:15px;border-radius:14px;border:none;
-  background:linear-gradient(135deg,var(--rose),var(--rose-dark));
-  color:#fff;font-size:16px;font-weight:700;cursor:pointer;
-  font-family:var(--font-sans);width:100%;text-align:center;min-height:52px}
-
-/* ─── ANIMATIONS ──────────────────────────────── */
-@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
-.fade-up{opacity:0;animation:fadeUp .65s ease forwards}
-.d1{animation-delay:.1s}.d2{animation-delay:.2s}.d3{animation-delay:.3s}.d4{animation-delay:.45s}
-@keyframes spin{to{transform:rotate(360deg)}}
-.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);
-  border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
-
-/* ─── PWA BANNER ──────────────────────────────── */
-#pwa-banner{display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;
-  background:var(--rose-dark);color:#fff;padding:14px 16px;
-  align-items:center;gap:12px;box-shadow:0 -4px 20px rgba(0,0,0,.22);
-  font-family:var(--font-sans)}
-
-/* ─── RESPONSIVE ──────────────────────────────── */
-@media(max-width:960px){
-  .nav-links{display:none}
-  .hamburger{display:flex}
-  .demo-inner{grid-template-columns:1fr}
-  .affiliate-inner{grid-template-columns:1fr}
-  .plans-grid{grid-template-columns:1fr;max-width:380px}
-  .footer-grid{grid-template-columns:1fr 1fr}
-  .wow-grid{grid-template-columns:1fr}
-  .lender-inner{grid-template-columns:1fr}
-  .lead-form-grid{grid-template-columns:1fr}
-  .proof-divider{display:none}
-  .proof-inner{justify-content:center;gap:28px}
+/* Anchor destinations should never feel cramped against the browser edge. */
+#product,
+#customer-web,
+#industries,
+#pricing{
+  scroll-margin-top:24px;
 }
-@media(max-width:600px){
-  .footer-grid{grid-template-columns:1fr}
-  .mock-stat-row{grid-template-columns:1fr 1fr}
-  .hero h1{font-size:36px}
-  section{padding:64px 20px}
+
+/* Pricing is a protected conversion surface. */
+.pricing{
+  position:relative;
+  z-index:1;
+  isolation:isolate;
 }
-@media(prefers-reduced-motion:reduce){
-  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+.pricing .title{
+  max-width:900px;
+}
+.pricing .plans{
+  position:relative;
+  z-index:2;
+}
+
+/* Make horizontal industry browsing visibly intentional. */
+.industry-grid{
+  scrollbar-width:none;
+}
+.industry-grid::-webkit-scrollbar{
+  display:none;
+}
+
+@media(max-width:820px){
+  /* Public-business capabilities must be readable, not miniature. */
+  .customer-clean-head{
+    margin-bottom:24px;
+  }
+  .customer-clean-grid{
+    grid-template-columns:1fr;
+    gap:12px;
+  }
+  .customer-clean-card{
+    padding:18px;
+  }
+  .customer-clean-card h3{
+    font-size:22px;
+    margin-bottom:7px;
+  }
+  .customer-clean-card p{
+    font-size:13px;
+    line-height:1.55;
+  }
+  .customer-icon{
+    width:40px;
+    height:40px;
+    margin-bottom:13px;
+  }
+  .customer-flow{
+    margin-top:18px;
+    padding:20px;
+  }
+  .customer-flow-steps{
+    gap:0;
+  }
+  .customer-flow-steps span{
+    display:block;
+    padding:10px 0;
+    border-bottom:1px solid rgba(255,255,255,.10);
+  }
+  .customer-flow-steps span:last-child{
+    border-bottom:0;
+  }
+  .customer-flow p{
+    font-size:12px;
+    line-height:1.55;
+  }
+
+  /* One strong card plus a deliberate preview of the next. */
+  .industry-grid{
+    width:calc(100% + 12px);
+    margin-right:-12px;
+    padding-right:42px;
+    overscroll-behavior-x:contain;
+    -webkit-overflow-scrolling:touch;
+  }
+  .industry-card{
+    min-width:84%;
+    flex:0 0 84%;
+  }
+
+  /* These are decision prompts, not tiny labels. */
+  .qgrid{
+    margin-top:22px;
+  }
+  .q{
+    padding:20px 18px;
+    margin-bottom:12px;
+  }
+  .q b{
+    font-size:22px;
+    margin-bottom:9px;
+  }
+  .q p{
+    font-size:13px;
+    line-height:1.5;
+  }
+
+  /* Give the highest-intent section a clean entrance and readable cards. */
+  .pricing{
+    padding:62px 0 58px;
+  }
+  .pricing .title{
+    margin-bottom:6px;
+  }
+  .plans{
+    margin-top:26px;
+  }
+  .plan{
+    padding:22px 20px;
+    margin-bottom:14px;
+  }
+  .price{
+    font-size:32px;
+  }
+}
+
+@media(max-width:420px){
+  .customer-web-clean{
+    padding:58px 0;
+  }
+  .industry-card{
+    min-width:86%;
+    flex-basis:86%;
+  }
+  .industry-card img{
+    height:220px;
+  }
+  .questions{
+    padding:58px 0;
+  }
+}
+
+/* S3.15 FINAL BRAND POLISH */
+
+/* Fix the real pricing defect: secondary CTA text inherited white from .pricing,
+   so Starter and Enterprise became white-on-white. */
+.pricing .plan .btn.secondary{
+  color:var(--ink) !important;
+  background:#fff !important;
+  border-color:#fff !important;
+  font-weight:950;
+}
+.pricing .plan .btn.primary{
+  color:#fff !important;
+  background:linear-gradient(100deg,#b41952,#e23a78) !important;
+  border-color:transparent !important;
+}
+.pricing .plan .btn{
+  min-height:46px;
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  opacity:1 !important;
+  visibility:visible !important;
+  text-decoration:none;
+  box-shadow:none;
+}
+.pricing .plan:hover{
+  transform:translateY(-2px);
+  transition:transform .18s ease, border-color .18s ease;
+}
+.pricing .plan.hot{
+  box-shadow:0 18px 46px rgba(227,60,121,.14);
+}
+
+/* Premium photography treatment */
+.industry-card img{
+  width:100%;
+  height:250px;
+  object-fit:cover;
+  object-position:center;
+  filter:none;
+}
+.industry-card{
+  overflow:hidden;
+}
+.industry-card div{
+  background:#fff;
+}
+
+@media(max-width:820px){
+  .pricing .plan .btn{
+    min-height:48px;
+    font-size:13px;
+  }
+  .industry-card img{
+    height:240px;
+  }
+}
+
+@media(max-width:420px){
+  .industry-card img{
+    height:225px;
+  }
+}
+
+/* S3.17 ENCODING COPY INTEGRITY V2 */
+.customer-icon{
+  width:auto !important;
+  min-width:42px;
+  padding:0 10px;
+  font-size:10px !important;
+  letter-spacing:.11em;
+  font-weight:950;
+  color:var(--wine);
+  font-family:var(--sans);
+}
+
+/* S3.18 FINAL FOOTER */
+.footer-v2{
+  padding:0;
+  background:
+    radial-gradient(circle at 12% 0%,rgba(227,60,121,.11),transparent 30%),
+    linear-gradient(180deg,#20040f 0%,#16020a 100%);
+  color:#fff;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+.footer-main{
+  display:grid;
+  grid-template-columns:1.05fr 1.95fr;
+  gap:72px;
+  padding-top:58px;
+  padding-bottom:46px;
+}
+.footer-brand{
+  max-width:420px;
+}
+.footer-logo{
+  display:inline-block;
+  font:800 34px/1 var(--serif);
+  letter-spacing:-.035em;
+  margin-bottom:16px;
+}
+.footer-brand p{
+  margin:0;
+  color:#d9c8cf;
+  font-size:13px;
+  line-height:1.7;
+}
+.footer-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:22px;
+}
+.footer-secondary{
+  border-color:rgba(255,255,255,.2) !important;
+  color:#fff !important;
+  background:rgba(255,255,255,.05) !important;
+}
+.footer-links{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:30px;
+}
+.footer-links h3{
+  margin:0 0 14px;
+  color:#ffc74d;
+  font-size:10px;
+  letter-spacing:.17em;
+  text-transform:uppercase;
+}
+.footer-links a{
+  display:block;
+  width:max-content;
+  max-width:100%;
+  margin:0 0 10px;
+  color:#eadce1;
+  font-size:12px;
+}
+.footer-links a:hover,
+.footer-legal a:hover{
+  color:#fff;
+}
+.footer-bottom{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:20px;
+  padding-top:18px;
+  padding-bottom:22px;
+  border-top:1px solid rgba(255,255,255,.09);
+  color:#a9939c;
+  font-size:11px;
+}
+.footer-legal{
+  display:flex;
+  gap:18px;
+}
+@media(max-width:820px){
+  .footer-main{
+    display:block;
+    padding-top:42px;
+    padding-bottom:32px;
+  }
+  .footer-brand{
+    max-width:none;
+  }
+  .footer-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+  .footer-actions .btn{
+    width:100%;
+  }
+  .footer-links{
+    grid-template-columns:1fr 1fr;
+    gap:28px 18px;
+    margin-top:38px;
+  }
+  .footer-bottom{
+    display:block;
+  }
+  .footer-legal{
+    margin-top:10px;
+  }
 }
 </style>
 </head>
 <body>
+<header class="top"><div class="wrap nav"><a class="brand" href="/">SalesTrack</a><nav class="navlinks"><a href="#product">Product</a><a href="#industries">Industries</a><a href="#pricing">Pricing</a><a href="/login">Sign in</a><a class="btn primary" href="/login?start=trial">Start 7-Day Free Trial</a></nav></div></header>
 
-<!-- NAV -->
-<nav id="navbar">
-  <a href="/" class="nav-logo">
-    <div class="nav-logo-icon">
-      <svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+<section class="hero"><div class="wrap hero-grid"><div><div class="eyebrow">Built for owners who want the truth</div><h1>Know what you sold.<br>Know what you made.<br><span>Know your business.</span></h1><p>Run sales, stock, customers and expenses from one connected system &mdash; then see what the business actually made.</p><div class="actions"><a class="btn primary" href="/login?start=trial">Start 7-Day Free Trial &rarr;</a><a class="btn secondary" href="#product">&#9654; See SalesTrack in Action</a></div></div><div class="hero-screen"><img src="/marketing/dashboard-real.png" alt="SalesTrack dashboard with real demo data"><div class="hero-note">Real demo data &middot; Sales &rarr; Stock &rarr; Expenses &rarr; Profit</div></div></div><div class="proofbar"><div class="wrap proofgrid"><div class="proof">Built for Kenyan businesses</div><div class="proof">Works offline</div><div class="proof">WhatsApp-ready receipts</div><div class="proof">Free public shop page</div><div class="proof">7-day free trial</div></div></div></section>
+
+<section class="section" id="product"><div class="wrap"><div class="intro"><div><div class="eyebrow">Real product. Real demo data.</div><h2 class="title">Make the sale without losing the business story.</h2></div><p class="copy">This is the actual SalesTrack POS using the populated demo business you created &mdash; not a reconstructed marketing mockup.</p></div><div class="screen-card"><img src="/marketing/pos-real.png" alt="SalesTrack POS with populated cart"></div></div></section>
+
+<section class="section"><div class="wrap"><div class="split"><div class="screen-card"><img src="/marketing/inventory-movements-real.png" alt="SalesTrack inventory movements after sales"></div><div class="story"><div class="eyebrow">Stock moves when sales happen</div><h3>See exactly what left the shelf.</h3><p>Every completed sale can become a stock movement instead of a spreadsheet entry you remember later.</p><ul><li>Product-level movement history</li><li>Before and after quantities</li><li>Sale-linked references</li><li>Evidence for stock investigation</li></ul></div></div></div></section>
+
+<section class="profit"><div class="wrap profit-grid"><div><div class="eyebrow">The difference that matters</div><h2 class="title">Revenue is not profit.</h2><p>The populated demo now proves the story with actual SalesTrack calculations.</p></div><div class="ledger"><div class="metric"><small>Revenue</small><strong>KES 6,050</strong></div><div class="metric"><small>Gross profit</small><strong>KES 3,840</strong></div><div class="metric"><small>Expenses</small><strong>KES 2,000</strong></div><div class="metric"><small>Net profit</small><strong>KES 1,840</strong></div></div></div></section>
+
+<section class="section"><div class="wrap"><div class="split reverse"><div class="story"><div class="eyebrow">Profit & loss</div><h3>Close the month with numbers you can defend.</h3><p>The real P&amp;L screenshot shows revenue, cost of goods sold, operating expenses and net profit from the demo business.</p><ul><li>KES 6,050 revenue</li><li>KES 2,210 cost of goods sold</li><li>KES 2,000 expenses</li><li>KES 1,840 net profit</li></ul></div><div class="screen-card"><img src="/marketing/pnl-real.png" alt="SalesTrack P and L statement with populated demo data"></div></div></div></section>
+
+<section class="section"><div class="wrap"><div class="split"><div class="screen-card"><img src="/marketing/sales-report-real.png" alt="SalesTrack sales report with real demo data"></div><div class="story"><div class="eyebrow">Sales intelligence</div><h3>Know which products are actually earning.</h3><p>Product performance, units sold, revenue, gross profit and margin are visible in one report instead of scattered across notes.</p></div></div></div></section>
+
+<section class="section"><div class="wrap"><div class="intro"><div><div class="eyebrow">Advanced proof</div><h2 class="title">The same records can support a lender conversation.</h2></div><p class="copy">The Lender Pack turns immutable operating records into a structured business credit report. It is shown here using the demo company's actual SalesTrack data.</p></div><div class="screen-card"><img src="/marketing/lender-pack-real.png" alt="SalesTrack lender pack report"></div></div></section>
+
+
+<section class="customer-web-clean" id="customer-web">
+  <div class="wrap">
+    <div class="customer-clean-head">
+      <div>
+        <div class="eyebrow">More than back-office software</div>
+        <h2 class="title">Give customers a way in. Keep the business truth connected behind it.</h2>
+      </div>
+      <p class="copy">SalesTrack gives each business a shareable public presence for products, services, booking and contact &mdash; while the owner keeps sales, stock, customers, expenses and profit connected inside the same system.</p>
     </div>
-    <span class="nav-logo-name">SalesTrack</span>
-  </a>
-  <div class="nav-links">
-    <a href="#features">Features</a>
-    <a href="#who">Who it's for</a>
-    <a href="#pricing">Pricing</a>
-    <a href="#affiliate">Earn with us</a>
-    <a href="#faq">FAQ</a>
-    <a href="mailto:info@doublexsoftware.com">Contact</a>
-  </div>
-  <div class="nav-cta">
-    <a href="/login"><button class="btn-nav btn-nav-outline">Sign in</button></a>
-    <a href="#try-demo"><button class="btn-nav btn-nav-primary">Try free demo</button></a>
-  </div>
-  <button class="hamburger" onclick="toggleMenu()" aria-label="Open menu">
-    <span></span><span></span><span></span>
-  </button>
-</nav>
 
-<!-- MOBILE MENU -->
-<div class="mobile-menu" id="mobileMenu">
-  <a class="mobile-menu-link" href="#features" onclick="toggleMenu()">Features</a>
-  <a class="mobile-menu-link" href="#who" onclick="toggleMenu()">Who it's for</a>
-  <a class="mobile-menu-link" href="#pricing" onclick="toggleMenu()">Pricing</a>
-  <a class="mobile-menu-link" href="#affiliate" onclick="toggleMenu()">Earn with us</a>
-  <a class="mobile-menu-link" href="#faq" onclick="toggleMenu()">FAQ</a>
-  <a class="mobile-menu-link" href="mailto:info@doublexsoftware.com" onclick="toggleMenu()">Contact</a>
-  <a href="#try-demo" onclick="toggleMenu()"><button class="mobile-menu-cta">Try free demo →</button></a>
-</div>
+    <div class="customer-clean-grid">
+      <article class="customer-clean-card">
+        <span class="customer-icon" aria-hidden="true">WEB</span>
+        <h3>Public business page</h3>
+        <p>Give customers one place to discover your business, see what you sell and understand how to reach you.</p>
+      </article>
 
-<!-- HERO -->
-<section class="hero" id="home">
-  <div class="hero-orbs">
-    <div class="orb orb1"></div>
-    <div class="orb orb2"></div>
-    <div class="orb orb3"></div>
-  </div>
-  <div class="hero-inner hero-inner-split">
-    <div class="hero-text-col">
-      <div class="fade-up">
-        <div class="hero-badge">🌍 Built for African businesses</div>
-      </div>
-      <h1 class="fade-up d1">
-        Run your shop.<br/>
-        <span class="accent">Skip the laptop.</span>
-      </h1>
-      <p class="hero-sub fade-up d2">
-        SalesTrack turns the phone already in your hand into a full point-of-sale, stock tracker and profit report — no computer, no card reader, no learning curve.
-      </p>
-      <div class="hero-btns fade-up d3">
-        <a href="#try-demo"><button class="btn-hero-primary">Try free demo — no card needed ✦</button></a>
-        <a href="#features"><button class="btn-hero-outline">▶ See all features</button></a>
-      </div>
-      <div class="trust-row fade-up d4">
-        <div class="trust-item">✓ 7-day free trial</div>
-        <div class="trust-dot"></div>
-        <div class="trust-item">✓ No card required</div>
-        <div class="trust-dot"></div>
-        <div class="trust-item">✓ Works offline</div>
-      </div>
+      <article class="customer-clean-card">
+        <span class="customer-icon" aria-hidden="true">BOOK</span>
+        <h3>Booking that connects</h3>
+        <p>Share a booking-only page or individual service links so customers can go directly to the action they want.</p>
+      </article>
+
+      <article class="customer-clean-card">
+        <span class="customer-icon" aria-hidden="true">CHAT</span>
+        <h3>Sell through WhatsApp</h3>
+        <p>Customers can contact the business directly, while owners can share shop and booking links through WhatsApp.</p>
+      </article>
+
+      <article class="customer-clean-card">
+        <span class="customer-icon" aria-hidden="true">QR</span>
+        <h3>QR sharing</h3>
+        <p>Print a QR code for the counter, business card or receipt and turn an offline customer touchpoint into an online entry point.</p>
+      </article>
     </div>
-    <div class="hero-visual-col fade-up d2">
-      <div class="hero-visual-frame">
-        <svg viewBox="0 0 420 520" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
-          <defs>
-            <linearGradient id="heroSkin" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#a8674a"/>
-              <stop offset="100%" stop-color="#8a4f37"/>
-            </linearGradient>
-          </defs>
-          <rect width="420" height="520" fill="transparent"/>
-          <rect x="10" y="20" width="56" height="84" rx="6" fill="#c8456a" opacity=".18"/>
-          <rect x="76" y="34" width="56" height="70" rx="6" fill="#e6b800" opacity=".14"/>
-          <rect x="284" y="26" width="56" height="78" rx="6" fill="#c8456a" opacity=".16"/>
-          <rect x="350" y="40" width="56" height="64" rx="6" fill="#e6b800" opacity=".14"/>
-          <rect x="0" y="400" width="420" height="120" rx="14" fill="rgba(255,255,255,.04)"/>
-          <rect x="0" y="400" width="420" height="6" fill="#e6b800" opacity=".5"/>
-          <ellipse cx="200" cy="225" rx="56" ry="62" fill="url(#heroSkin)"/>
-          <path d="M 144 272 Q 142 360 152 414 L 248 414 Q 258 360 256 272 Z" fill="#6b1e38"/>
-          <path d="M 152 414 L 144 272 Q 200 252 256 272 L 248 414 Z" fill="#8b2550"/>
-          <path d="M 152 188 Q 200 154 248 188 Q 253 217 243 236 Q 200 207 157 236 Q 147 217 152 188 Z" fill="#e6b800"/>
-          <path d="M 248 296 Q 286 306 296 344 Q 298 364 286 374 L 267 364 Q 272 336 248 322 Z" fill="#8b2550"/>
-          <ellipse cx="290" cy="368" rx="15" ry="19" fill="url(#heroSkin)"/>
-          <rect x="274" y="352" width="32" height="54" rx="6" fill="#1a0a0e" stroke="#e6b800" stroke-width="2"/>
-          <rect x="279" y="360" width="22" height="33" rx="2" fill="#c8456a" opacity=".55"/>
-          <path d="M 152 296 Q 114 309 109 347 Q 107 367 119 374 L 137 363 Q 131 335 153 322 Z" fill="#6b1e38"/>
-          <ellipse cx="112" cy="365" rx="14" ry="18" fill="url(#heroSkin)"/>
-        </svg>
-        <div class="hero-float-card hero-float-1">
-          <div class="hfc-label">Sale complete</div>
-          <div class="hfc-value">KES 2,450</div>
-        </div>
-        <div class="hero-float-card hero-float-2">
-          <div class="hfc-label">Low stock</div>
-          <div class="hfc-value" style="color:#d97706">3 left</div>
-        </div>
+
+    <div class="customer-flow">
+      <div class="customer-flow-label">CUSTOMER JOURNEY</div>
+      <div class="customer-flow-steps">
+        <span>Discover</span><b>&rarr;</b>
+        <span>Book / Chat / Order</span><b>&rarr;</b>
+        <span>Sale</span><b>&rarr;</b>
+        <span>Stock & Customers</span><b>&rarr;</b>
+        <span>Profit</span>
       </div>
+      <p>SalesTrack does not stop at the booking or sale. It helps carry the activity forward into the records the owner actually needs to run the business.</p>
     </div>
   </div>
 </section>
+<section class="industry" id="industries"><div class="wrap"><div class="eyebrow">Built for real businesses</div><h2 class="title">Start where the pain is strongest.</h2><div class="industry-grid"><article class="industry-card"><img src="/marketing/salon-premium.webp" alt="Beauty salon"><div><h3>Beauty salons</h3><p>Services, products, bookings, staff and repeat customers.</p></div></article><article class="industry-card"><img src="/marketing/barber-premium.webp" alt="Barbershop"><div><h3>Barbershops</h3><p>Fast checkout, staff activity and daily performance.</p></div></article><article class="industry-card"><img src="/marketing/beauty-shop-premium.webp" alt="Beauty shop"><div><h3>Beauty shops</h3><p>Products, margins, suppliers and low-stock visibility.</p></div></article><article class="industry-card"><img src="/marketing/retail-premium.webp" alt="Small retail"><div><h3>Small retail</h3><p>POS, inventory, customers, expenses and profit visibility.</p></div></article></div></div></section>
 
-<!-- TICKER -->
-<div class="ticker-wrap" aria-hidden="true">
-  <div class="ticker-track">
-    <span class="ticker-item">Point of Sale</span>
-    <span class="ticker-item">Real-time Inventory</span>
-    <span class="ticker-item">Appointment Booking</span>
-    <span class="ticker-item">Staff Commissions</span>
-    <span class="ticker-item">Offline Selling</span>
-    <span class="ticker-item">WhatsApp Receipts</span>
-    <span class="ticker-item">P&amp;L Reports</span>
-    <span class="ticker-item">Customer Loyalty</span>
-    <span class="ticker-item">AI Insights</span>
-    <span class="ticker-item">Free Shop Website</span>
-    <span class="ticker-item">Lender Pack</span>
-    <span class="ticker-item">Digital Receipts</span>
-    <!-- duplicate for seamless loop -->
-    <span class="ticker-item">Point of Sale</span>
-    <span class="ticker-item">Real-time Inventory</span>
-    <span class="ticker-item">Appointment Booking</span>
-    <span class="ticker-item">Staff Commissions</span>
-    <span class="ticker-item">Offline Selling</span>
-    <span class="ticker-item">WhatsApp Receipts</span>
-    <span class="ticker-item">P&amp;L Reports</span>
-    <span class="ticker-item">Customer Loyalty</span>
-    <span class="ticker-item">AI Insights</span>
-    <span class="ticker-item">Free Shop Website</span>
-    <span class="ticker-item">Lender Pack</span>
-    <span class="ticker-item">Digital Receipts</span>
-  </div>
-</div>
+<section class="questions"><div class="wrap"><div class="eyebrow">Finish stronger</div><h2 class="title">Before closing, answer the questions that actually matter.</h2><div class="qgrid"><div class="q"><b>What did I really make?</b><p>See revenue, gross profit, expenses and net profit.</p></div><div class="q"><b>What moved out of stock?</b><p>See the movement trail created by completed sales.</p></div><div class="q"><b>Which products are earning?</b><p>See sales, gross profit and margin by product.</p></div></div></div></section>
 
-<!-- SOCIAL PROOF BAR -->
-<div class="proof-bar">
-  <div class="proof-inner">
-    <div class="proof-stat">
-      <div class="proof-val">7-day</div>
-      <div class="proof-lbl">Setup to first sale</div>
-    </div>
-    <div class="proof-divider"></div>
-    <div class="proof-stat">
-      <div class="proof-val">KES 2,499</div>
-      <div class="proof-lbl">Starting from / month</div>
-    </div>
-    <div class="proof-divider"></div>
-    <div class="proof-stat">
-      <div class="proof-val">1 phone</div>
-      <div class="proof-lbl">All you need to run it</div>
-    </div>
-    <div class="proof-divider"></div>
-    <div class="proof-stat">
-      <div class="proof-val">Built for growing shops</div>
-      <div class="proof-lbl">Already running on SalesTrack</div>
-    </div>
-    <div class="proof-divider"></div>
-    <div class="proof-logos">
-      <div class="proof-pill">Kenya</div>
-      <div class="proof-pill">Uganda</div>
-      <div class="proof-pill">Tanzania</div>
-      <div class="proof-pill">Ethiopia</div>
-      <div class="proof-pill">Rwanda</div>
-    </div>
-  </div>
-</div>
+<section class="pricing" id="pricing"><div class="wrap"><div class="eyebrow" style="color:#ffc74d">Honest pricing</div><h2 class="title">Start small. Upgrade when the business needs more.</h2><div class="plans"><article class="plan"><h3>Starter</h3><div class="price">KES 2,499 /month</div><ul><li>POS & offline selling</li><li>Products & inventory</li><li>Digital receipts</li><li>Customer records</li></ul><a class="btn secondary" href="/login?start=trial">Start Free Trial</a></article><article class="plan hot"><h3>Growth</h3><div class="price">KES 4,499 /month</div><ul><li>Everything in Starter</li><li>Appointments</li><li>Staff & commissions</li><li>Smart Business Insights</li></ul><a class="btn primary" href="/login?start=trial">Start Free Trial</a></article><article class="plan"><h3>Enterprise</h3><div class="price">KES 6,499 /month</div><ul><li>Everything in Growth</li><li>Multi-branch direction</li><li>Advanced controls</li><li>Dedicated onboarding</li></ul><a class="btn secondary" href="/login?start=trial">Start Free Trial</a></article></div></div></section>
 
-<!-- FEATURES -->
-<section class="features" id="features">
-  <div class="container">
-    <div class="center">
-      <div class="section-badge">Everything you need</div>
-      <h2 class="section-title">One system. Every feature.<br/>Zero excuses.</h2>
-      <p class="section-sub">Stop juggling 5 different apps. SalesTrack replaces your POS, spreadsheets, appointment book, WhatsApp reminders and accountant's reports — all in one.</p>
-    </div>
-    <div class="features-grid">
+<section class="faq"><div class="wrap"><div class="eyebrow">Questions answered</div><h2 class="title">Know what you're getting.</h2><div class="faqgrid"><details><summary>Can I sell when internet is down?</summary><p>SalesTrack supports offline selling for signed-in users and can sync queued sales when connectivity returns.</p></details><details><summary>Does SalesTrack send digital receipts?</summary><p>Yes. SalesTrack generates digital sales receipts that can be printed or shared.</p></details><details><summary>Is M-Pesa supported?</summary><p>You can record M-Pesa as a customer payment method in the POS.</p></details><details><summary>How long is the free trial?</summary><p>7 full days, with no card required to start.</p></details></div></div></section>
 
-      <div class="feature-card">
-        <div class="feature-icon" style="background:#fce8ed">🛒</div>
-        <div class="feature-tag">Core</div>
-        <h3>Lightning-fast Point of Sale</h3>
-        <p>Tap to sell. Barcode scanner ready. Cash, M-Pesa, card and split payments. Print or WhatsApp receipts in one click. Hold a sale and serve the next customer without losing anything.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon" style="background:#f0fdf4">📦</div>
-        <div class="feature-tag">Core</div>
-        <h3>Real-time inventory control</h3>
-        <p>Know exactly what's in stock at all times. Low-stock WhatsApp alerts before you run out. Auto-generate purchase orders. Track stock movements, supplier deliveries, damages and returns — all timestamped.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon" style="background:#eff6ff">📅</div>
-        <div class="feature-tag">Salons & Services</div>
-        <h3>Appointment booking calendar</h3>
-        <p>Visual timeline calendar. Book, reschedule and send WhatsApp reminders automatically. Track deposits. Give customers a free online booking link they can access from your WhatsApp bio.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon" style="background:#fefce8">⚡</div>
-        <div class="feature-tag gold">AI-powered</div>
-        <h3>Smart analytics that think for you</h3>
-        <p>Daily AI insight — "Your Friday 3pm slot is empty. Send a promo now." Dead hours map. Sales velocity per product. Business health score. Updated every morning, zero extra work.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon" style="background:#fce8ed">📊</div>
-        <div class="feature-tag">Finance</div>
-        <h3>Full P&L and financial reports</h3>
-        <p>Professional P&L statement, balance sheet, cash flow statement, sales report, expense report and stock valuation. Export to CSV. Know your net profit every single day — no accountant needed.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon" style="background:#f3f0ff">👥</div>
-        <div class="feature-tag">CRM</div>
-        <h3>Customer loyalty & CRM</h3>
-        <p>Customer profiles built automatically from every sale. Track spending, visits and loyalty points. Lapsed customer alerts when someone hasn't returned in 14 days. One-tap WhatsApp win-back messages.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon" style="background:#f0fdf4">👩‍💼</div>
-        <div class="feature-tag green">Team</div>
-        <h3>Staff & commission tracking</h3>
-        <p>Track every staff member's individual sales. Auto-calculate commissions — % of revenue, % of profit or flat per service. Record payouts with a WhatsApp receipt to the staff member. Manage roles and access levels.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon" style="background:#fefce8">💸</div>
-        <div class="feature-tag">Finance</div>
-        <h3>Expense & cash reconciliation</h3>
-        <p>Record every expense with categories and receipt photos. Daily Z-report cash reconciliation — count your cash by denomination and know your variance before you close up every night.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon" style="background:#eff6ff">🏷️</div>
-        <div class="feature-tag">Operations</div>
-        <h3>Barcode labels & supplier management</h3>
-        <p>Print price tags and barcode labels in 3 sizes. Manage all your suppliers. Send purchase orders via WhatsApp in one tap. Track credit from suppliers directly on your balance sheet.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon" style="background:#f0fdf4">📡</div>
-        <div class="feature-tag green">Built for Africa</div>
-        <h3>Works even when your data doesn't</h3>
-        <p>Load shedding, weak signal, no Wi-Fi — your POS keeps selling. Sales made offline are saved on your phone and sync automatically the moment you're back online. You never lose a sale to bad network.</p>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- KILLER "WOW" FEATURES STRIP -->
-<section class="wow-strip">
-  <div class="container">
-    <div class="center">
-      <div class="section-badge" style="background:rgba(230,184,0,.12);color:var(--gold)">Features you won't find elsewhere</div>
-      <h2 class="section-title" style="color:#fce8ed">Competitors charge extra for these.<br/>SalesTrack gives them free.</h2>
-      <p class="section-sub" style="color:rgba(252,232,237,.52);margin:0 auto">
-        These are the features that make shop owners stop mid-demo and say "I need this right now."
-      </p>
-    </div>
-    <div class="wow-grid">
-
-      <div class="wow-card">
-        <div class="wow-card-icon">🌐</div>
-        <div class="wow-card-tag">Free forever</div>
-        <h3>Your own professional shop website</h3>
-        <p>Every shop gets a free public website at <strong style="color:#fce8ed">getsalestrack.vercel.app/shop/your-name</strong> — shows your full service menu, product catalogue, prices, opening hours, booking button and WhatsApp chat. Ready in 60 seconds, no web developer needed.</p>
-        <div class="wow-card-competitor">Your public shop page is included with SalesTrack.</div>
-      </div>
-
-      <div class="wow-card">
-        <div class="wow-card-icon">🏦</div>
-        <div class="wow-card-tag">Loan-ready</div>
-        <h3>Lender Pack — get a loan with your sales data</h3>
-        <p>One-click document showing your 6-month revenue history, profit trends, DSCR ratio and accounts receivable — formatted exactly the way banks and Saccos want it. Send directly to your loan officer via WhatsApp. Your transaction records are immutable — no one can edit or delete them, which is exactly what lenders need to see.</p>
-        <div class="wow-card-competitor">Financial reports are built into your SalesTrack workspace.</div>
-      </div>
-
-      <div class="wow-card">
-        <div class="wow-card-icon">🧾</div>
-        <div class="wow-card-tag">Viral receipts</div>
-        <h3>Digital receipts customers keep forever</h3>
-        <p>Every sale generates a branded digital receipt link sent via WhatsApp. The customer can open it anytime, re-order the same items, tip the staff member, and book their next appointment — all from one link. The receipt has your logo, colors and shop name. Paper receipts get lost in 24 hours. This one doesn't.</p>
-        <div class="wow-card-competitor">Square charges $20/month for digital receipts. You get it on every plan.</div>
-      </div>
-
-      <div class="wow-card">
-        <div class="wow-card-icon">🤖</div>
-        <div class="wow-card-tag">AI-powered</div>
-        <h3>Daily business insights, written in plain English</h3>
-        <p>Every morning SalesTrack reads your real sales data and writes you one actionable insight: your slowest hours, your most profitable product, a customer who hasn't returned in 3 weeks. Not generic advice — specific to your shop, your numbers, your day. One tap sends a flash promo to your WhatsApp contacts.</p>
-        <div class="wow-card-competitor">Smart Business Insights are included from the Growth plan.</div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<div class="section-transition"></div>
-
-<!-- DEMO MOCKUP -->
-<section class="demo-section" id="demo">
-  <div class="demo-inner container">
-    <div class="demo-text">
-      <span class="section-eyebrow">See it before you pay</span>
-      <h2 class="section-title">Every screen, every feature —<br/>interactive before you subscribe.</h2>
-      <p class="section-sub">Register in 2 minutes, explore the full app with sample data, then decide. No card, no commitment, no sales call.</p>
-      <div class="demo-features">
-        <div class="demo-feat">
-          <div class="demo-feat-icon">🛒</div>
-          <div>
-            <div class="demo-feat-title">Click through the POS</div>
-            <div class="demo-feat-desc">Add products to cart, process an M-Pesa payment, WhatsApp the receipt — all fully interactive.</div>
-          </div>
-        </div>
-        <div class="demo-feat">
-          <div class="demo-feat-icon">📊</div>
-          <div>
-            <div class="demo-feat-title">See your live dashboard</div>
-            <div class="demo-feat-desc">Revenue, profit, transactions and AI insights — all populated with realistic Kenyan sample data.</div>
-          </div>
-        </div>
-        <div class="demo-feat">
-          <div class="demo-feat-icon">🏦</div>
-          <div>
-            <div class="demo-feat-title">Generate a Lender Pack</div>
-            <div class="demo-feat-desc">See exactly what a loan officer would receive when you share your 6-month revenue data.</div>
-          </div>
-        </div>
-      </div>
-      <a href="#try-demo" style="display:inline-block;margin-top:30px">
-        <button class="btn-hero-primary">Try the live demo free →</button>
-      </a>
-    </div>
-    <div class="demo-mock">
-      <div class="mock-bar">
-        <div class="mock-dots">
-          <div class="mock-dot" style="background:#ff5f57"></div>
-          <div class="mock-dot" style="background:#ffbd2e"></div>
-          <div class="mock-dot" style="background:#28c840"></div>
-        </div>
-        <div style="flex:1;text-align:center;font-size:11px;color:rgba(255,255,255,.28)">SalesTrack Dashboard</div>
-      </div>
-      <div class="mock-content">
-        <div class="mock-stat-row">
-          <div class="mock-stat"><div class="mock-stat-val" style="color:#c8456a">24.8k</div><div class="mock-stat-lbl">Revenue</div></div>
-          <div class="mock-stat"><div class="mock-stat-val" style="color:#059669">10.4k</div><div class="mock-stat-lbl">Profit</div></div>
-          <div class="mock-stat"><div class="mock-stat-val">29</div><div class="mock-stat-lbl">Sales</div></div>
-          <div class="mock-stat"><div class="mock-stat-val" style="color:#d97706">3</div><div class="mock-stat-lbl">Low stock</div></div>
-        </div>
-        <div class="mock-chart">
-          <div style="font-size:10px;color:rgba(255,255,255,.36);margin-bottom:8px">Revenue this week (KES)</div>
-          <div class="bars">
-            <div class="bar" style="height:38%"></div>
-            <div class="bar" style="height:55%"></div>
-            <div class="bar" style="height:33%"></div>
-            <div class="bar" style="height:70%"></div>
-            <div class="bar" style="height:86%"></div>
-            <div class="bar" style="height:60%"></div>
-            <div class="bar hi" style="height:74%"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-top:5px">
-            <span style="font-size:8px;color:rgba(255,255,255,.28)">Mon</span>
-            <span style="font-size:8px;color:rgba(255,255,255,.28)">Tue</span>
-            <span style="font-size:8px;color:rgba(255,255,255,.28)">Wed</span>
-            <span style="font-size:8px;color:rgba(255,255,255,.28)">Thu</span>
-            <span style="font-size:8px;color:rgba(255,255,255,.28)">Fri</span>
-            <span style="font-size:8px;color:rgba(255,255,255,.28)">Sat</span>
-            <span style="font-size:8px;color:var(--rose)">Now</span>
-          </div>
-        </div>
-        <div style="margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,.05)">
-          <div style="font-size:9px;color:rgba(255,255,255,.36);margin-bottom:7px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">🤖 Today's AI insight</div>
-          <div style="font-size:10px;color:rgba(252,232,237,.65);line-height:1.55">Your Tue 2–4pm slot has no bookings. Send a 20% promo to your last 5 customers now to fill it.</div>
-        </div>
-        <div style="margin-top:8px;background:rgba(255,255,255,.03);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,.05)">
-          <div style="font-size:10px;color:rgba(255,255,255,.55);display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span>ST-260620-042</span><span style="color:rgba(255,255,255,.3)">M-Pesa</span><span style="color:var(--rose)">KES 1,850</span></div>
-          <div style="font-size:10px;color:rgba(255,255,255,.55);display:flex;justify-content:space-between;padding:3px 0"><span>ST-260620-041</span><span style="color:rgba(255,255,255,.3)">Cash</span><span style="color:var(--rose)">KES 620</span></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- WHO IT'S FOR -->
-<section id="who">
-  <div class="container">
-    <div class="center">
-      <div class="section-badge">Who it's for</div>
-      <h2 class="section-title">Every business. Every size.</h2>
-      <p class="section-sub">From a one-person shop to a growing multi-staff business — SalesTrack works for any type of business across Africa.</p>
-    </div>
-    <div class="who-grid">
-      <div class="who-card" style="background:#fce8ed;border-color:#f5c0cc">
-        <div class="who-emoji">💇</div>
-        <h3>Salons & spas</h3>
-        <p>Appointments, staff commissions, loyalty cards, service menu and retail products — all in one place.</p>
-      </div>
-      <div class="who-card" style="background:#f0fdf4;border-color:#bbf7d0">
-        <div class="who-emoji">🛒</div>
-        <h3>Retail & supermarkets</h3>
-        <p>Fast POS, barcode scanning, bulk import, supplier management and auto reorder alerts.</p>
-      </div>
-      <div class="who-card" style="background:#eff6ff;border-color:#bfdbfe">
-        <div class="who-emoji">☕</div>
-        <h3>Restaurants & cafes</h3>
-        <p>Quick-fire POS, split payments, daily cash reconciliation and real-time profit tracking.</p>
-      </div>
-      <div class="who-card" style="background:#fefce8;border-color:#fde68a">
-        <div class="who-emoji">💊</div>
-        <h3>Pharmacies & clinics</h3>
-        <p>Inventory control, customer records, prescription notes and stock expiry tracking.</p>
-      </div>
-      <div class="who-card" style="background:#f3f0ff;border-color:#ddd6fe">
-        <div class="who-emoji">👗</div>
-        <h3>Boutiques & fashion</h3>
-        <p>Product variants, barcode labels, loyalty points and birthday promotions for returning customers.</p>
-      </div>
-      <div class="who-card" style="background:#fce8ed;border-color:#f5c0cc">
-        <div class="who-emoji">📱</div>
-        <h3>Phone & electronics</h3>
-        <p>Repair services with job tracking, IMEI recording, parts inventory and customer follow-up messages.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- LENDER PACK CALLOUT -->
-<section class="lender-callout">
-  <div class="lender-inner container">
-    <div class="lender-text">
-      <div class="lender-badge-green">🏦 Get a business loan</div>
-      <h2 class="section-title">Your sales data is your collateral.</h2>
-      <p class="section-sub">SalesTrack keeps an immutable record of every transaction — no one can edit or delete it. After 3 months of trading, generate a professional Lender Pack that banks and Saccos will actually trust.</p>
-      <div style="display:flex;flex-direction:column;gap:12px;margin-top:24px">
-        <div style="display:flex;align-items:flex-start;gap:12px">
-          <div style="width:22px;height:22px;border-radius:50%;background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px">✓</div>
-          <div style="font-size:14px;color:rgba(252,232,237,.65)">6-month P&L table with revenue, COGS, gross profit and net profit</div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:12px">
-          <div style="width:22px;height:22px;border-radius:50%;background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px">✓</div>
-          <div style="font-size:14px;color:rgba(252,232,237,.65)">DSCR calculator — enter loan amount and see if you qualify instantly</div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:12px">
-          <div style="width:22px;height:22px;border-radius:50%;background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px">✓</div>
-          <div style="font-size:14px;color:rgba(252,232,237,.65)">Accounts receivable aging — shows you have money owed to you</div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:12px">
-          <div style="width:22px;height:22px;border-radius:50%;background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px">✓</div>
-          <div style="font-size:14px;color:rgba(252,232,237,.65)">Verification footer — records are immutable, confirmed by SalesTrack</div>
-        </div>
-      </div>
-    </div>
-    <div class="lender-doc">
-      <div class="lender-doc-header">
-        <div class="lender-doc-title">🏦 Lender Pack — Beltronix Phones</div>
-        <div class="lender-doc-stamp">✓ Verified</div>
-      </div>
-      <div class="lender-row"><span>Business active since</span><span class="lender-val">Jan 2025 · 6 months</span></div>
-      <div class="lender-row"><span>Total 6-month revenue</span><span class="lender-val">KES 1,240,800</span></div>
-      <div class="lender-row"><span>Avg monthly net profit</span><span class="lender-val green">KES 38,450</span></div>
-      <div class="lender-row"><span>Accounts receivable</span><span class="lender-val amber">KES 12,300</span></div>
-      <div class="lender-row"><span>Loan requested</span><span class="lender-val">KES 200,000 · 12 months</span></div>
-      <div class="lender-row"><span>DSCR ratio</span><span class="lender-val green">2.31 ✓ Bankable</span></div>
-      <div class="dscr-bar"><div class="dscr-fill"></div></div>
-      <div style="font-size:9px;color:rgba(252,232,237,.35);margin-top:8px;line-height:1.5">
-        All figures derived from immutable transaction records verified by SalesTrack. Records cannot be edited or deleted by any user.
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- PRICING -->
-<section class="pricing" id="pricing">
-  <div class="container center">
-    <div class="section-badge" style="background:rgba(230,184,0,.12);color:var(--gold)">Simple pricing</div>
-    <h2 class="section-title">Honest pricing. No surprises.</h2>
-    <p class="section-sub">7-day free trial on every plan. No card required. Cancel anytime. Prices in Kenyan Shillings.</p>
-    <p style="font-size:13px;color:rgba(252,232,237,.55);margin-top:10px">🎁 Refer a shop that subscribes and get <strong style="color:#fce8ed">1 free month</strong> — no limit on how many times.</p>
-    <div class="period-toggle">
-      <button class="period-btn active" id="pb-monthly" onclick="setPeriod('monthly')">Monthly</button>
-      <button class="period-btn" id="pb-yearly" onclick="setPeriod('yearly')">Yearly <span class="save-badge">2 MONTHS FREE</span></button>
-    </div>
-    <div class="plans-grid">
-
-      <div class="plan-card">
-        <div class="plan-name">Starter</div>
-        <div class="plan-price" id="p-starter">KES 2,499 <span id="pl-starter">/ month</span></div>
-        <div class="plan-save" id="ps-starter">&nbsp;</div>
-        <div class="plan-divider"></div>
-        <div class="plan-feat"><div class="plan-feat-check">✓</div>1 user account</div>
-        <div class="plan-feat"><div class="plan-feat-check">✓</div>Full POS & inventory</div>
-        <div class="plan-feat"><div class="plan-feat-check">✓</div>P&L & financial reports</div>
-        <div class="plan-feat"><div class="plan-feat-check">✓</div>Free shop website</div>
-        <div class="plan-feat"><div class="plan-feat-check">✓</div>Digital WhatsApp receipts</div>
-        <div class="plan-feat"><div class="plan-feat-check">✓</div>Barcode labels</div>
-        <div class="plan-feat miss"><div class="plan-feat-check">✗</div>AI smart analytics</div>
-        <div class="plan-feat miss"><div class="plan-feat-check">✗</div>Staff commissions</div>
-        <div class="plan-feat miss"><div class="plan-feat-check">✗</div>Multi-branch</div>
-        <a href="/pricing?plan=starter" class="plan-btn plan-btn-outline" style="margin-top:20px">Start Starter →</a>
-      </div>
-
-      <div class="plan-card popular">
-        <div class="plan-popular-badge">⭐ Most popular</div>
-        <div class="plan-name gold">Growth</div>
-        <div class="plan-price" id="p-growth">KES 4,499 <span id="pl-growth">/ month</span></div>
-        <div class="plan-save" id="ps-growth">&nbsp;</div>
-        <div class="plan-divider"></div>
-        <div class="plan-feat"><div class="plan-feat-check" style="background:rgba(200,69,106,.28)">✓</div>5 user accounts</div>
-        <div class="plan-feat"><div class="plan-feat-check" style="background:rgba(200,69,106,.28)">✓</div>Everything in Starter</div>
-        <div class="plan-feat"><div class="plan-feat-check" style="background:rgba(200,69,106,.28)">✓</div>AI smart analytics</div>
-        <div class="plan-feat"><div class="plan-feat-check" style="background:rgba(200,69,106,.28)">✓</div>Staff & commissions</div>
-        <div class="plan-feat"><div class="plan-feat-check" style="background:rgba(200,69,106,.28)">✓</div>Appointments & booking</div>
-        <div class="plan-feat"><div class="plan-feat-check" style="background:rgba(200,69,106,.28)">✓</div>Lender Pack</div>
-        <div class="plan-feat"><div class="plan-feat-check" style="background:rgba(200,69,106,.28)">✓</div>Priority support</div>
-        <div class="plan-feat miss"><div class="plan-feat-check">✗</div>Multi-branch</div>
-        <a href="/pricing?plan=growth" class="plan-btn plan-btn-primary" style="margin-top:20px">Start Growth →</a>
-      </div>
-
-      <div class="plan-card">
-        <div class="plan-name">Enterprise</div>
-        <div class="plan-price" id="p-enterprise">KES 6,499 <span id="pl-enterprise">/ month</span></div>
-        <div class="plan-save" id="ps-enterprise">&nbsp;</div>
-        <div class="plan-divider"></div>
-        <div class="plan-feat"><div class="plan-feat-check">✓</div>Unlimited users</div>
-        <div class="plan-feat"><div class="plan-feat-check">✓</div>Everything in Growth</div>
-        <div class="plan-feat"><div class="plan-feat-check">✓</div>Multi-branch management</div>
-        <div class="plan-feat"><div class="plan-feat-check">✓</div>Dedicated support</div>
-        <div class="plan-feat"><div class="plan-feat-check">✓</div>Custom reports</div>
-        <div class="plan-feat"><div class="plan-feat-check">✓</div>API access</div>
-        <a href="/pricing?plan=enterprise" class="plan-btn plan-btn-outline" style="margin-top:20px">Start Enterprise →</a>
-      </div>
-
-    </div>
-    <p class="pricing-note">All plans include SSL security · Offline selling · Digital receipts · Free public shop page · Cancel anytime</p>
-  </div>
-</section>
-
-<!-- AFFILIATE -->
-<section class="affiliate" id="affiliate">
-  <div class="affiliate-inner">
-    <div>
-      <div class="section-badge" style="background:rgba(230,184,0,.18);color:#92400e">Affiliate programme</div>
-      <h2 class="section-title">Earn by sharing SalesTrack</h2>
-      <p style="font-size:15px;color:var(--muted);margin:12px 0 0;line-height:1.65">
-        Refer any business to SalesTrack and earn 15% of every payment they make for their first 12 months, then 10% ongoing for as long as they stay subscribed. No cap. No expiry. Paid via M-Pesa every month.
-      </p>
-      <div class="aff-steps">
-        <div class="aff-step">
-          <div class="aff-num">1</div>
-          <div><div class="aff-step-title">Get your referral link</div><div class="aff-step-desc">Email us to join — you get a personal link to share anywhere.</div></div>
-        </div>
-        <div class="aff-step">
-          <div class="aff-num">2</div>
-          <div><div class="aff-step-title">Share with business owners</div><div class="aff-step-desc">WhatsApp, social media, in person — every referral is tracked automatically.</div></div>
-        </div>
-        <div class="aff-step">
-          <div class="aff-num">3</div>
-          <div><div class="aff-step-title">Earn 15%, then 10%, every month</div><div class="aff-step-desc">15% for their first 12 months, 10% ongoing after that. Month after month. No minimum payout.</div></div>
-        </div>
-      </div>
-    </div>
-    <div class="aff-calc">
-      <h3>Your earning potential</h3>
-      <p class="aff-calc-sub">Based on 5 referrals on the Growth plan, year one</p>
-      <div class="calc-row"><span class="calc-label">Referrals</span><span class="calc-val">5 businesses</span></div>
-      <div class="calc-row"><span class="calc-label">Plan</span><span class="calc-val">Growth · KES 4,499/mo</span></div>
-      <div class="calc-row"><span class="calc-label">Your commission (months 1–12)</span><span class="calc-val">15% per active customer</span></div>
-      <div class="calc-row"><span class="calc-label">Monthly earnings (months 1–12)</span><span class="calc-val" style="color:var(--green)">KES 7,500</span></div>
-      <div class="calc-row"><span class="calc-label">From month 13 onward</span><span class="calc-val">10% trailing, ongoing</span></div>
-      <div class="calc-total"><span style="font-size:14px;font-weight:700;color:var(--dark)">Year-one earnings</span><span class="calc-total-val">KES 90,000</span></div>
-
-      <div id="affFormWrap">
-        <div style="display:flex;flex-direction:column;gap:10px;margin-top:18px">
-          <input id="af-name" type="text" placeholder="Your full name" class="aff-input"/>
-          <select id="af-country" class="aff-input" onchange="updateAffPhoneHint()">
-            <option value="KE">🇰🇪 Kenya</option>
-            <option value="UG">🇺🇬 Uganda</option>
-            <option value="TZ">🇹🇿 Tanzania</option>
-            <option value="ET">🇪🇹 Ethiopia</option>
-            <option value="RW">🇷🇼 Rwanda</option>
-            <option value="OTHER">🌍 Other country</option>
-          </select>
-          <input id="af-phone" type="tel" class="aff-input"/>
-          <div id="af-phone-hint" style="font-size:11px;color:var(--muted);margin-top:-4px">Accepted format: 0712345678 or +254712345678</div>
-          <textarea id="af-why" rows="2" placeholder="Who do you plan to refer? (shops, salons, your network...)" class="aff-input" style="resize:vertical"></textarea>
-        </div>
-        <button class="aff-cta-btn" id="affSubmitBtn" onclick="submitAffiliateLead()" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px">
-          <span id="affBtnText">✦ Apply to join the affiliate programme →</span>
-          <span id="affSpinner" class="spinner" style="display:none;border-top-color:#1a0a0e"></span>
-        </button>
-      </div>
-      <div id="affSuccess" style="display:none;text-align:center;padding:10px 0">
-        <div style="font-size:36px;margin-bottom:8px">🎉</div>
-        <div style="font-weight:800;color:var(--dark);margin-bottom:4px">Application received!</div>
-        <div style="font-size:13px;color:var(--muted)">We'll WhatsApp you within 24 hours with your referral code and the full agreement.</div>
-      </div>
-
-      <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px">15% for 12 months, then 10% ongoing · Payouts via M-Pesa monthly · Full terms shared on approval</p>
-    </div>
-  </div>
-</section>
-
-<!-- TESTIMONIALS -->
-<section class="testimonials" id="testimonials">
-  <div class="container">
-    <div class="center">
-      <div class="section-badge">What people say</div>
-      <h2 class="section-title">Real businesses. Real results.</h2>
-      <div style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:18px">
-        <span style="font-size:12px;color:var(--muted);font-weight:700">Now live in:</span>
-        <span class="proof-pill" style="background:var(--rose-light);border-color:#f5c0cc;color:var(--rose-dark)">🇰🇪 Kenya</span>
-        <span class="proof-pill" style="background:var(--rose-light);border-color:#f5c0cc;color:var(--rose-dark)">🇺🇬 Uganda</span>
-        <span class="proof-pill" style="background:var(--rose-light);border-color:#f5c0cc;color:var(--rose-dark)">🇹🇿 Tanzania</span>
-        <span class="proof-pill" style="background:var(--rose-light);border-color:#f5c0cc;color:var(--rose-dark)">🇪🇹 Ethiopia</span>
-        <span class="proof-pill" style="background:var(--rose-light);border-color:#f5c0cc;color:var(--rose-dark)">🇷🇼 Rwanda</span>
-      </div>
-    </div>
-    <div class="testi-grid" id="testiGrid">
-      <div class="testi-card">
-        <div class="testi-stars">★★★★★</div>
-        <p class="testi-text">"We used the bulk import feature and had all our products onboarded in seconds — our stock is live and accurate now, not stuck on paper."</p>
-        <div class="testi-author">
-          <div class="testi-avatar">B</div>
-          <div><div class="testi-name">Beltronix Phones &amp; Accessories</div><div class="testi-biz">Electronics & Repairs · Kenya</div></div>
-        </div>
-      </div>
-      <div class="testi-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:180px;border-style:dashed;border-color:var(--border);background:var(--off)">
-        <div style="font-size:32px;margin-bottom:10px;opacity:.4">🏪</div>
-        <p style="font-size:13px;color:var(--muted);margin:0">Your shop's story could be here next.</p>
-      </div>
-      <div class="testi-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:180px;border-style:dashed;border-color:var(--border);background:var(--off)">
-        <div style="font-size:32px;margin-bottom:10px;opacity:.4">🏪</div>
-        <p style="font-size:13px;color:var(--muted);margin:0">Be one of the first to share your results.</p>
-      </div>
-    </div>
-    <div style="text-align:center;margin-top:32px">
-      <a href="/feedback.html" style="font-size:13px;color:var(--rose-dark);font-weight:700;text-decoration:underline">Are you a SalesTrack shop owner? Share your experience →</a>
-    </div>
-  </div>
-</section>
-
-<!-- INTEGRATIONS -->
-<section class="integrations" id="integrations">
-  <div class="container center">
-    <div class="section-badge">Integrations</div>
-    <h2 class="section-title">Works with what you already use</h2>
-    <p class="section-sub">SalesTrack connects to the tools African businesses depend on — and more are added every month.</p>
-    <div class="int-grid">
-      <div class="int-card"><div class="int-icon">📱</div><div class="int-name">M-Pesa sales recording</div><div class="int-status" style="color:var(--muted)">Recorded in POS</div></div>
-      <div class="int-card"><div class="int-icon">💬</div><div class="int-name">WhatsApp</div><div class="int-status" style="color:var(--green)">✓ Live</div></div>
-      <div class="int-card"><div class="int-icon">🧾</div><div class="int-name">Digital Receipts</div><div class="int-status" style="color:var(--green)">✓ Included</div></div>
-      <div class="int-card"><div class="int-icon">💳</div><div class="int-name">Paystack</div><div class="int-status" style="color:var(--green)">✓ Live</div></div>
-      <div class="int-card"><div class="int-icon">🗓️</div><div class="int-name">Google Calendar</div><div class="int-status" style="color:var(--amber)">Coming soon</div></div>
-      <div class="int-card"><div class="int-icon">📊</div><div class="int-name">QuickBooks</div><div class="int-status" style="color:var(--amber)">Coming soon</div></div>
-      <div class="int-card"><div class="int-icon">📨</div><div class="int-name">Africa's Talking</div><div class="int-status" style="color:var(--amber)">Coming soon</div></div>
-      <div class="int-card"><div class="int-icon">🔗</div><div class="int-name">REST API</div><div class="int-status" style="color:var(--amber)">Coming soon</div></div>
-    </div>
-  </div>
-</section>
-
-<!-- FAQ -->
-<section class="faq" id="faq">
-  <div class="container center">
-    <div class="section-badge">FAQ</div>
-    <h2 class="section-title">Questions answered</h2>
-    <div class="faq-list">
-
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">Do I need internet to use SalesTrack? <span class="icon">+</span></div>
-        <div class="faq-a">SalesTrack works best online, and a standard 3G mobile data connection is more than enough — there's no need for Wi-Fi or a fast connection. The POS also has an offline mode: sales made without internet are queued and sync automatically when connectivity returns.</div>
-      </div>
-
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">Can I use SalesTrack on my phone? <span class="icon">+</span></div>
-        <div class="faq-a">Yes — SalesTrack is designed specifically for smartphones. 95% of our customers run their entire business from one Android phone. It also works on tablets and desktop, but everything is optimised for one-handed mobile use first.</div>
-      </div>
-
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">How does the free trial work? <span class="icon">+</span></div>
-        <div class="faq-a">Register with your email and business details — no card required at any point during the trial. You get 7 full days to explore every feature. When the trial ends, choose a plan and pay securely by supported card payment. If you don't subscribe, the app switches to read-only mode so your data is never lost.</div>
-      </div>
-
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">Can I import my existing products? <span class="icon">+</span></div>
-        <div class="faq-a">Yes. SalesTrack has a bulk CSV import built in. Prepare a spreadsheet with product names, prices, costs, barcodes and stock quantities — upload it and everything is imported in seconds. Our team can also help with the import free of charge.</div>
-      </div>
-
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">Is my business data safe? <span class="icon">+</span></div>
-        <div class="faq-a">All data is encrypted in transit and at rest. We use safeguards designed to protect your business data. Transaction records are immutable — no user (including you) can edit or delete a completed sale. This protects you from staff fraud and is a legal requirement for eTIMS compliance. You can export all your data at any time.</div>
-      </div>
-
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">Can I manage multiple branches? <span class="icon">+</span></div>
-        <div class="faq-a">Multi-branch management is available on the Enterprise plan. Each branch has its own inventory, staff, sales history and reports — all visible from one owner dashboard. You can switch between branches in one tap.</div>
-      </div>
-
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">How do I get support? <span class="icon">+</span></div>
-        <div class="faq-a">Email us at info@doublexsoftware.com — we respond within 24 hours. Growth and Enterprise customers get priority support with faster response times. We also offer free onboarding help for new shops including product import assistance.</div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- DEMO LEAD CAPTURE -->
-<section class="lead-section" id="try-demo">
-  <div class="orb orb1" style="opacity:.05"></div>
-  <div class="orb orb2" style="opacity:.04"></div>
-  <div class="lead-inner" style="position:relative;z-index:1">
-    <div class="section-badge" style="background:rgba(230,184,0,.12);color:var(--gold)">Free demo access</div>
-    <h2 class="section-title">Try SalesTrack free right now</h2>
-    <p class="section-sub">Enter your details and we'll set you up with instant demo access — fully interactive, real data, no card required. We'll also follow up to help you get the most out of it.</p>
-
-    <div class="lead-form" id="leadFormWrap">
-      <div class="lead-form-grid">
-        <div class="lf-group">
-          <label class="lf-label" for="lf-name">Your full name *</label>
-          <input class="lf-input" id="lf-name" type="text" placeholder="Jane Wanjiku" required autocomplete="name"/>
-        </div>
-        <div class="lf-group">
-          <label class="lf-label" for="lf-country">Country *</label>
-          <select class="lf-input" id="lf-country" required onchange="updateLfPhoneHint()">
-            <option value="KE">🇰🇪 Kenya</option>
-            <option value="UG">🇺🇬 Uganda</option>
-            <option value="TZ">🇹🇿 Tanzania</option>
-            <option value="ET">🇪🇹 Ethiopia</option>
-            <option value="RW">🇷🇼 Rwanda</option>
-            <option value="OTHER">🌍 Other country</option>
-          </select>
-        </div>
-        <div class="lf-group">
-          <label class="lf-label" for="lf-phone">WhatsApp / phone number *</label>
-          <input class="lf-input" id="lf-phone" type="tel" required autocomplete="tel"/>
-          <div id="lf-phone-hint" style="font-size:11px;color:rgba(252,232,237,.62);margin-top:2px">Accepted format: 0712345678 or +254712345678</div>
-        </div>
-        <div class="lf-group">
-          <label class="lf-label" for="lf-btype">Type of business *</label>
-          <select class="lf-input" id="lf-btype" required>
-            <option value="" disabled selected>Select your business type</option>
-            <option>Salon & Spa</option>
-            <option>Retail Shop</option>
-            <option>Restaurant & Café</option>
-            <option>Pharmacy & Clinic</option>
-            <option>Boutique & Fashion</option>
-            <option>Hardware & Auto</option>
-            <option>Phone & Electronics</option>
-            <option>Beauty Supply</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div class="lf-group">
-          <label class="lf-label" for="lf-town">Town / City *</label>
-          <input class="lf-input" id="lf-town" type="text" placeholder="e.g. Nairobi, Kampala, Dodoma" required/>
-        </div>
-        <div class="lf-group full">
-          <label class="lf-label" for="lf-bname">Business name (optional)</label>
-          <input class="lf-input" id="lf-bname" type="text" placeholder="e.g. Glam Studio Nairobi"/>
-        </div>
-      </div>
-      <button class="lead-submit" id="leadSubmitBtn" onclick="submitLead()">
-        <span id="leadBtnText">Get instant demo access →</span>
-        <span id="leadSpinner" class="spinner" style="display:none"></span>
-      </button>
-      <p class="lead-note">🔒 Your details are private. We'll only contact you about SalesTrack — no spam, ever.</p>
-    </div>
-
-    <div class="lead-success" id="leadSuccess">
-      <div class="lead-success-icon">🎉</div>
-      <h3>You're in! Opening your demo now…</h3>
-      <p>We've also saved your details and will follow up on WhatsApp to help you get the most out of SalesTrack. The demo is fully interactive — explore every feature.</p>
-      <a href="/login" id="leadDemoLink">
-        <button class="lead-submit" style="max-width:360px;margin:0 auto">Open the live demo →</button>
-      </a>
-    </div>
-  </div>
-</section>
-
-<!-- FINAL CTA -->
-<section class="final-cta" id="cta">
-  <div class="orb orb1" style="opacity:.05"></div>
-  <div class="orb orb2" style="opacity:.04"></div>
-  <div style="position:relative;z-index:1">
-    <div class="section-badge" style="background:rgba(230,184,0,.12);color:var(--gold);margin-bottom:20px">Start today</div>
-    <h2 class="section-title">Your competitors are already<br/>watching their profits in real time.</h2>
-    <p class="section-sub">See how SalesTrack can help your business sell faster, stock smarter and understand profit more clearly — every single day.</p>
-    <div class="final-btns">
-      <a href="#try-demo"><button class="btn-hero-primary" style="font-size:17px;padding:18px 42px">Start your free 7-day trial ✦</button></a>
-      <a href="mailto:info@doublexsoftware.com"><button class="btn-hero-outline" style="font-size:17px;padding:18px 42px">Talk to us first</button></a>
-    </div>
-    <div class="share-row">
-      <span class="share-lbl">Share SalesTrack:</span>
-      <a class="share-btn" style="background:#25D366" href="https://wa.me/?text=Check%20out%20SalesTrack%20-%20the%20best%20POS%20for%20African%20businesses%20-%20https://getsalestrack.vercel.app" target="_blank" rel="noopener" aria-label="Share on WhatsApp">
-        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-      </a>
-      <a class="share-btn" style="background:#1877f2" href="https://www.facebook.com/sharer/sharer.php?u=https://getsalestrack.vercel.app" target="_blank" rel="noopener" aria-label="Share on Facebook">
-        <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-      </a>
-      <a class="share-btn" style="background:#000" href="https://twitter.com/intent/tweet?text=Just%20discovered%20SalesTrack%20-%20the%20best%20POS%20for%20African%20businesses.%20Try%20it%20free!&url=https://getsalestrack.vercel.app" target="_blank" rel="noopener" aria-label="Share on X">
-        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-      </a>
-      <a class="share-btn" style="background:#0a66c2" href="https://www.linkedin.com/sharing/share-offsite/?url=https://getsalestrack.vercel.app" target="_blank" rel="noopener" aria-label="Share on LinkedIn">
-        <svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-      </a>
-    </div>
-  </div>
-</section>
-
-<!-- FOOTER -->
-<footer>
-  <div class="footer-grid">
+<section class="closing"><div class="wrap"><h2>Tonight, know what the business actually made.</h2><p>Start with real sales. Add stock and expenses. Let the numbers tell you what happened.</p><a class="btn primary" href="/login?start=trial">Start Your 7-Day Free Trial &rarr;</a></div></section>
+<footer class="footer footer-v2">
+  <div class="wrap footer-main">
     <div class="footer-brand">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-        <div class="nav-logo-icon" style="width:32px;height:32px;border-radius:8px">
-          <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-        </div>
-        <div class="footer-brand-name">SalesTrack</div>
+      <a class="footer-logo" href="/">SalesTrack</a>
+      <p>Practical business software for owners who want clear sales, stock, customer and profit visibility.</p>
+      <div class="footer-actions">
+        <a class="btn primary" href="/login?start=trial">Start Free Trial</a>
+        <a class="btn footer-secondary" href="/login">Sign in</a>
       </div>
-      <p>The all-in-one business operating system for African entrepreneurs. One app to sell, stock, book, pay staff and prove your business is bankable — built for the phone already in your pocket.</p>
-      <p style="margin-top:14px;display:flex;align-items:center;gap:7px;color:rgba(252,232,237,.6);font-size:12px">
-        <span>📧</span><a href="mailto:info@doublexsoftware.com" style="color:rgba(252,232,237,.75)">info@doublexsoftware.com</a>
-      </p>
-      <p style="margin-top:6px;display:flex;align-items:center;gap:7px;color:rgba(252,232,237,.6);font-size:12px">
-        <span>💬</span><a href="https://wa.me/254716555043" target="_blank" rel="noopener" style="color:rgba(252,232,237,.75)">+254 716 555 043</a>
-      </p>
     </div>
-    <div class="footer-col">
-      <h4>Product</h4>
-      <a href="#features">Features</a>
-      <a href="#pricing">Pricing</a>
-      <a href="#demo">Live demo</a>
-      <a href="#integrations">Integrations</a>
-      <a href="/login">Sign in</a>
-    </div>
-    <div class="footer-col">
-      <h4>Company</h4>
-      <a href="#who">Who it's for</a>
-      <a href="#affiliate">Affiliate programme</a>
-      <a href="#testimonials">Reviews</a>
-      <a href="#faq">FAQ</a>
-      <a href="mailto:info@doublexsoftware.com">Contact us</a>
-    </div>
-    <div class="footer-col">
-      <h4>Legal</h4>
-      <a href="/legal/privacy.html">Privacy policy</a>
-      <a href="/legal/terms.html">Terms of service</a>
-      <a href="/legal/cookies.html">Cookie policy</a>
-      <a href="/legal/data-processing.html">Data processing</a>
+
+    <div class="footer-links">
+      <div>
+        <h3>Product</h3>
+        <a href="#product">Product</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#customer-web">Customer tools</a>
+      </div>
+
+      <div>
+        <h3>Industries</h3>
+        <a href="#industries">Beauty salons</a>
+        <a href="#industries">Barbershops</a>
+        <a href="#industries">Beauty shops</a>
+        <a href="#industries">Small retail</a>
+      </div>
+
+      <div>
+        <h3>Explore</h3>
+        <a href="#product">How it works</a>
+        <a href="#pricing">Plans</a>
+        <a href="#customer-web">Public business tools</a>
+      </div>
+
+      <div>
+        <h3>Account</h3>
+        <a href="/login">Sign in</a>
+        <a href="/login?start=trial">Start free trial</a>
+      </div>
     </div>
   </div>
-  <div class="footer-bottom">
-    <p>© 2026 SalesTrack. All rights reserved. Built for African businesses.</p>
-    <div class="social-icons">
-      <a href="https://wa.me/254716555043" target="_blank" rel="noopener" class="social-icon" aria-label="WhatsApp">
-        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-      </a>
-      <a href="https://facebook.com/salestrack" target="_blank" rel="noopener" class="social-icon" aria-label="Facebook">
-        <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-      </a>
-      <a href="https://instagram.com/salestrack" target="_blank" rel="noopener" class="social-icon" aria-label="Instagram">
-        <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-      </a>
+
+  <div class="wrap footer-bottom">
+    <span>&copy; 2026 SalesTrack. All rights reserved.</span>
+    <div class="footer-legal">
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
     </div>
   </div>
 </footer>
-
-<!-- PWA INSTALL BANNER -->
-<div id="pwa-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#8b2550;color:#fff;padding:14px 16px;align-items:center;gap:12px;box-shadow:0 -4px 20px rgba(0,0,0,.22);font-family:'Nunito',sans-serif">
-  <div style="width:44px;height:44px;border-radius:10px;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px">📈</div>
-  <div style="flex:1">
-    <div style="font-weight:700;font-size:14px">Install SalesTrack</div>
-    <div style="font-size:12px;opacity:.85;margin-top:1px">Add to home screen — works without internet</div>
-  </div>
-  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-    <button onclick="installApp()" style="background:#fff;border:none;color:#8b2550;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;min-height:36px">Install</button>
-    <button onclick="closeBanner()" style="background:transparent;border:none;color:rgba(255,255,255,.7);font-size:24px;cursor:pointer;line-height:1;padding:0 4px" aria-label="Close">×</button>
-  </div>
-</div>
-
-<script>
-/* ── PRICING TOGGLE ── */
-var PLANS={
-  monthly:{
-    starter:{p:'KES 2,499',l:'/ month',s:''},
-    growth:{p:'KES 4,499',l:'/ month',s:''},
-    enterprise:{p:'KES 6,499',l:'/ month',s:''}
-  },
-  yearly:{
-    starter:{p:'KES 24,990',l:'/ year',s:'2 months free — save KES 4,998'},
-    growth:{p:'KES 44,990',l:'/ year',s:'2 months free — save KES 8,998'},
-    enterprise:{p:'KES 64,990',l:'/ year',s:'2 months free — save KES 12,998'}
-  }
-};
-function setPeriod(p){
-  ['monthly','yearly'].forEach(function(x){
-    var el=document.getElementById('pb-'+x);
-    el.className='period-btn'+(x===p?' active':'');
-  });
-  var d=PLANS[p];
-  ['starter','growth','enterprise'].forEach(function(k){
-    var priceEl=document.getElementById('p-'+k);
-    priceEl.childNodes[0].textContent=d[k].p+' ';
-    document.getElementById('pl-'+k).textContent=d[k].l;
-    document.getElementById('ps-'+k).textContent=d[k].s||'\u00a0';
-  });
-}
-
-/* ── FAQ ── */
-function toggleFaq(el){
-  var item=el.parentElement;
-  var isOpen=item.classList.contains('open');
-  document.querySelectorAll('.faq-item').forEach(function(i){i.classList.remove('open');});
-  if(!isOpen)item.classList.add('open');
-}
-
-/* ── MOBILE MENU ── */
-function toggleMenu(){
-  var m=document.getElementById('mobileMenu');
-  m.classList.toggle('open');
-}
-
-/* ── NAV SHADOW ON SCROLL ── */
-window.addEventListener('scroll',function(){
-  var nav=document.getElementById('navbar');
-  nav.style.boxShadow=window.scrollY>20?'0 2px 24px rgba(0,0,0,.35)':'none';
-});
-
-/* ── SMOOTH SCROLL ── */
-document.querySelectorAll('a[href^="#"]').forEach(function(a){
-  a.addEventListener('click',function(e){
-    var t=document.querySelector(a.getAttribute('href'));
-    if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth'});}
-  });
-});
-
-/* ── LEAD CAPTURE FORM ── */
-var ST_PB = new PocketBase('https://fieldtrack-kenya.fly.dev');
-
-/* ── DYNAMIC TESTIMONIALS (approved only) ── */
-var COUNTRY_NAMES = { KE:'Kenya', UG:'Uganda', TZ:'Tanzania', ET:'Ethiopia', RW:'Rwanda', OTHER:'' };
-
-function escapeHtml(str){
-  var d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
-}
-
-function buildTestiCard(t){
-  var stars = '★★★★★'.slice(0, t.rating) + '☆☆☆☆☆'.slice(0, 5 - t.rating);
-  var initial = (t.business_name || '?').trim().charAt(0).toUpperCase();
-  var countryName = COUNTRY_NAMES[t.country] || '';
-  var bizLine = escapeHtml(t.business_type) + (countryName ? ' · ' + escapeHtml(countryName) : '');
-  return '<div class="testi-card">' +
-    '<div class="testi-stars">' + stars + '</div>' +
-    '<p class="testi-text">"' + escapeHtml(t.quote) + '"</p>' +
-    '<div class="testi-author">' +
-      '<div class="testi-avatar">' + escapeHtml(initial) + '</div>' +
-      '<div><div class="testi-name">' + escapeHtml(t.business_name) + '</div>' +
-      '<div class="testi-biz">' + bizLine + '</div></div>' +
-    '</div></div>';
-}
-
-var PLACEHOLDER_CARD = '<div class="testi-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:180px;border-style:dashed;border-color:var(--border);background:var(--off)">' +
-  '<div style="font-size:32px;margin-bottom:10px;opacity:.4">🏪</div>' +
-  '<p style="font-size:13px;color:var(--muted);margin:0">Your shop\'s story could be here next.</p></div>';
-
-async function loadTestimonials(){
-  var grid = document.getElementById('testiGrid');
-  if(!grid) return;
-  try{
-    var result = await ST_PB.collection('bs_testimonials').getList(1, 8, {
-      filter: 'approved = true',
-      sort: '-featured,-created',
-      '$cancelKey': 'testimonials-load'
-    });
-    if(!result.items || result.items.length === 0) return; // keep the existing static fallback markup as-is
-
-    var html = '';
-    result.items.slice(0, 6).forEach(function(t){ html += buildTestiCard(t); });
-    var minCards = 3;
-    var shown = Math.min(result.items.length, 6);
-    for(var i = shown; i < minCards; i++){ html += PLACEHOLDER_CARD; }
-
-    grid.innerHTML = html;
-  }catch(err){
-    // Fetch failed (offline, server cold-start, etc) — silently keep the
-    // static fallback already in the page. Never show an error here.
-    console.error('Testimonials load failed:', err);
-  }
-}
-loadTestimonials();
-
-var COUNTRY_PHONE_RULES = {
-  KE: { code:'+254', trunk:/^0[71]/, full:/^(?:\+254|254)[71]\d{8}$/, example:'0712345678 or +254712345678' },
-  UG: { code:'+256', trunk:/^0[7]/,  full:/^(?:\+256|256)7\d{8}$/,     example:'0712345678 or +256712345678' },
-  TZ: { code:'+255', trunk:/^0[67]/, full:/^(?:\+255|255)[67]\d{8}$/,  example:'0712345678 or +255712345678' },
-  ET: { code:'+251', trunk:/^0[9]/,  full:/^(?:\+251|251)9\d{8}$/,     example:'0912345678 or +251912345678' },
-  RW: { code:'+250', trunk:/^0[7]/,  full:/^(?:\+250|250)7\d{8}$/,     example:'0712345678 or +250712345678' },
-  OTHER: { code:'', trunk:/^/, full:/^\+?\d{7,15}$/, example:'include your country code, e.g. +44...' },
-};
-
-function validPhoneForCountry(raw, countryKey){
-  var rule = COUNTRY_PHONE_RULES[countryKey] || COUNTRY_PHONE_RULES.OTHER;
-  var clean = raw.replace(/[\s-]/g,'');
-  if(countryKey === 'OTHER') return rule.full.test(clean);
-  // Accept either local trunk format (0xxxxxxxxx) or full international format
-  var localDigitsOnly = clean.replace(/^0/, '');
-  var asInternational = rule.code + localDigitsOnly;
-  return rule.full.test(clean) || (rule.trunk.test(clean) && rule.full.test(asInternational));
-}
-
-function normalizePhoneForCountry(raw, countryKey){
-  var rule = COUNTRY_PHONE_RULES[countryKey] || COUNTRY_PHONE_RULES.OTHER;
-  var clean = raw.replace(/[\s-]/g,'');
-  if(countryKey === 'OTHER') return clean.indexOf('+') === 0 ? clean : '+' + clean;
-  if(clean.indexOf('+') === 0) return clean;
-  if(clean.indexOf(rule.code.replace('+','')) === 0) return '+' + clean;
-  return rule.code + clean.replace(/^0/, '');
-}
-
-function phoneErrorMessage(countryKey){
-  var rule = COUNTRY_PHONE_RULES[countryKey] || COUNTRY_PHONE_RULES.OTHER;
-  return 'Please enter a valid phone number for your country, e.g. ' + rule.example + '.';
-}
-
-function updateLfPhoneHint(){
-  var country = document.getElementById('lf-country').value;
-  var rule = COUNTRY_PHONE_RULES[country] || COUNTRY_PHONE_RULES.OTHER;
-  document.getElementById('lf-phone-hint').textContent = 'Accepted format: ' + rule.example;
-}
-
-function updateAffPhoneHint(){
-  var country = document.getElementById('af-country').value;
-  var rule = COUNTRY_PHONE_RULES[country] || COUNTRY_PHONE_RULES.OTHER;
-  document.getElementById('af-phone-hint').textContent = 'Accepted format: ' + rule.example;
-}
-
-function looksFakeName(raw){
-  var n = raw.trim();
-  if(n.length<2) return true;
-  if(/^test/i.test(n)) return true;
-  if(/^(.)\1+$/.test(n.replace(/\s/g,''))) return true; // all same character
-  return false;
-}
-
-async function submitLead(){
-  var name=document.getElementById('lf-name').value.trim();
-  var country=document.getElementById('lf-country').value;
-  var phone=document.getElementById('lf-phone').value.trim();
-  var btype=document.getElementById('lf-btype').value;
-  var town=document.getElementById('lf-town').value.trim();
-  var bname=document.getElementById('lf-bname').value.trim();
-
-  if(!name||!phone||!btype||!town){
-    alert('Please fill in all required fields.');
-    return;
-  }
-  if(looksFakeName(name)){
-    alert('Please enter your real full name — we use this to follow up and help you get set up.');
-    return;
-  }
-  if(!validPhoneForCountry(phone, country)){
-    alert(phoneErrorMessage(country));
-    return;
-  }
-  if(town.length<2){
-    alert('Please enter your town or city.');
-    return;
-  }
-
-  var btn=document.getElementById('leadSubmitBtn');
-  var btnText=document.getElementById('leadBtnText');
-  var spinner=document.getElementById('leadSpinner');
-  btn.disabled=true;
-  btnText.style.display='none';
-  spinner.style.display='inline-block';
-
-  var phoneNorm = normalizePhoneForCountry(phone, country);
-
-  try{
-    await ST_PB.collection('bs_demo_leads').create({
-      name:name,
-      phone:phoneNorm,
-      business_type:btype,
-      town:town,
-      business_name:bname,
-      source:'landing_page'
-    });
-  }catch(err){
-    // Lead save failed — still let them into the demo, never block on this
-    console.error('Lead save failed:', err);
-  }
-
-  document.getElementById('leadFormWrap').style.display='none';
-  document.getElementById('leadSuccess').style.display='block';
-
-  setTimeout(function(){
-    window.location.href='/login?demo=1&name='+encodeURIComponent(name);
-  },2000);
-}
-
-/* Allow Enter key on form fields */
-document.querySelectorAll('.lf-input').forEach(function(inp){
-  inp.addEventListener('keydown',function(e){
-    if(e.key==='Enter')submitLead();
-  });
-});
-
-/* ── AFFILIATE APPLICANT LEAD CAPTURE ── */
-async function submitAffiliateLead(){
-  var name=document.getElementById('af-name').value.trim();
-  var country=document.getElementById('af-country').value;
-  var phone=document.getElementById('af-phone').value.trim();
-  var why=document.getElementById('af-why').value.trim();
-
-  if(!name||!phone){
-    alert('Please enter your name and phone number.');
-    return;
-  }
-  if(looksFakeName(name)){
-    alert('Please enter your real full name.');
-    return;
-  }
-  if(!validPhoneForCountry(phone, country)){
-    alert(phoneErrorMessage(country));
-    return;
-  }
-
-  var btn=document.getElementById('affSubmitBtn');
-  var btnText=document.getElementById('affBtnText');
-  var spinner=document.getElementById('affSpinner');
-  btn.disabled=true;
-  btnText.style.display='none';
-  spinner.style.display='inline-block';
-
-  var phoneNorm = normalizePhoneForCountry(phone, country);
-
-  try{
-    await ST_PB.collection('bs_affiliate_leads').create({
-      name:name,
-      phone:phoneNorm,
-      notes:why,
-      status:'new',
-      source:'landing_page'
-    });
-  }catch(err){
-    console.error('Affiliate lead save failed:', err);
-  }
-
-  document.getElementById('affFormWrap').style.display='none';
-  document.getElementById('affSuccess').style.display='block';
-}
-
-/* ── PWA INSTALL ── */
-var deferredPrompt;
-var banner=document.getElementById('pwa-banner');
-if(!window.matchMedia('(display-mode: standalone)').matches&&!localStorage.getItem('pwa-installed')){
-  window.addEventListener('beforeinstallprompt',function(e){
-    e.preventDefault();
-    deferredPrompt=e;
-    banner.style.display='flex';
-  });
-}
-function closeBanner(){banner.style.display='none';}
-function installApp(){
-  if(!deferredPrompt)return;
-  deferredPrompt.prompt();
-  deferredPrompt.userChoice.then(function(r){
-    if(r.outcome==='accepted')localStorage.setItem('pwa-installed','1');
-    banner.style.display='none';
-    deferredPrompt=null;
-  });
-}
-window.addEventListener('appinstalled',function(){
-  localStorage.setItem('pwa-installed','1');
-  banner.style.display='none';
-});
-</script>
 </body>
 </html>
