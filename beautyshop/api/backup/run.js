@@ -260,7 +260,11 @@ async function b2Delete(fileName) {
 export default async function handler(req, res) {
   const authHeader = req.headers['authorization']
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    console.error('[backup] CRON_SECRET is not configured; refusing to run.')
+    return res.status(503).json({ error: 'Backup service is not configured securely.' })
+  }
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 

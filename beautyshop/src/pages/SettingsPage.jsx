@@ -857,33 +857,18 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ── TAB 5: eTIMS ── */}
+      {/* ── TAB 5: TAX / eTIMS READINESS ── */}
       {tab === 5 && (
         <div className="card" style={{ maxWidth:640 }}>
-          <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:'0 0 8px' }}>eTIMS / KRA Integration</h2>
-          <p style={{ fontSize:13, color:'#9b6070', marginBottom:20 }}>Kenya Revenue Authority Electronic Tax Invoice Management System.</p>
-          <div style={{ background:'#fefce8', border:'1px solid #fde68a', borderRadius:12, padding:'13px 15px', marginBottom:18 }}>
-            <div style={{ fontWeight:700, color:'#92400e', fontSize:13 }}>⚠️ eTIMS Status</div>
-            <div style={{ fontSize:13, color:'#78350f', marginTop:3 }}>
-              {shopForm.etims_pin ? '✅ PIN configured. Add serial to go live.' : 'Not configured. Enter KRA PIN and serial to activate.'}
+          <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:'0 0 8px' }}>Tax & eTIMS Readiness</h2>
+          <p style={{ fontSize:13, color:'#9b6070', marginBottom:20 }}>SalesTrack does not currently submit invoices or receipts to KRA eTIMS.</p>
+          <div style={{ background:'#fff7ed', border:'1px solid #fed7aa', borderRadius:12, padding:'14px 16px', marginBottom:10 }}>
+            <div style={{ fontWeight:800, color:'#9a3412', fontSize:13 }}>⚠️ Integration not active yet</div>
+            <div style={{ fontSize:13, color:'#7c2d12', marginTop:5, lineHeight:1.6 }}>
+              Do not rely on SalesTrack receipts as proof of eTIMS submission. KRA/eTIMS status will only appear after a real server-verified integration is implemented and tested.
             </div>
           </div>
-          <form onSubmit={saveShop} style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div>
-              <label className="label">KRA PIN</label>
-              <input className="input" value={shopForm.etims_pin||''} onChange={e=>setShopForm(f=>({...f,etims_pin:e.target.value}))} placeholder="e.g. P000000000A" maxLength={11} style={{ textTransform:'uppercase', fontFamily:'monospace' }} />
-            </div>
-            <div>
-              <label className="label">eTIMS Device Serial</label>
-              <input className="input" value={shopForm.etims_serial||''} onChange={e=>setShopForm(f=>({...f,etims_serial:e.target.value}))} placeholder="Device serial from KRA portal" style={{ fontFamily:'monospace' }} />
-            </div>
-            <div style={{ background:'#f0f9ff', border:'1px solid #bae6fd', borderRadius:10, padding:'12px 14px', fontSize:12, color:'#0369a1' }}>
-              <div style={{ fontWeight:700, marginBottom:4 }}>API Endpoints</div>
-              <div style={{ fontFamily:'monospace', fontSize:11 }}>Production: https://etims.kra.go.ke/etims-api/</div>
-              <div style={{ fontFamily:'monospace', fontSize:11 }}>Sandbox: https://etims-sbx.kra.go.ke/etims-api/</div>
-            </div>
-            <button type="submit" className="btn-primary" disabled={saving}><Save size={14}/>{saving?'Saving…':'Save eTIMS Settings'}</button>
-          </form>
+          <div style={{ fontSize:12, color:'#9b6070', lineHeight:1.6 }}>Normal SalesTrack digital receipts remain available for customer and business records.</div>
         </div>
       )}
 

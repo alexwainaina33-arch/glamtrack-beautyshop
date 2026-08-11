@@ -44,7 +44,7 @@ const PLANS = {
       missing: [
         'Appointment booking page',
         'Staff commissions & attendance',
-        'AI business insights',
+        'Smart business insights',
         'Lender-ready P&L report',
         'Multi-branch management',
       ],
@@ -80,7 +80,7 @@ const PLANS = {
         {
           label: '📊 Business Intelligence & Lending',
           items: [
-            'AI daily business insight — personalised to your data',
+            'Smart daily business insight — personalised to your data',
             'Dead hours map — know your slow times, fill them',
             'Business health score — track your shop\'s fitness',
             'Customer cohort retention — 30, 60 & 90 day analysis',
@@ -101,7 +101,6 @@ const PLANS = {
       featuresFlat: [],
       missing: [
         'Multi-branch management',
-        'eTIMS / KRA compliance',
         'Dedicated account manager',
       ],
     },
@@ -116,7 +115,6 @@ const PLANS = {
           items: [
             'Unlimited branches under one login',
             'Multi-branch sales & profit dashboard',
-            'eTIMS integration — KRA-compliant receipts',
             'Multi-currency support (KES, USD, GBP, EUR)',
           ],
         },
@@ -169,7 +167,7 @@ const PLANS = {
       missing: [
         'Appointment booking page',
         'Staff commissions & attendance',
-        'AI business insights',
+        'Smart business insights',
         'Lender-ready P&L report',
         'Multi-branch management',
       ],
@@ -205,7 +203,7 @@ const PLANS = {
         {
           label: '📊 Business Intelligence & Lending',
           items: [
-            'AI daily business insight — personalised to your data',
+            'Smart daily business insight — personalised to your data',
             'Dead hours map — know your slow times, fill them',
             'Business health score — track your shop\'s fitness',
             'Customer cohort retention — 30, 60 & 90 day analysis',
@@ -226,7 +224,6 @@ const PLANS = {
       featuresFlat: [],
       missing: [
         'Multi-branch management',
-        'eTIMS / KRA compliance',
         'Dedicated account manager',
       ],
     },
@@ -241,7 +238,6 @@ const PLANS = {
           items: [
             'Unlimited branches under one login',
             'Multi-branch sales & profit dashboard',
-            'eTIMS integration — KRA-compliant receipts',
             'Multi-currency support (KES, USD, GBP, EUR)',
           ],
         },
@@ -263,23 +259,20 @@ const PLANS = {
 
 const PERIOD_LABELS = { monthly: '/ month', yearly: '/ year' }
 
-// ── Referral credit: called silently after every successful payment ──────
-// Delegates to a serverless function (api/referral/credit.js) that
-// authenticates to PocketBase as a superuser, since the paying shop
-// has no permission to update the referrer's record directly.
-// Never throws — referral credit is a bonus, never a blocker.
-async function creditReferrer(referralCodeUsed) {
-  if (!referralCodeUsed?.trim()) return
-  try {
-    await fetch('/api/referral/credit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ referralCodeUsed }),
-    })
-  } catch (e) {
-    // Silent — never surface referral errors to the paying customer
-    console.error('Referral credit request failed silently:', e?.message || e)
-  }
+// Paid entitlement is server-authoritative. The browser only submits a
+// Paystack reference; the server verifies payment, shop ownership and amount.
+async function activateVerifiedPaystackPayment({ reference, plan, shopId }) {
+  const authToken = pb.authStore.token
+  if (!authToken) throw new Error('Your session expired. Sign in again before activating your plan.')
+
+  const r = await fetch('/api/payments/verify-paystack', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+    body: JSON.stringify({ reference, planId: plan.id, period: plan.period, shopId }),
+  })
+  const data = await r.json().catch(() => ({}))
+  if (!r.ok || !data?.ok) throw new Error(data?.error || 'Payment could not be verified securely.')
+  return data
 }
 
 export default function PricingPage() {
@@ -321,27 +314,22 @@ export default function PricingPage() {
         ],
       },
       callback: async (response) => {
-        localStorage.setItem('st_plan',      plan.name)
-        localStorage.setItem('st_period',    plan.period)
-        localStorage.setItem('st_ref',       response.reference)
-        localStorage.setItem('st_price',     plan.price)
-        localStorage.setItem('st_dailycost', plan.dailyCost)
-        localStorage.setItem('st_activated', 'true')
-        if (shop?.id) {
-          try {
-            await pb.collection(C.SHOPS).update(shop.id, {
-              plan: plan.id,
-              subscription_status: 'active',
-              last_payment_ref: response.reference,
-            })
-          } catch (e) {
-            console.error('Failed to write plan to shop record:', e)
-          }
-          // Credit the referrer 1 free month if this shop used a referral code
-          await creditReferrer(shop.referral_code_used)
+        try {
+          if (!shop?.id) throw new Error('No shop is attached to this signed-in account.')
+          await activateVerifiedPaystackPayment({ reference: response.reference, plan, shopId: shop.id })
+          localStorage.setItem('st_plan', plan.name)
+          localStorage.setItem('st_period', plan.period)
+          localStorage.setItem('st_ref', response.reference)
+          localStorage.setItem('st_price', plan.price)
+          localStorage.setItem('st_dailycost', plan.dailyCost)
+          localStorage.setItem('st_activated', 'true')
+          navigate('/payment-success')
+        } catch (e) {
+          console.error('Secure Paystack activation failed:', e)
+          toast.error(e?.message || 'Payment received, but secure activation could not be verified. Contact support with your payment reference.', { duration: 9000 })
+        } finally {
+          setLoading(null)
         }
-        setLoading(null)
-        navigate('/payment-success')
       },
       onClose: () => {
         setLoading(null)
@@ -354,27 +342,11 @@ export default function PricingPage() {
   const handleSelect = (plan) => setMpesaPlan(plan)
 
   const handleMpesaSuccess = async ({ ref, plan }) => {
-    localStorage.setItem('st_plan',      plan.name)
-    localStorage.setItem('st_period',    plan.period)
-    localStorage.setItem('st_ref',       ref)
-    localStorage.setItem('st_price',     plan.price)
-    localStorage.setItem('st_dailycost', plan.dailyCost)
-    localStorage.setItem('st_activated', 'true')
-    if (shop?.id) {
-      try {
-        await pb.collection(C.SHOPS).update(shop.id, {
-          plan: plan.id,
-          subscription_status: 'active',
-          last_payment_ref: ref,
-        })
-      } catch (e) {
-        console.error('Failed to write plan to shop record:', e)
-      }
-      // Credit the referrer 1 free month if this shop used a referral code
-      await creditReferrer(shop.referral_code_used)
-    }
+    // STK Push is currently hidden/coming soon. Never activate paid entitlement
+    // from a browser callback without server-side payment verification.
+    console.info('M-Pesa payment requires secure server verification.', { ref, plan: plan?.id })
     setMpesaPlan(null)
-    navigate('/payment-success')
+    toast.success('Payment confirmation received. Secure account activation is pending verification.', { duration: 7000 })
   }
 
   const handlePaystack = (plan) => {

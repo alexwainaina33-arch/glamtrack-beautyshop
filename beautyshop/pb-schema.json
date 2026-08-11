@@ -3591,7 +3591,7 @@
         "listRule": "slug != \"\"",
         "viewRule": "slug != \"\"",
         "createRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && @request.auth.role = 'owner'",
-        "updateRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && @request.auth.role = 'owner' && bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
+        "updateRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && @request.auth.role = 'owner' && bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id && @request.body.plan:changed = false && @request.body.subscription_status:changed = false && @request.body.last_payment_ref:changed = false && @request.body.subscription_ends_at:changed = false && @request.body.trial_ends_at:changed = false",
         "deleteRule": "@request.auth.id != '' && @request.auth.collectionName = 'bs_admins' && @request.auth.role = 'owner' && bs_shop_admins_via_shop_id.admin_id ?= @request.auth.id",
         "name": "bs_shops",
         "type": "base",

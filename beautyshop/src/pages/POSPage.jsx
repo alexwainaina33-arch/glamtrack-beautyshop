@@ -543,7 +543,7 @@ export default function POSPage() {
         const newPts = Math.max(0, (customer.loyalty_points || 0) - (redeemPoints ? customer.loyalty_points : 0)) + pointsEarned
         await pb.collection(C.CUSTOMERS).update(customer.id, { total_spent_kes: (customer.total_spent_kes || 0) + total, visit_count: (customer.visit_count || 0) + 1, loyalty_points: newPts })
       }
-      setTimeout(async () => { try { await pb.collection(C.SALES).update(sale.id, { etims_ref: `ETM-${Date.now()}`, etims_status: 'success' }) } catch {} }, 2000)
+
       setCompletedSale({ ...sale, items: cart, customer, change, pointsEarned })
       setShowReceipt(true); clearCart(); loadData()
       toast.success(`Sale done! ${receiptNo}`, { icon: '🎉', duration: 4000 })
