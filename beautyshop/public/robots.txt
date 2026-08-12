@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://getsalestrack.vercel.app/sitemap.xml
