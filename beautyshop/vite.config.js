@@ -69,6 +69,17 @@ export default defineConfig({
         ]
       },
       workbox: {
+        navigateFallbackDenylist: [
+          /^\/robots\.txt$/,
+          /^\/sitemap\.xml$/,
+          /^\/landing\.html$/,
+          /^\/blog(?:\/|$)/,
+          /^\/legal(?:\/|$)/,
+          /^\/marketing(?:\/|$)/,
+          /^\/icons(?:\/|$)/,
+          /^\/manifest\.webmanifest$/,
+          /^\/favicon(?:\.|$)/
+        ],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
