@@ -1468,6 +1468,38 @@
     min-height:5px;
   }
 }
+
+/* S3.31 EARLY CUSTOMER PRICING CLARITY */
+.s331-early-customer-note{
+  max-width:1120px;
+  margin:24px auto 0;
+  padding:16px 18px;
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:12px;
+  align-items:start;
+  border:1px solid #ead8d4;
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 10px 24px rgba(46,12,24,.04);
+}
+.s331-early-customer-note strong{
+  color:#2a0715;
+  font-size:12px;
+  white-space:nowrap;
+}
+.s331-early-customer-note span{
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.55;
+}
+@media(max-width:820px){
+  .s331-early-customer-note{
+    grid-template-columns:1fr;
+    gap:5px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1628,7 +1660,7 @@
     <div class="s324-pricing-head">
       <div class="eyebrow">Honest pricing</div>
       <h2>Choose the plan that fits your business</h2>
-      <p>Start with a 7-day free trial. No card required. Choose a paid plan only after you have seen SalesTrack working with your business.</p>
+      <p>Start with a 7-day free trial. No card required. Plans shown below are standard starting prices; early customers receiving assisted setup and support may receive a tailored monthly rate confirmed before activation.</p>
     </div>
 
     <div class="s324-plans">
@@ -1636,7 +1668,7 @@
         <div class="s324-badge">STARTER</div>
         <h3>Starter</h3>
         <p class="s324-plan-audience">For businesses that need the essentials connected properly.</p>
-        <div class="s324-price"><strong>KES 2,499</strong><span>/month</span></div>
+        <div class="s324-price"><strong>From KES 2,499</strong><span>/month</span></div>
         <ul>
           <li>POS &amp; offline selling</li>
           <li>Products &amp; inventory</li>
@@ -1650,7 +1682,7 @@
         <div class="s324-badge">GROWTH</div>
         <h3>Growth</h3>
         <p class="s324-plan-audience">For a growing business that needs people, appointments and insight connected.</p>
-        <div class="s324-price"><strong>KES 4,499</strong><span>/month</span></div>
+        <div class="s324-price"><strong>From KES 4,499</strong><span>/month</span></div>
         <ul>
           <li>Everything in Starter</li>
           <li>Appointments</li>
@@ -1664,7 +1696,7 @@
         <div class="s324-badge">ENTERPRISE</div>
         <h3>Enterprise</h3>
         <p class="s324-plan-audience">For businesses that need broader operational control as they grow.</p>
-        <div class="s324-price"><strong>KES 6,499</strong><span>/month</span></div>
+        <div class="s324-price"><strong>From KES 6,499</strong><span>/month</span></div>
         <ul>
           <li>Everything in Growth</li>
           <li>Multi-branch direction</li>
@@ -1673,6 +1705,11 @@
         </ul>
         <a class="s324-plan-cta" href="/login?start=trial">Start Free Trial</a>
       </article>
+    </div>
+
+    <div class="s331-early-customer-note">
+      <strong>Early Customer Programme</strong>
+      <span>We are personally onboarding a limited number of Kenyan businesses. Assisted setup, support and founder-customer arrangements may use a tailored monthly rate. Your agreed rate is always confirmed before activation.</span>
     </div>
 
     <div class="s324-pricing-confidence">
