@@ -17,6 +17,7 @@ export default function InventoryPage() {
   const [adjustQty, setAdjustQty] = useState('')
   const [adjustNote, setAdjustNote] = useState('')
   const [adjustCost, setAdjustCost] = useState('')
+  const [adjustExtraCost, setAdjustExtraCost] = useState('')
   const [adjustSupplier, setAdjustSupplier] = useState('')
   const [adjustFunding, setAdjustFunding] = useState('cash')
   const [saving, setSaving] = useState(false)
@@ -64,6 +65,7 @@ export default function InventoryPage() {
     setAdjustQty('')
     setAdjustNote('')
     setAdjustCost(product?.cost_price_kes || '')
+    setAdjustExtraCost('')
     setAdjustSupplier('')
     setAdjustFunding('cash')
     setShowAdjust(true)
@@ -75,25 +77,50 @@ export default function InventoryPage() {
     if (!adjustQty || isNaN(adjustQty) || Number(adjustQty) <= 0) return toast.error('Enter valid quantity')
     setSaving(true)
     try {
-      const qty = Number(adjustQty)
-      const isOut = ['stock_out', 'damage', 'adjustment'].includes(adjustType) && adjustType !== 'stock_in' && adjustType !== 'return'
-      const deltaQty = adjustType === 'stock_in' || adjustType === 'return' ? qty : -qty
-      const newQty = Math.max(0, (adjustProduct.stock_qty || 0) + deltaQty)
+      if (!adjustProduct) return toast.error('Select a product')
 
-      await pb.collection(C.PRODUCTS).update(adjustProduct.id, { stock_qty: newQty })
+      const qty = Number(adjustQty)
+      const currentQty = Number(adjustProduct.stock_qty || 0)
+      const currentCost = Number(adjustProduct.cost_price_kes || 0)
       const isInbound = ['stock_in', 'return', 'opening_stock'].includes(adjustType)
       const isPurchase = ['stock_in', 'opening_stock'].includes(adjustType)
+      const deltaQty = isInbound ? qty : -qty
+      const newQty = Math.max(0, currentQty + deltaQty)
+
+      const supplierUnitCost = Number(adjustCost) || 0
+      const extraProcurementCost = isPurchase ? Number(adjustExtraCost) || 0 : 0
+      const landedUnitCost = isPurchase && qty > 0
+        ? ((supplierUnitCost * qty) + extraProcurementCost) / qty
+        : supplierUnitCost
+
+      // Moving weighted average keeps Martin's existing stock and new stock
+      // economically correct when purchase costs change between batches.
+      const weightedAverageCost = isPurchase && newQty > 0
+        ? (adjustType === 'opening_stock' || currentQty <= 0
+          ? landedUnitCost
+          : ((currentQty * currentCost) + (qty * landedUnitCost)) / newQty)
+        : currentCost
+
+      const productUpdate = { stock_qty: newQty }
+      if (isPurchase) productUpdate.cost_price_kes = Number(weightedAverageCost.toFixed(4))
+      await pb.collection(C.PRODUCTS).update(adjustProduct.id, productUpdate)
+
+      const procurementNote = isPurchase && extraProcurementCost > 0
+        ? `Additional procurement cost KES ${extraProcurementCost.toFixed(2)}; landed cost KES ${landedUnitCost.toFixed(2)}/${adjustProduct.unit || 'unit'}`
+        : ''
+      const movementNote = [adjustNote, procurementNote].filter(Boolean).join(' | ')
+
       await pb.collection(C.INV_MOVEMENTS).create({
         shop_id: shop.id,
         product_id: adjustProduct.id,
         type: adjustType,
         qty: isInbound ? qty : -qty,
-        before_qty: adjustProduct.stock_qty || 0,
+        before_qty: currentQty,
         after_qty: newQty,
-        cost_per_unit: isInbound ? Number(adjustCost) || 0 : null,
+        cost_per_unit: isInbound ? landedUnitCost : null,
         funding_source: isPurchase ? adjustFunding : null,
         supplier_name: adjustSupplier || null,
-        notes: adjustNote,
+        notes: movementNote,
         reference: adjustNote,
         created_by: pb.authStore.model?.id
       })
@@ -227,7 +254,7 @@ export default function InventoryPage() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn-secondary" onClick={() => setShowBulkImport(true)} disabled={isLocked}><Upload size={14} /> Bulk Import</button>
           <button className="btn-primary" onClick={() => openAdjust(null, 'stock_in')} disabled={isLocked} title={isLocked ? 'Account locked — renew to adjust stock' : ''}>
-            {isLocked ? '🔒 Locked' : <><Plus size={16} /> Stock Adjustment</>}
+            {isLocked ? '🔒 Locked' : <><Plus size={16} /> Receive Stock</>}
           </button>
         </div>
       </div>
@@ -497,7 +524,7 @@ export default function InventoryPage() {
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowAdjust(false)}>
           <div className="modal" style={{ maxWidth: 480 }}>
             <div className="modal-header">
-              <span className="modal-title">Stock Adjustment</span>
+              <span className="modal-title">{adjustType === 'stock_in' ? 'Receive Stock' : 'Stock Adjustment'}</span>
               <button onClick={() => setShowAdjust(false)} className="btn-ghost" style={{ padding: 8 }}><X size={18} /></button>
             </div>
             <div className="modal-body">
@@ -507,12 +534,12 @@ export default function InventoryPage() {
                     <label className="label">Product *</label>
                     <select className="input" onChange={e => setAdjustProduct(products.find(p => p.id === e.target.value))} required>
                       <option value="">Select product</option>
-                      {products.map(p => <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock_qty || 0})</option>)}
+                      {products.map(p => <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock_qty || 0} {p.unit || 'pcs'})</option>)}
                     </select>
                   </div>
                 )}
                 {adjustProduct && <div style={{ background: '#fce8ed', borderRadius: 10, padding: '10px 14px', fontSize: 14 }}>
-                  <strong>{adjustProduct.name}</strong> · Current stock: <strong>{adjustProduct.stock_qty || 0}</strong>
+                  <strong>{adjustProduct.name}</strong> · Current stock: <strong>{adjustProduct.stock_qty || 0} {adjustProduct.unit || 'pcs'}</strong>
                 </div>}
                 <div>
                   <label className="label">Movement Type</label>
@@ -526,15 +553,26 @@ export default function InventoryPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="label">Quantity *</label>
-                  <input className="input" type="number" min={1} required value={adjustQty} onChange={e => setAdjustQty(e.target.value)} placeholder="Enter quantity" />
+                  <label className="label">Quantity {adjustProduct ? `(${adjustProduct.unit || 'pcs'})` : ''} *</label>
+                  <input className="input" type="number" min={1} step="1" inputMode="numeric" required value={adjustQty} onChange={e => setAdjustQty(e.target.value)} placeholder="Enter quantity" />
                 </div>
                 {['stock_in', 'opening_stock'].includes(adjustType) && (
                   <>
                     <div>
-                      <label className="label">Cost per Unit (KES) *</label>
-                      <input className="input" type="number" min={0} step="0.01" value={adjustCost} onChange={e => setAdjustCost(e.target.value)} placeholder="What did you pay per unit?" />
+                      <label className="label">Supplier Cost per {adjustProduct?.unit || 'unit'} (KES) *</label>
+                      <input className="input" type="number" min={0} step="0.01" inputMode="decimal" value={adjustCost} onChange={e => setAdjustCost(e.target.value)} placeholder="e.g. 145" />
                     </div>
+                    <div>
+                      <label className="label">Transport / Other Procurement Cost (KES)</label>
+                      <input className="input" type="number" min={0} step="0.01" inputMode="decimal" value={adjustExtraCost} onChange={e => setAdjustExtraCost(e.target.value)} placeholder="e.g. 300 transport for this batch" />
+                      <div style={{ fontSize: 11, color: '#9b6070', marginTop: 5 }}>Optional. SalesTrack spreads this cost across the quantity received.</div>
+                    </div>
+                    {Number(adjustQty) > 0 && Number(adjustCost) >= 0 && (
+                      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '10px 12px', color: '#166534', fontSize: 12 }}>
+                        <strong>Landed cost:</strong> {fmtKES(((Number(adjustCost) || 0) * Number(adjustQty) + (Number(adjustExtraCost) || 0)) / Number(adjustQty))} / {adjustProduct?.unit || 'unit'}
+                        <div style={{ marginTop: 3, color: '#4b7a5b' }}>Used as the inventory cost for profit calculations.</div>
+                      </div>
+                    )}
                     <div>
                       <label className="label">How did you pay for this stock? *</label>
                       <select className="input" value={adjustFunding} onChange={e => setAdjustFunding(e.target.value)}>
@@ -556,7 +594,7 @@ export default function InventoryPage() {
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                   <button type="button" className="btn-secondary" onClick={() => setShowAdjust(false)}>Cancel</button>
                   <button type="submit" className="btn-primary" disabled={saving}>
-                    {saving ? 'Saving…' : '💾 Save Adjustment'}
+                    {saving ? 'Saving...' : (adjustType === 'stock_in' ? 'Receive Stock' : 'Save Adjustment')}
                   </button>
                 </div>
               </form>

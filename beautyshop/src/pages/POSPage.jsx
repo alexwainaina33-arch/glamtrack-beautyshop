@@ -305,8 +305,7 @@ export default function POSPage() {
     setCart(prev => {
       const ex = prev.find(i => i.cartKey === cartKey)
       if (ex) {
-        if (product.track_inventory && ex.qty >= stockSource.stock_qty) return (toast.error('Insufficient stock!'), prev)
-        return prev.map(i => i.cartKey === cartKey ? { ...i, qty: i.qty + 1 } : i)
+        return prev
       }
       playSound('success')
       const name = variant ? `${product.name} — ${variant.name}` : product.name
@@ -325,7 +324,44 @@ export default function POSPage() {
     setVariantPopupProduct(null)
   }
 
-  const updateQty  = (cartKey, delta) => setCart(p => p.map(i => i.cartKey === cartKey ? { ...i, qty: Math.max(1, i.qty + delta) } : i))
+  const updateCartQuantity = (cartKey, rawValue) => {
+    // Allow a completely blank field while the cashier replaces the quantity.
+    if (rawValue === '') {
+      setCart(prev => prev.map(item =>
+        item.cartKey === cartKey ? { ...item, qty: '' } : item
+      ))
+      return
+    }
+
+    const parsed = Number(rawValue)
+    if (!Number.isFinite(parsed) || parsed <= 0) return
+
+    setCart(prev => prev.map(item => {
+      if (item.cartKey !== cartKey) return item
+
+      // S3.31A deliberately keeps whole quantities because the current
+      // PocketBase stock schema is integer-only. Decimal quantity support
+      // will be a separate schema-safe migration after local acceptance.
+      const nextQty = Math.max(1, Math.floor(parsed))
+
+      if (item.track_inventory && nextQty > Number(item.stock_qty || 0)) {
+        toast.error(`Only ${item.stock_qty || 0} ${item.unit || 'pcs'} available`)
+        return item
+      }
+
+      return { ...item, qty: nextQty }
+    }))
+  }
+
+  const updateCartUnitPrice = (cartKey, rawValue) => {
+    const parsed = Number(rawValue)
+    if (!Number.isFinite(parsed) || parsed < 0) return
+
+    setCart(prev => prev.map(item =>
+      item.cartKey === cartKey ? { ...item, unit_price: parsed } : item
+    ))
+  }
+
   const removeItem = (cartKey) => setCart(p => p.filter(i => i.cartKey !== cartKey))
   const clearCart  = () => { setCart([]); setCustomer(null); setDiscount(0); setCashTendered(''); setMpesaAmount(''); setRedeemPoints(false); setCustomerSearch('') }
 
@@ -477,6 +513,15 @@ export default function POSPage() {
     if (isLocked) return toast.error('🔒 Account locked — renew your subscription to make sales', { duration: 6000 })
     if (!cart.length) return toast.error('Cart is empty')
     if (paymentMethod === 'cash' && cashTendered && Number(cashTendered) < total) return toast.error('Insufficient cash')
+
+    const invalidQtyItem = cart.find(item =>
+      item.qty === '' ||
+      !Number.isFinite(Number(item.qty)) ||
+      Number(item.qty) <= 0
+    )
+    if (invalidQtyItem) {
+      return toast.error(`Enter a valid quantity for ${invalidQtyItem.name}`)
+    }
 
     // OFFLINE MODE — queue locally
     if (!isOnline) {
@@ -711,10 +756,10 @@ export default function POSPage() {
   {p.is_service ? '✂️' : categories.find(c => c.id === p.category_id)?.icon || '📦'}
 </div>
                   <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>{p.name}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#c8456a' }}>{p.has_variants ? `from ${fmtKES(p.price_kes)}` : fmtKES(p.price_kes)}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#c8456a' }}>{p.has_variants ? `from ${fmtKES(p.price_kes)}` : `${fmtKES(p.price_kes)} / ${p.unit || 'piece'}`}</div>
                   {p.has_variants
                     ? <div style={{ fontSize: 10, color: '#9b6070' }}>{out ? '❌ Out' : `${variants.length} option${variants.length !== 1 ? 's' : ''}`}</div>
-                    : (p.track_inventory && <div style={{ fontSize: 10, color: p.stock_qty <= 5 ? '#dc2626' : '#9b6070' }}>{out ? '❌ Out' : `${p.stock_qty} left`}</div>)
+                    : (p.track_inventory && <div style={{ fontSize: 10, color: p.stock_qty <= 5 ? '#dc2626' : '#9b6070' }}>{out ? '❌ Out' : `${p.stock_qty} ${p.unit || 'pcs'} available`}</div>)
                   }
                 </div>
               )
@@ -804,17 +849,45 @@ export default function POSPage() {
               </div>
             ) : cart.map(item => (
               <div key={item.cartKey} className="cart-item">
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0, paddingRight: 4 }}>
                   <div style={{ fontSize: 12, fontWeight: 600 }}>{item.name}</div>
-                  <div style={{ fontSize: 11, color: '#9b6070' }}>{fmtKES(item.unit_price)}</div>
+                  <div style={{ fontSize: 10, color: '#9b6070', marginTop: 2 }}>
+                    {item.track_inventory ? `${item.stock_qty || 0} ${item.unit || 'pcs'} available` : (item.unit || 'service')}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <button onClick={() => updateQty(item.cartKey, -1)} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid #e8d0d6', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Minus size={10} /></button>
-                  <span style={{ fontSize: 13, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
-                  <button onClick={() => updateQty(item.cartKey, 1)} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid #e8d0d6', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={10} /></button>
-                  <button onClick={() => removeItem(item.cartKey)} style={{ width: 22, height: 22, borderRadius: 6, border: 'none', background: '#fee2e2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={10} color="#dc2626" /></button>
+                <div style={{ display: 'grid', gridTemplateColumns: '52px 62px 22px', alignItems: 'end', gap: 5 }}>
+                  <label style={{ fontSize: 9, color: '#9b6070', fontWeight: 700 }}>
+                    QTY ({item.unit || 'pcs'})
+                    <input
+                      className="input"
+                      type="number"
+                      min="1"
+                      step="1"
+                      inputMode="numeric"
+                      placeholder="Qty"
+                      value={item.qty}
+                      onChange={e => updateCartQuantity(item.cartKey, e.target.value)}
+                      onFocus={e => e.target.select()}
+                      style={{ marginTop: 2, width: '100%', height: 28, padding: '3px 5px', fontSize: 12, fontWeight: 700, minWidth: 0 }}
+                    />
+                  </label>
+                  <label style={{ fontSize: 9, color: '#9b6070', fontWeight: 700 }}>
+                    PRICE / {item.unit || 'unit'}
+                    <input
+                      className="input"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={item.unit_price}
+                      onChange={e => updateCartUnitPrice(item.cartKey, e.target.value)}
+                      onFocus={e => e.target.select()}
+                      style={{ marginTop: 2, width: '100%', height: 28, padding: '3px 5px', fontSize: 11, fontWeight: 700, minWidth: 0 }}
+                    />
+                  </label>
+                  <button onClick={() => removeItem(item.cartKey)} title="Remove" style={{ width: 22, height: 28, borderRadius: 6, border: 'none', background: '#fee2e2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={11} color="#dc2626" /></button>
                 </div>
-                <div style={{ width: 58, textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#c8456a' }}>{fmtKES(item.unit_price * item.qty)}</div>
+                <div style={{ width: 72, minWidth: 72, flexShrink: 0, textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#c8456a', whiteSpace: 'nowrap' }}>{fmtKES(item.unit_price * item.qty)}</div>
               </div>
             ))}
           </div>
