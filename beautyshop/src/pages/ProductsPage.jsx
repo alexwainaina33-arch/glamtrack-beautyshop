@@ -393,8 +393,8 @@ export default function ProductsPage() {
           price_kes: parseFloat(row.price_kes || row.price || 0),
           cost_price_kes: parseFloat(row.cost_price_kes || row.cost || 0),
           compare_price_kes: parseFloat(row.compare_price_kes || 0) || 0,
-          stock_qty: parseInt(row.stock_qty || row.stock || 0),
-          reorder_point: parseInt(row.reorder_point || 5),
+         stock_qty: parseFloat(row.stock_qty || row.stock || 0),
+          reorder_point: parseFloat(row.reorder_point || 5),
           brand: row.brand || '',
           unit: row.unit || 'piece',
           description: row.description || '',
@@ -712,14 +712,13 @@ export default function ProductsPage() {
                   {!form.has_variants && (
                     <div>
                       <label className="label">Stock Quantity</label>
-                      <input className="input" type="number" min={0} value={form.stock_qty} onChange={e=>setForm(f=>({...f,stock_qty:e.target.value}))} />
+                      <input className="input" type="number" min={0} step="0.01" value={form.stock_qty} onChange={e=>setForm(f=>({...f,stock_qty:e.target.value}))} />
                     </div>
                   )}
                   {!form.has_variants && (
                     <div>
                       <label className="label">Reorder Point</label>
-                      <input className="input" type="number" min={0} value={form.reorder_point} onChange={e=>setForm(f=>({...f,reorder_point:e.target.value}))} />
-                      <div style={{ fontSize:11, color:'#9b6070', marginTop:3 }}>Alert when stock drops to this level</div>
+                      <input className="input" type="number" min={0} step="0.01" value={form.reorder_point} onChange={e=>setForm(f=>({...f,reorder_point:e.target.value}))} />                      <div style={{ fontSize:11, color:'#9b6070', marginTop:3 }}>Alert when stock drops to this level</div>
                     </div>
                   )}
                   <div style={{ gridColumn:'1/-1', display:'flex', gap:20, flexWrap:'wrap' }}>
@@ -750,7 +749,7 @@ export default function ProductsPage() {
                                 <input className="input" style={{ fontSize:12, padding:'6px 8px' }} placeholder="Name (e.g. 128GB / Black)" value={v.name} onChange={e=>updateVariantRow(key,'name',e.target.value)} />
                                 <input className="input" style={{ fontSize:12, padding:'6px 8px' }} type="number" min={0} step="0.01" placeholder="Price KES" value={v.price_kes} onChange={e=>updateVariantRow(key,'price_kes',e.target.value)} />
                                 <input className="input" style={{ fontSize:12, padding:'6px 8px' }} type="number" min={0} step="0.01" placeholder="Cost KES" value={v.cost_price_kes} onChange={e=>updateVariantRow(key,'cost_price_kes',e.target.value)} />
-                                <input className="input" style={{ fontSize:12, padding:'6px 8px' }} type="number" min={0} placeholder="Stock" value={v.stock_qty} onChange={e=>updateVariantRow(key,'stock_qty',e.target.value)} />
+                                <input className="input" style={{ fontSize:12, padding:'6px 8px' }} type="number" min={0} step="0.01" placeholder="Stock" value={v.stock_qty} onChange={e=>updateVariantRow(key,'stock_qty',e.target.value)} />
                                 <button type="button" onClick={()=>removeVariantRow(v)} className="btn-ghost" style={{ padding:4, color:'#dc2626' }} title="Remove variant"><Trash2 size={13}/></button>
                               </div>
                             )

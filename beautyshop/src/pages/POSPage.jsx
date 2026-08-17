@@ -324,7 +324,7 @@ export default function POSPage() {
     setVariantPopupProduct(null)
   }
 
-  const updateCartQuantity = (cartKey, rawValue) => {
+   const updateCartQuantity = (cartKey, rawValue) => {
     // Allow a completely blank field while the cashier replaces the quantity.
     if (rawValue === '') {
       setCart(prev => prev.map(item =>
@@ -339,10 +339,11 @@ export default function POSPage() {
     setCart(prev => prev.map(item => {
       if (item.cartKey !== cartKey) return item
 
-      // S3.31A deliberately keeps whole quantities because the current
-      // PocketBase stock schema is integer-only. Decimal quantity support
-      // will be a separate schema-safe migration after local acceptance.
-      const nextQty = Math.max(1, Math.floor(parsed))
+      // Decimal quantities are supported now that bs_products.stock_qty
+      // and bs_product_variants.stock_qty allow non-integer values —
+      // e.g. selling 6.7kg of Pishori Rice. Round to 2dp to avoid
+      // floating-point noise like 6.700000000000001.
+      const nextQty = Math.round(Math.max(0.01, parsed) * 100) / 100
 
       if (item.track_inventory && nextQty > Number(item.stock_qty || 0)) {
         toast.error(`Only ${item.stock_qty || 0} ${item.unit || 'pcs'} available`)
@@ -858,12 +859,12 @@ export default function POSPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '52px 62px 22px', alignItems: 'end', gap: 5 }}>
                   <label style={{ fontSize: 9, color: '#9b6070', fontWeight: 700 }}>
                     QTY ({item.unit || 'pcs'})
-                    <input
+                     <input
                       className="input"
                       type="number"
-                      min="1"
-                      step="1"
-                      inputMode="numeric"
+                      min="0.01"
+                      step="0.01"
+                      inputMode="decimal"
                       placeholder="Qty"
                       value={item.qty}
                       onChange={e => updateCartQuantity(item.cartKey, e.target.value)}

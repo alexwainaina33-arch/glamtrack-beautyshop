@@ -554,7 +554,7 @@ export default function InventoryPage() {
                 </div>
                 <div>
                   <label className="label">Quantity {adjustProduct ? `(${adjustProduct.unit || 'pcs'})` : ''} *</label>
-                  <input className="input" type="number" min={1} step="1" inputMode="numeric" required value={adjustQty} onChange={e => setAdjustQty(e.target.value)} placeholder="Enter quantity" />
+                  <input className="input" type="number" min={0.01} step="0.01" inputMode="decimal" required value={adjustQty} onChange={e => setAdjustQty(e.target.value)} placeholder="Enter quantity" />
                 </div>
                 {['stock_in', 'opening_stock'].includes(adjustType) && (
                   <>
