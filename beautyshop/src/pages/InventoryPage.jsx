@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
-import { fmtKES, fmtDateTime } from '../lib/utils'
+import { fmtKES, fmtDateTime, r2 } from '../lib/utils'
 import { Plus, AlertTriangle, ArrowUp, ArrowDown, RefreshCw, X, Filter, Upload, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -85,7 +85,7 @@ export default function InventoryPage() {
       const isInbound = ['stock_in', 'return', 'opening_stock'].includes(adjustType)
       const isPurchase = ['stock_in', 'opening_stock'].includes(adjustType)
       const deltaQty = isInbound ? qty : -qty
-      const newQty = Math.max(0, currentQty + deltaQty)
+      const newQty = r2(Math.max(0, currentQty + deltaQty))
 
       const supplierUnitCost = Number(adjustCost) || 0
       const extraProcurementCost = isPurchase ? Number(adjustExtraCost) || 0 : 0
@@ -167,7 +167,7 @@ export default function InventoryPage() {
           const prod = products.find(p => p.name.toLowerCase().trim() === productName.toLowerCase().trim())
           if (!prod) { failed++; continue }
 
-          const newQty = Math.max(0, (prod.stock_qty || 0) + qty)
+          const newQty = r2(Math.max(0, (prod.stock_qty || 0) + qty))
           await pb.collection(C.PRODUCTS).update(prod.id, { stock_qty: newQty })
           await pb.collection(C.INV_MOVEMENTS).create({
             shop_id: shop.id,
@@ -296,7 +296,7 @@ export default function InventoryPage() {
                   onClick={() => {
                     const lowItems = products.filter(p => p.stock_qty <= (p.reorder_point || 5))
                     const lines = lowItems.map((p, i) =>
-                      `${i + 1}. *${p.name}*\n    Stock: ${p.stock_qty ?? 0} ${p.unit || 'pcs'} (reorder at ${p.reorder_point || 5})`
+                      `${i + 1}. *${p.name}*\n    Stock: ${r2(p.stock_qty ?? 0)} ${p.unit || 'pcs'} (reorder at ${p.reorder_point || 5})`
                     ).join('\n\n')
                     const outItems = lowItems.filter(p => p.stock_qty <= 0)
                     const msg = `⚠️ *Low Stock Report — ${shop.name}*\n\n${outItems.length > 0 ? `❌ *${outItems.length} item(s) completely out of stock*\n` : ''}📦 *${lowItems.length} product(s) need restocking:*\n\n${lines}\n\n_Please reorder to avoid losing sales._\n\n_${shop.name} · SalesTrack_`
@@ -340,7 +340,7 @@ export default function InventoryPage() {
                       <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{p.barcode || p.sku || '—'}</td>
                       <td>
                         <span style={{ fontWeight: 700, fontSize: 16, color: isOut ? '#dc2626' : isLow ? '#d97706' : '#059669' }}>
-                          {p.stock_qty ?? 0}
+                          {r2(p.stock_qty ?? 0)}
                         </span>
                         <span style={{ color: '#9b6070', fontSize: 12, marginLeft: 4 }}>{p.unit || 'pcs'}</span>
                       </td>
@@ -373,7 +373,7 @@ export default function InventoryPage() {
                               title="Send low stock alert to yourself via WhatsApp"
                               style={{ padding: '5px 10px', color: '#25d366', minHeight: 44, fontWeight: 700, fontSize: 12 }}
                               onClick={() => {
-                                const msg = `⚠️ *Low Stock Alert — ${shop.name}*\n\n*Product:*\n${p.name}${p.brand ? ' (' + p.brand + ')' : ''}\n\n*Current Stock:*\n${p.stock_qty ?? 0} ${p.unit || 'pcs'}\n\n*Reorder Level:*\n${p.reorder_point || 5} ${p.unit || 'pcs'}\n\n*Retail Price:*\n${fmtKES(p.price_kes)}\n\n📦 Restock this product to avoid losing sales.\n\n_${shop.name} · SalesTrack_`
+                                const msg = `⚠️ *Low Stock Alert — ${shop.name}*\n\n*Product:*\n${p.name}${p.brand ? ' (' + p.brand + ')' : ''}\n\n*Current Stock:*\n${r2(p.stock_qty ?? 0)} ${p.unit || 'pcs'}\n\n*Reorder Level:*\n${p.reorder_point || 5} ${p.unit || 'pcs'}\n\n*Retail Price:*\n${fmtKES(p.price_kes)}\n\n📦 Restock this product to avoid losing sales.\n\n_${shop.name} · SalesTrack_`
                                 const phone = shop.phone ? shop.phone.replace(/\D/g, '').replace(/^0/, '254') : ''
                                 window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
                               }}
@@ -506,8 +506,8 @@ export default function InventoryPage() {
                       <td style={{ fontWeight: 600 }}>{m.expand?.product_id?.name || m.product_id}</td>
                       <td><span style={{ background: typeColors[m.type] + '20', color: typeColors[m.type], padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{m.type}</span></td>
                       <td style={{ fontWeight: 700, color: m.qty > 0 ? '#059669' : '#dc2626' }}>{m.qty > 0 ? '+' : ''}{m.qty}</td>
-                      <td style={{ color: '#9b6070' }}>{m.before_qty}</td>
-                      <td style={{ fontWeight: 600 }}>{m.after_qty}</td>
+                      <td style={{ color: '#9b6070' }}>{r2(m.before_qty)}</td>
+                      <td style={{ fontWeight: 600 }}>{r2(m.after_qty)}</td>
                       <td style={{ fontSize: 12, fontFamily: 'monospace' }}>{m.reference || '—'}</td>
                       <td style={{ fontSize: 12, color: '#9b6070' }}>{m.notes || '—'}</td>
                     </tr>
@@ -534,12 +534,12 @@ export default function InventoryPage() {
                     <label className="label">Product *</label>
                     <select className="input" onChange={e => setAdjustProduct(products.find(p => p.id === e.target.value))} required>
                       <option value="">Select product</option>
-                      {products.map(p => <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock_qty || 0} {p.unit || 'pcs'})</option>)}
+                      {products.map(p => <option key={p.id} value={p.id}>{p.name} (Stock: {r2(p.stock_qty || 0)} {p.unit || 'pcs'})</option>)}
                     </select>
                   </div>
                 )}
                 {adjustProduct && <div style={{ background: '#fce8ed', borderRadius: 10, padding: '10px 14px', fontSize: 14 }}>
-                  <strong>{adjustProduct.name}</strong> · Current stock: <strong>{adjustProduct.stock_qty || 0} {adjustProduct.unit || 'pcs'}</strong>
+                  <strong>{adjustProduct.name}</strong> · Current stock: <strong>{r2(adjustProduct.stock_qty || 0)} {adjustProduct.unit || 'pcs'}</strong>
                 </div>}
                 <div>
                   <label className="label">Movement Type</label>
@@ -635,3 +635,6 @@ export default function InventoryPage() {
     </div>
   )
 }
+
+
+

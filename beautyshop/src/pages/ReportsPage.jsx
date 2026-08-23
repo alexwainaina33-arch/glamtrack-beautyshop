@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
-import { fmtKES, fmtDate } from '../lib/utils'
+import { fmtKES, fmtDate, r2 } from '../lib/utils'
 import { buildTrialBalance, buildCashFlow } from '../lib/financials'
 import { hasRequiredPlan } from '../lib/planAccess'
 import PlanGuard from '../components/PlanGuard'
@@ -775,7 +775,7 @@ export default function ReportsPage() {
                           {bsData.products.filter(p=>p.costValue>0).map(p => (
                             <tr key={p.id}>
                               <td style={{ fontSize:12, fontWeight:500 }}>{p.name}</td>
-                              <td style={{ fontSize:12, textAlign:'center' }}>{p.stock_qty||0}</td>
+                              <td style={{ fontSize:12, textAlign:'center' }}>{r2(p.stock_qty||0)}</td>
                               <td style={{ fontSize:12, fontWeight:600 }}>{fmtKES(p.costValue)}</td>
                             </tr>
                           ))}
@@ -1132,7 +1132,7 @@ export default function ReportsPage() {
                             <td style={{ fontWeight:600, fontSize:13 }}>{p.name}</td>
                             <td style={{ fontSize:12, color:'#9b6070' }}>{p.brand||'—'}</td>
                             <td style={{ fontFamily:'monospace', fontSize:11 }}>{p.barcode||p.sku||'—'}</td>
-                            <td style={{ fontWeight:700, color:p.stock_qty<=0?'#dc2626':'#1a1a1f' }}>{p.stock_qty||0}</td>
+                            <td style={{ fontWeight:700, color:p.stock_qty<=0?'#dc2626':'#1a1a1f' }}>{r2(p.stock_qty||0)}</td>
                             <td>{fmtKES(p.cost_price_kes)}</td>
                             <td style={{ fontWeight:600 }}>{fmtKES(p.price_kes)}</td>
                             <td>{fmtKES(p.costValue)}</td>

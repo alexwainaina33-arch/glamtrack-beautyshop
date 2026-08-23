@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+﻿import { useState, useEffect, useRef, useCallback } from 'react'
 import { generateInsight, buildShareCardData, loadShopBaseline, recordInsightShown, loadSalesAssistant } from '../lib/insightsEngine'
 import { hasRequiredPlan } from '../lib/planAccess'
 import PlanGuard from '../components/PlanGuard'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
-import { fmtKES, fmtDate, fmtDateTime, pctChange } from '../lib/utils'
+import { fmtKES, fmtDate, fmtDateTime, pctChange, r2 } from '../lib/utils'
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, format } from 'date-fns'
 import { TrendingUp, TrendingDown, AlertCircle, ArrowRight, CheckCircle2, Circle, Store, Package, Tag, Users, ShoppingCart, Wrench, ChevronRight, X } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
@@ -1324,7 +1324,7 @@ export default function DashboardPage() {
                             <div style={{ fontSize: 11, color: '#9b6070' }}>Reorder at: {p.reorder_point || 5}</div>
                           </div>
                         </div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: p.stock_qty === 0 ? '#dc2626' : '#f59e0b' }}>{p.stock_qty} left</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: p.stock_qty === 0 ? '#dc2626' : '#f59e0b' }}>{r2(p.stock_qty)} left</div>
                       </div>
                     ))
                   }

@@ -1,5 +1,8 @@
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns'
 
+// Round to 2 decimal places — fixes JS floating-point drift (e.g. 2.3499999999999943 -> 2.35)
+export const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100
+
 // Format currency KES
 export const fmtKES = (amount) => {
   if (!amount && amount !== 0) return 'KES —'

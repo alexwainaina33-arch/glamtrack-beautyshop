@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
-import { fmtKES, fmtDateTime, fmtDate } from '../lib/utils'
+import { fmtKES, fmtDateTime, fmtDate, r2 } from '../lib/utils'
 import { Eye, Search, RefreshCw, X, Download, Undo2, Copy, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { format, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek } from 'date-fns'
 import ReceiptModal from '../components/ReceiptModal'
@@ -127,7 +127,7 @@ export default function SalesPage() {
         await Promise.all(items.map(async (item) => {
           const prod = await pb.collection(C.PRODUCTS).getOne(item.product_id).catch(() => null)
           if (prod && prod.track_inventory) {
-            const newQty = (prod.stock_qty || 0) + item.qty
+            const newQty = r2((prod.stock_qty || 0) + item.qty)
             await pb.collection(C.PRODUCTS).update(prod.id, { stock_qty: newQty })
           }
         }))

@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C, PB_URL } from '../lib/pb'
-import { fmtKES } from '../lib/utils'
+import { fmtKES, r2 } from '../lib/utils'
 import { Plus, Search, Upload, Edit2, Trash2, X, FileUp, Download, CheckCircle2, AlertCircle, ChevronRight, Copy, BarChart2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -259,7 +259,7 @@ export default function ProductsPage() {
       if (form.has_variants) {
         const prices = variants.map(v => Number(v.price_kes) || 0).filter(p => p > 0)
         formToSave.price_kes = prices.length ? Math.min(...prices) : 0
-        formToSave.stock_qty = variants.reduce((sum, v) => sum + (Number(v.stock_qty) || 0), 0)
+        formToSave.stock_qty = r2(variants.reduce((sum, v) => sum + (Number(v.stock_qty) || 0), 0))
       }
 
       const data = new FormData()
@@ -290,7 +290,7 @@ export default function ProductsPage() {
             barcode: v.barcode || '',
             price_kes: Number(v.price_kes) || 0,
             cost_price_kes: Number(v.cost_price_kes) || 0,
-            stock_qty: Number(v.stock_qty) || 0,
+            stock_qty: r2(Number(v.stock_qty) || 0),
             reorder_point: Number(v.reorder_point) || 0,
             sort_order: i,
           }
@@ -393,7 +393,7 @@ export default function ProductsPage() {
           price_kes: parseFloat(row.price_kes || row.price || 0),
           cost_price_kes: parseFloat(row.cost_price_kes || row.cost || 0),
           compare_price_kes: parseFloat(row.compare_price_kes || 0) || 0,
-         stock_qty: parseFloat(row.stock_qty || row.stock || 0),
+         stock_qty: r2(parseFloat(row.stock_qty || row.stock || 0)),
           reorder_point: parseFloat(row.reorder_point || 5),
           brand: row.brand || '',
           unit: row.unit || 'piece',
@@ -609,7 +609,7 @@ export default function ProductsPage() {
                       </td>
                       <td>
                         {p.track_inventory
-                          ? <span style={{ fontWeight:700, color: p.stock_qty<=0?'#dc2626':p.stock_qty<=(p.reorder_point||5)?'#d97706':'#059669' }}>{p.stock_qty??0}</span>
+                          ? <span style={{ fontWeight:700, color: p.stock_qty<=0?'#dc2626':p.stock_qty<=(p.reorder_point||5)?'#d97706':'#059669' }}>{r2(p.stock_qty??0)}</span>
                           : <span style={{ color:'#9b6070', fontSize:12 }}>∞</span>}
                       </td>
                       <td>

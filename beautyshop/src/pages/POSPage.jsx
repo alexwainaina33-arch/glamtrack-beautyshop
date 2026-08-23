@@ -1,8 +1,8 @@
-// Enhanced POS: Loyalty, Hold/Resume, Quick-add Customer, Split Payment
+﻿// Enhanced POS: Loyalty, Hold/Resume, Quick-add Customer, Split Payment
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C, PB_URL } from '../lib/pb'
-import { fmtKES, generateReceiptNo } from '../lib/utils'
+import { fmtKES, generateReceiptNo, r2 } from '../lib/utils'
 import { calcPointsEarned, calcMaxRedeemable } from '../lib/loyalty'
 import { Search, ScanLine, Plus, Minus, Trash2, CreditCard, Smartphone, Banknote, ShoppingBag, X, User, Tag, PauseCircle, PlayCircle, UserPlus, Split } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -217,7 +217,7 @@ export default function POSPage() {
             try {
               if (item.variant_id) {
                 const currentVariant = await pb.collection(C.PRODUCT_VARIANTS).getOne(item.variant_id, { '$autoCancel': false, '$cancelKey': `sync-variant-fetch-${item.variant_id}` })
-                const nq = Math.max(0, (currentVariant.stock_qty || 0) - item.qty)
+                const nq = r2(Math.max(0, (currentVariant.stock_qty || 0) - item.qty))
                 await pb.collection(C.PRODUCT_VARIANTS).update(item.variant_id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `sync-variant-stock-${item.variant_id}` })
                 const siblings = await pb.collection(C.PRODUCT_VARIANTS).getFullList({ filter: `product_id="${item.id}"`, '$autoCancel': false, '$cancelKey': `sync-siblings-${item.id}` })
                 const total = siblings.reduce((sum, v) => sum + (v.id === item.variant_id ? nq : (v.stock_qty || 0)), 0)
@@ -225,7 +225,7 @@ export default function POSPage() {
                 await pb.collection(C.INV_MOVEMENTS).create({ shop_id: s.shop_id, product_id: item.id, type: 'sale', qty: -item.qty, before_qty: currentVariant.stock_qty, after_qty: nq, reference: s.receipt_no, created_by: s.served_by || null }, { '$autoCancel': false, '$cancelKey': `sync-inv-${item.variant_id}-${Date.now()}` })
               } else {
                 const currentProduct = await pb.collection(C.PRODUCTS).getOne(item.id, { '$autoCancel': false, '$cancelKey': `sync-product-fetch-${item.id}` })
-                const nq = Math.max(0, (currentProduct.stock_qty || 0) - item.qty)
+                const nq = r2(Math.max(0, (currentProduct.stock_qty || 0) - item.qty))
                 await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `sync-stock-${item.id}` })
                 await pb.collection(C.INV_MOVEMENTS).create({ shop_id: s.shop_id, product_id: item.id, type: 'sale', qty: -item.qty, before_qty: currentProduct.stock_qty, after_qty: nq, reference: s.receipt_no, created_by: s.served_by || null }, { '$autoCancel': false, '$cancelKey': `sync-inv-${item.id}-${Date.now()}` })
               }
@@ -346,7 +346,7 @@ export default function POSPage() {
       const nextQty = Math.round(Math.max(0.01, parsed) * 100) / 100
 
       if (item.track_inventory && nextQty > Number(item.stock_qty || 0)) {
-        toast.error(`Only ${item.stock_qty || 0} ${item.unit || 'pcs'} available`)
+        toast.error(`Only ${r2(item.stock_qty || 0)} ${item.unit || 'pcs'} available`)
         return item
       }
 
@@ -487,7 +487,7 @@ export default function POSPage() {
       }, { '$autoCancel': false, '$cancelKey': `pay-later-item-${idx}` })))
       // Deduct stock
       await Promise.all(cart.filter(i => i.track_inventory).map(async (item, idx) => {
-        const nq = Math.max(0, (item.stock_qty || 0) - item.qty)
+        const nq = r2(Math.max(0, (item.stock_qty || 0) - item.qty))
         if (item.variant_id) {
           await pb.collection(C.PRODUCT_VARIANTS).update(item.variant_id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `pay-later-variant-stock-${idx}` })
           try {
@@ -572,7 +572,7 @@ export default function POSPage() {
         total_kes: item.unit_price * item.qty,
       }, { '$autoCancel': false, '$cancelKey': `sale-item-${idx}` })))
       await Promise.all(cart.filter(i => i.track_inventory).map(async (item, idx) => {
-        const nq = Math.max(0, (item.stock_qty || 0) - item.qty)
+        const nq = r2(Math.max(0, (item.stock_qty || 0) - item.qty))
         if (item.variant_id) {
           await pb.collection(C.PRODUCT_VARIANTS).update(item.variant_id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `variant-stock-${idx}` })
           try {
@@ -760,7 +760,7 @@ export default function POSPage() {
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#c8456a' }}>{p.has_variants ? `from ${fmtKES(p.price_kes)}` : `${fmtKES(p.price_kes)} / ${p.unit || 'piece'}`}</div>
                   {p.has_variants
                     ? <div style={{ fontSize: 10, color: '#9b6070' }}>{out ? '❌ Out' : `${variants.length} option${variants.length !== 1 ? 's' : ''}`}</div>
-                    : (p.track_inventory && <div style={{ fontSize: 10, color: p.stock_qty <= 5 ? '#dc2626' : '#9b6070' }}>{out ? '❌ Out' : `${p.stock_qty} ${p.unit || 'pcs'} available`}</div>)
+                    : (p.track_inventory && <div style={{ fontSize: 10, color: p.stock_qty <= 5 ? '#dc2626' : '#9b6070' }}>{out ? '❌ Out' : `${r2(p.stock_qty)} ${p.unit || 'pcs'} available`}</div>)
                   }
                 </div>
               )
@@ -853,7 +853,7 @@ export default function POSPage() {
                 <div style={{ flex: 1, minWidth: 0, paddingRight: 4 }}>
                   <div style={{ fontSize: 12, fontWeight: 600 }}>{item.name}</div>
                   <div style={{ fontSize: 10, color: '#9b6070', marginTop: 2 }}>
-                    {item.track_inventory ? `${item.stock_qty || 0} ${item.unit || 'pcs'} available` : (item.unit || 'service')}
+                    {item.track_inventory ? `${r2(item.stock_qty || 0)} ${item.unit || 'pcs'} available` : (item.unit || 'service')}
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '52px 62px 22px', alignItems: 'end', gap: 5 }}>
@@ -1115,3 +1115,6 @@ export default function POSPage() {
     </div>
   )
 }
+
+
+

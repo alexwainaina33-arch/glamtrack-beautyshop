@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
-import { fmtKES } from '../lib/utils'
+import { fmtKES, r2 } from '../lib/utils'
 import { subDays, subWeeks, subMonths, format, eachWeekOfInterval, endOfWeek, eachMonthOfInterval } from 'date-fns'
 import { AlertCircle, Zap, Download } from 'lucide-react'
 import { ResponsiveContainer, Tooltip, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
@@ -366,7 +366,7 @@ export default function AnalyticsPage() {
                 {data.reorderList.map(p => (
                   <tr key={p.id}>
                     <td style={{ fontWeight: 600 }}>{p.name}</td>
-                    <td><span style={{ fontWeight: 700, color: p.stock_qty <= 0 ? '#dc2626' : '#d97706' }}>{p.stock_qty || 0}</span></td>
+                    <td><span style={{ fontWeight: 700, color: p.stock_qty <= 0 ? '#dc2626' : '#d97706' }}>{r2(p.stock_qty || 0)}</span></td>
                     <td style={{ color: '#9b6070' }}>{p.reorder_point || 5}</td>
                     <td><span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{p.suggestedOrderQty} units</span></td>
                     <td style={{ fontWeight: 600 }}>{fmtKES(p.suggestedOrderQty * (p.cost_price_kes || 0))}</td>
@@ -398,7 +398,7 @@ export default function AnalyticsPage() {
                 {data.deadStock.map(p => (
                   <tr key={p.id}>
                     <td style={{ fontWeight: 600 }}>{p.name}</td>
-                    <td style={{ fontWeight: 700, color: '#dc2626' }}>{p.stock_qty}</td>
+                    <td style={{ fontWeight: 700, color: '#dc2626' }}>{r2(p.stock_qty)}</td>
                     <td>{fmtKES((p.stock_qty || 0) * (p.cost_price_kes || 0))}</td>
                     <td style={{ fontWeight: 600 }}>{fmtKES((p.stock_qty || 0) * (p.price_kes || 0))}</td>
                     <td><span style={{ background: '#f5f5f5', color: '#6b7280', padding: '2px 8px', borderRadius: 20, fontSize: 11 }}>{p.margin.toFixed(0)}%</span></td>

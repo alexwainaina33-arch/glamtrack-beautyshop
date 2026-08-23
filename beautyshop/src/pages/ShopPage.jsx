@@ -1,7 +1,8 @@
-import { useEffect, useState, useRef } from 'react'
+﻿import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import pb, { C, PB_URL } from '../lib/pb'
 import { computeIsLocked } from '../context/AuthContext'
+import { r2 } from '../lib/utils'
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const CAT_EMOJI = {
@@ -991,7 +992,7 @@ export default function ShopPage() {
                     {/* Low stock badge */}
                     {p.track_inventory && p.stock_qty !== null && p.stock_qty > 0 && p.stock_qty <= 5 && (
                       <div style={{ position: 'absolute', top: 8, left: 8, background: '#d97706', color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 6 }}>
-                        Only {p.stock_qty} left
+                        Only {r2(p.stock_qty)} left
                       </div>
                     )}
                     {outOfStock && (
