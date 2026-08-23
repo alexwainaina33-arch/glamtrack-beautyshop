@@ -78,7 +78,14 @@ function AppRoutes() {
         <Route path="dashboard"    element={<DashboardPage />} />
         <Route path="pos"          element={<POSPage />} />
         <Route path="products"     element={<ProductsPage />} />
-        <Route path="inventory"    element={<InventoryPage />} />
+        <Route
+  path="inventory"
+  element={
+    <RoleGuard allow={['owner','manager','cashier','viewer']}>
+      <InventoryPage />
+    </RoleGuard>
+  }
+/>
         <Route path="sales"        element={<SalesPage />} />
         <Route path="expenses"     element={<RoleGuard allow={['owner','manager']}><ExpensesPage /></RoleGuard>} />
         <Route path="reports"      element={<RoleGuard allow={['owner','manager','viewer']}><ReportsPage /></RoleGuard>} />

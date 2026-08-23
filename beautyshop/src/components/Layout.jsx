@@ -18,9 +18,9 @@ const NAV = (lapsedCount, reviewsPending, role) => {
       { to: '/app/sales',        icon: Receipt,         label: 'Sales History',        roles: ['owner','manager','cashier','viewer'] },
       { to: '/app/reconcile',    icon: DollarSign,      label: 'Cash Reconciliation',  roles: ['owner','manager'] },
     ]},
-    { section: 'STOCK', roles: ['owner','manager','viewer'], items: [
+    { section: 'STOCK', roles: ['owner','manager','cashier','viewer'], items: [
       { to: '/app/products',  icon: Package,  label: 'Products',       roles: ['owner','manager','cashier','viewer'] },
-      { to: '/app/inventory', icon: ArchiveX, label: 'Inventory',      roles: ['owner','manager','viewer'] },
+      { to: '/app/inventory', icon: ArchiveX, label: 'Inventory',      roles: ['owner','manager','cashier','viewer'] },
       { to: '/app/labels',    icon: Tag,      label: 'Barcode Labels', roles: ['owner','manager'] },
       { to: '/app/suppliers', icon: Truck,    label: 'Suppliers',      roles: ['owner','manager'] },
     ]},
