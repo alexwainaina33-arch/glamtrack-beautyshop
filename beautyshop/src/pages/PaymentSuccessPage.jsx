@@ -5,9 +5,9 @@ import pb, { C } from '../lib/pb'
 import { useAuth } from '../context/AuthContext'
 
 const PLAN_DAILY_COSTS = {
-  starter:    { monthly: 83, yearly: 68 },
-  growth:     { monthly: 150, yearly: 123 },
-  enterprise: { monthly: 217, yearly: 178 },
+  starter:    { monthly: 100, yearly: 82 },
+  growth:     { monthly: 167, yearly: 137 },
+  enterprise: { monthly: 233, yearly: 192 },
 }
 
 const PLAN_MESSAGES = {
@@ -73,7 +73,7 @@ function MomentumReceipt({ shop, planName, planPeriod }) {
       {data && data.count > 0 ? (
         <>
           {[
-            { label: 'Plan cost', value: `KES ${parseInt(localStorage.getItem('st_price') || '4499').toLocaleString('en-KE')}` },
+            { label: 'Plan cost', value: `KES ${parseInt(localStorage.getItem('st_price') || '4999').toLocaleString('en-KE')}` },
             { label: 'Sales last 30 days', value: `${data.count.toLocaleString('en-KE')} transactions` },
             { label: 'Revenue tracked', value: `KES ${data.totalRev.toLocaleString('en-KE', { minimumFractionDigits: 2 })}` },
             { label: 'SalesTrack costs you', value: `KES ${dailyCost}/day` },

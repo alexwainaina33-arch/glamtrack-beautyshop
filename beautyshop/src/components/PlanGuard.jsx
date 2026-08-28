@@ -4,7 +4,7 @@ import { Sparkles } from 'lucide-react'
 import { hasRequiredPlan } from '../lib/planAccess'
 
 const PLAN_LABEL = { starter: 'Starter', growth: 'Growth', enterprise: 'Enterprise' }
-const PLAN_PRICE = { starter: 'KES 2,499/mo', growth: 'KES 4,499/mo', enterprise: 'KES 6,499/mo' }
+const PLAN_PRICE = { starter: 'KES 2,999/mo', growth: 'KES 4,999/mo', enterprise: 'KES 6,999/mo' }
 
 /**
  * PlanGuard — wraps any page/section that requires a minimum plan tier.

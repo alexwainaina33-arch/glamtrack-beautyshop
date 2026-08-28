@@ -1,7 +1,7 @@
 const PB_URL = process.env.PB_URL || 'https://fieldtrack-kenya.fly.dev'
 const PLAN_PRICES = {
-  monthly: { starter: 2499, growth: 4499, enterprise: 6499 },
-  yearly: { starter: 24990, growth: 44990, enterprise: 64990 },
+  monthly: { starter: 2999, growth: 4999, enterprise: 6999 },
+  yearly: { starter: 29990, growth: 49990, enterprise: 69990 },
 }
 const j = (res, status, body) => res.status(status).json(body)
 const bearer = req => { const v=String(req.headers.authorization||''); return v.startsWith('Bearer ')?v.slice(7).trim():'' }
