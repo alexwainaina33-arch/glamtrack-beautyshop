@@ -11,8 +11,8 @@ const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_KEY || ''
 const PLANS = {
   monthly: [
     {
-      id: 'starter', name: 'Starter', price: 4999, period: 'monthly',
-      dailyCost: 83, color: '#f7c5d0', highlight: false, save: null,
+      id: 'starter', name: 'Starter', price: 2999, period: 'monthly',
+      dailyCost: 100, color: '#f7c5d0', highlight: false, save: null,
       tagline: 'Everything you need to run your shop from your phone',
       intro: null,
       featureGroups: [
@@ -50,8 +50,8 @@ const PLANS = {
       ],
     },
     {
-      id: 'growth', name: 'Growth', price: 6999, period: 'monthly',
-      dailyCost: 150, color: '#e6b800', highlight: true, save: null,
+      id: 'growth', name: 'Growth', price: 4999, period: 'monthly',
+      dailyCost: 167, color: '#e6b800', highlight: true, save: null,
       tagline: 'For shops with staff, bookings and bigger ambitions',
       intro: 'Everything in Starter, plus:',
       featureGroups: [
@@ -105,8 +105,8 @@ const PLANS = {
       ],
     },
     {
-      id: 'enterprise', name: 'Enterprise', price: 8999, period: 'monthly',
-      dailyCost: 217, color: '#c8456a', highlight: false, save: null,
+      id: 'enterprise', name: 'Enterprise', price: 6999, period: 'monthly',
+      dailyCost: 233, color: '#c8456a', highlight: false, save: null,
       tagline: 'For multi-branch businesses scaling across Kenya',
       intro: 'Everything in Growth, plus:',
       featureGroups: [
@@ -134,8 +134,8 @@ const PLANS = {
   ],
   yearly: [
     {
-      id: 'starter', name: 'Starter', price: 49990, period: 'yearly',
-      dailyCost: 68, color: '#f7c5d0', highlight: false, save: '2 months free — save KES 4,998',
+      id: 'starter', name: 'Starter', price: 29990, period: 'yearly',
+      dailyCost: 82, color: '#f7c5d0', highlight: false, save: '2 months free — save KES 5,998',
       tagline: 'Everything you need to run your shop from your phone',
       intro: null,
       featureGroups: [
@@ -173,8 +173,8 @@ const PLANS = {
       ],
     },
     {
-      id: 'growth', name: 'Growth', price: 69990, period: 'yearly',
-      dailyCost: 123, color: '#e6b800', highlight: true, save: '2 months free — save KES 8,998',
+      id: 'growth', name: 'Growth', price: 49990, period: 'yearly',
+      dailyCost: 137, color: '#e6b800', highlight: true, save: '2 months free — save KES 9,998',
       tagline: 'For shops with staff, bookings and bigger ambitions',
       intro: 'Everything in Starter, plus:',
       featureGroups: [
@@ -228,8 +228,8 @@ const PLANS = {
       ],
     },
     {
-      id: 'enterprise', name: 'Enterprise', price: 89990, period: 'yearly',
-      dailyCost: 178, color: '#c8456a', highlight: false, save: '2 months free — save KES 12,998',
+      id: 'enterprise', name: 'Enterprise', price: 69990, period: 'yearly',
+      dailyCost: 192, color: '#c8456a', highlight: false, save: '2 months free — save KES 13,998',
       tagline: 'For multi-branch businesses scaling across Kenya',
       intro: 'Everything in Growth, plus:',
       featureGroups: [
