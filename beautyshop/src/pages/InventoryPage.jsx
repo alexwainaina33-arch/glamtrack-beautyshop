@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDateTime, r2 } from '../lib/utils'
@@ -41,7 +41,7 @@ export default function InventoryPage() {
       const outItems = lowItems.filter(p => p.stock_qty <= 0)
       if (outItems.length > 0) {
         setTimeout(() => {
-          toast.error(`❌ ${outItems.length} item(s) out of stock!`, { icon: '🚨', duration: 6000 })
+          toast.error(`? ${outItems.length} item(s) out of stock!`, { icon: '??', duration: 6000 })
         }, 1500)
       }
     }
@@ -52,7 +52,7 @@ export default function InventoryPage() {
     try {
       const [prods, movs] = await Promise.all([
         pb.collection(C.PRODUCTS).getList(1, 500, { filter: `shop_id="${shop.id}" && track_inventory=true && status="active"`, sort: 'name' }).then(r => r.items),
-        pb.collection(C.INV_MOVEMENTS).getList(1, 100, { filter: `shop_id="${shop.id}"`, expand: 'product_id,created_by' })
+        pb.collection(C.INV_MOVEMENTS).getList(1, 100, { filter: `shop_id="${shop.id}"`, sort: '-created', expand: 'product_id,created_by' })
       ])
       setProducts(prods)
       setMovements(movs.items)
@@ -73,7 +73,7 @@ export default function InventoryPage() {
 
   const handleAdjust = async (e) => {
     e.preventDefault()
-    if (isLocked) return toast.error('🔒 Account locked — renew your subscription to adjust stock', { duration: 6000 })
+    if (isLocked) return toast.error('?? Account locked � renew your subscription to adjust stock', { duration: 6000 })
     if (!adjustQty || isNaN(adjustQty) || Number(adjustQty) <= 0) return toast.error('Enter valid quantity')
     setSaving(true)
     try {
@@ -126,9 +126,9 @@ export default function InventoryPage() {
       })
 
       toast.success(
-        adjustType === 'opening_stock' ? '✅ Opening stock recorded!' :
-        adjustType === 'damage' ? '📋 Damage recorded' :
-        adjustType === 'stock_in' ? '📦 Stock received!' : '✅ Adjustment saved'
+        adjustType === 'opening_stock' ? '? Opening stock recorded!' :
+        adjustType === 'damage' ? '?? Damage recorded' :
+        adjustType === 'stock_in' ? '?? Stock received!' : '? Adjustment saved'
       )
       setShowAdjust(false)
       loadData()
@@ -184,7 +184,7 @@ export default function InventoryPage() {
           success++
         } catch (e) { failed++ }
       }
-      toast.success(`✅ Imported ${success} products${failed > 0 ? ` (${failed} failed)` : ''}`)
+      toast.success(`? Imported ${success} products${failed > 0 ? ` (${failed} failed)` : ''}`)
       setShowBulkImport(false)
       setImportData('')
       loadData()
@@ -215,7 +215,7 @@ export default function InventoryPage() {
   const lowCount = products.filter(p => p.stock_qty <= (p.reorder_point || 5)).length
   const outCount = products.filter(p => p.stock_qty <= 0).length
 
-  // Stock Valuation Report — computed from movements in date range
+  // Stock Valuation Report � computed from movements in date range
   const valReport = products.map(p => {
     const pMovs = movements.filter(m => m.product_id === p.id || m.expand?.product_id?.id === p.id)
     const inRange = pMovs.filter(m => {
@@ -248,13 +248,13 @@ export default function InventoryPage() {
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <div>
-          <div className="page-title">Inventory 📦</div>
+          <div className="page-title">Inventory ??</div>
           <div className="page-subtitle">{products.length} tracked products</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn-secondary" onClick={() => setShowBulkImport(true)} disabled={isLocked}><Upload size={14} /> Bulk Import</button>
-          <button className="btn-primary" onClick={() => openAdjust(null, 'stock_in')} disabled={isLocked} title={isLocked ? 'Account locked — renew to adjust stock' : ''}>
-            {isLocked ? '🔒 Locked' : <><Plus size={16} /> Receive Stock</>}
+          <button className="btn-primary" onClick={() => openAdjust(null, 'stock_in')} disabled={isLocked} title={isLocked ? 'Account locked � renew to adjust stock' : ''}>
+            {isLocked ? '?? Locked' : <><Plus size={16} /> Receive Stock</>}
           </button>
         </div>
       </div>
@@ -262,10 +262,10 @@ export default function InventoryPage() {
       {/* Summary cards */}
       <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
         {[
-          { label: 'Stock Value (Cost)', value: fmtKES(totalStockValue), icon: '💰', cls: 'rose' },
-          { label: 'Retail Value', value: fmtKES(totalRetailValue), icon: '🏷️', cls: 'gold' },
-          { label: 'Low Stock Items', value: lowCount, icon: '⚠️', cls: lowCount > 0 ? 'rose' : 'green' },
-          { label: 'Out of Stock', value: outCount, icon: '❌', cls: outCount > 0 ? 'rose' : 'green' },
+          { label: 'Stock Value (Cost)', value: fmtKES(totalStockValue), icon: '??', cls: 'rose' },
+          { label: 'Retail Value', value: fmtKES(totalRetailValue), icon: '???', cls: 'gold' },
+          { label: 'Low Stock Items', value: lowCount, icon: '??', cls: lowCount > 0 ? 'rose' : 'green' },
+          { label: 'Out of Stock', value: outCount, icon: '?', cls: outCount > 0 ? 'rose' : 'green' },
         ].map((s, i) => (
           <div key={i} className={`stat-card ${s.cls}`}>
             <div style={{ fontSize: 26, marginBottom: 6 }}>{s.icon}</div>
@@ -277,7 +277,7 @@ export default function InventoryPage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, background: '#fce8ed', borderRadius: 12, padding: 4, width: 'fit-content' }}>
-        {[['stock', '📊 Stock Levels'], ['movements', '🔄 Movements'], ['valuation', '📋 Stock Report']].map(([v, l]) => (
+        {[['stock', '?? Stock Levels'], ['movements', '?? Movements'], ['valuation', '?? Stock Report']].map(([v, l]) => (
           <button key={v} onClick={() => setTab(v)} style={{ padding: '7px 20px', borderRadius: 8, border: 'none', background: tab === v ? 'linear-gradient(135deg,#c8456a,#8b2550)' : 'transparent', color: tab === v ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
             {l}
           </button>
@@ -299,12 +299,12 @@ export default function InventoryPage() {
                       `${i + 1}. *${p.name}*\n    Stock: ${r2(p.stock_qty ?? 0)} ${p.unit || 'pcs'} (reorder at ${p.reorder_point || 5})`
                     ).join('\n\n')
                     const outItems = lowItems.filter(p => p.stock_qty <= 0)
-                    const msg = `⚠️ *Low Stock Report — ${shop.name}*\n\n${outItems.length > 0 ? `❌ *${outItems.length} item(s) completely out of stock*\n` : ''}📦 *${lowItems.length} product(s) need restocking:*\n\n${lines}\n\n_Please reorder to avoid losing sales._\n\n_${shop.name} · SalesTrack_`
+                    const msg = `?? *Low Stock Report � ${shop.name}*\n\n${outItems.length > 0 ? `? *${outItems.length} item(s) completely out of stock*\n` : ''}?? *${lowItems.length} product(s) need restocking:*\n\n${lines}\n\n_Please reorder to avoid losing sales._\n\n_${shop.name} � SalesTrack_`
                     const phone = shop.phone ? shop.phone.replace(/\D/g, '').replace(/^0/, '254') : ''
                     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
                   }}
                 >
-                  📲 Alert All ({lowCount})
+                  ?? Alert All ({lowCount})
                 </button>
               )}
               <button onClick={() => setFilterAlert(!filterAlert)} className={`btn-ghost ${filterAlert ? 'text-red-600' : ''}`} style={{ fontSize: 12, minHeight: 36 }}>
@@ -337,7 +337,7 @@ export default function InventoryPage() {
                         <div style={{ fontWeight: 600 }}>{p.name}</div>
                         {p.brand && <div style={{ fontSize: 11, color: '#9b6070' }}>{p.brand}</div>}
                       </td>
-                      <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{p.barcode || p.sku || '—'}</td>
+                      <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{p.barcode || p.sku || '�'}</td>
                       <td>
                         <span style={{ fontWeight: 700, fontSize: 16, color: isOut ? '#dc2626' : isLow ? '#d97706' : '#059669' }}>
                           {r2(p.stock_qty ?? 0)}
@@ -352,7 +352,7 @@ export default function InventoryPage() {
                             <span style={{ fontWeight: 700, color: forecast < 7 ? '#dc2626' : '#3b82f6' }}>
                               {forecast} {forecast === 1 ? 'day' : 'days'}
                             </span>
-                          ) : <span style={{ color: '#9b6070' }}>—</span>
+                          ) : <span style={{ color: '#9b6070' }}>�</span>
                         })()}
                       </td>
                       <td>{fmtKES((p.stock_qty || 0) * (p.cost_price_kes || 0))}</td>
@@ -373,12 +373,12 @@ export default function InventoryPage() {
                               title="Send low stock alert to yourself via WhatsApp"
                               style={{ padding: '5px 10px', color: '#25d366', minHeight: 44, fontWeight: 700, fontSize: 12 }}
                               onClick={() => {
-                                const msg = `⚠️ *Low Stock Alert — ${shop.name}*\n\n*Product:*\n${p.name}${p.brand ? ' (' + p.brand + ')' : ''}\n\n*Current Stock:*\n${r2(p.stock_qty ?? 0)} ${p.unit || 'pcs'}\n\n*Reorder Level:*\n${p.reorder_point || 5} ${p.unit || 'pcs'}\n\n*Retail Price:*\n${fmtKES(p.price_kes)}\n\n📦 Restock this product to avoid losing sales.\n\n_${shop.name} · SalesTrack_`
+                                const msg = `?? *Low Stock Alert � ${shop.name}*\n\n*Product:*\n${p.name}${p.brand ? ' (' + p.brand + ')' : ''}\n\n*Current Stock:*\n${r2(p.stock_qty ?? 0)} ${p.unit || 'pcs'}\n\n*Reorder Level:*\n${p.reorder_point || 5} ${p.unit || 'pcs'}\n\n*Retail Price:*\n${fmtKES(p.price_kes)}\n\n?? Restock this product to avoid losing sales.\n\n_${shop.name} � SalesTrack_`
                                 const phone = shop.phone ? shop.phone.replace(/\D/g, '').replace(/^0/, '254') : ''
                                 window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
                               }}
                             >
-                              📲
+                              ??
                             </button>
                           )}
                         </div>
@@ -407,13 +407,13 @@ export default function InventoryPage() {
               </div>
               <button className="btn-primary" style={{ marginBottom: 2 }} onClick={() => {
                 const lines = valReport.map(p =>
-                  `*${p.name}*\nOpen: ${p.opening} | +Received: ${p.received} | −Damaged: ${p.damaged} | −Sold: ${p.sold} | Closing: ${p.closing} @ ${fmtKES(p.cost_price_kes || 0)}/unit = *${fmtKES(p.closingValue)}*`
+                  `*${p.name}*\nOpen: ${p.opening} | +Received: ${p.received} | -Damaged: ${p.damaged} | -Sold: ${p.sold} | Closing: ${p.closing} @ ${fmtKES(p.cost_price_kes || 0)}/unit = *${fmtKES(p.closingValue)}*`
                 ).join('\n\n')
-                const msg = `📋 *Stock Valuation Report*\n*${shop.name}*\nPeriod: ${valFrom} → ${valTo}\n\n${lines}\n\n────────────────\n*TOTAL CLOSING STOCK VALUE*\n*${fmtKES(valTotals.closingValue)}*\n\n_Valued at cost price · SalesTrack_`
+                const msg = `?? *Stock Valuation Report*\n*${shop.name}*\nPeriod: ${valFrom} ? ${valTo}\n\n${lines}\n\n----------------\n*TOTAL CLOSING STOCK VALUE*\n*${fmtKES(valTotals.closingValue)}*\n\n_Valued at cost price � SalesTrack_`
                 const phone = shop.phone?.replace(/\D/g,'').replace(/^0/,'254') || ''
                 window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
               }}>
-                📲 Share Report
+                ?? Share Report
               </button>
             </div>
           </div>
@@ -421,10 +421,10 @@ export default function InventoryPage() {
           {/* Summary cards */}
           <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
             {[
-              { label: 'Opening Stock', value: valTotals.opening + ' units', color: '#3b82f6', icon: '📂' },
-              { label: 'Stock Received', value: '+' + valTotals.received + ' units', color: '#059669', icon: '📦' },
-              { label: 'Damaged / Sold', value: '−' + (valTotals.damaged + valTotals.sold) + ' units', color: '#dc2626', icon: '📤' },
-              { label: 'Closing Value (Cost)', value: fmtKES(valTotals.closingValue), color: '#c8456a', icon: '💰' },
+              { label: 'Opening Stock', value: valTotals.opening + ' units', color: '#3b82f6', icon: '??' },
+              { label: 'Stock Received', value: '+' + valTotals.received + ' units', color: '#059669', icon: '??' },
+              { label: 'Damaged / Sold', value: '-' + (valTotals.damaged + valTotals.sold) + ' units', color: '#dc2626', icon: '??' },
+              { label: 'Closing Value (Cost)', value: fmtKES(valTotals.closingValue), color: '#c8456a', icon: '??' },
             ].map((s, i) => (
               <div key={i} className="stat-card">
                 <div style={{ fontSize: 24 }}>{s.icon}</div>
@@ -436,8 +436,8 @@ export default function InventoryPage() {
 
           <div className="card" style={{ padding: 0 }}>
             <div style={{ padding: '12px 20px', borderBottom: '1px solid #f5edf0' }}>
-              <div style={{ fontWeight: 700, color: '#3d1020', fontSize: 14 }}>Stock Movement Statement — valued at cost</div>
-              <div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Opening + Received − Damaged − Sold = Closing</div>
+              <div style={{ fontWeight: 700, color: '#3d1020', fontSize: 14 }}>Stock Movement Statement � valued at cost</div>
+              <div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Opening + Received - Damaged - Sold = Closing</div>
             </div>
             <div className="table-wrap">
               <table>
@@ -446,8 +446,8 @@ export default function InventoryPage() {
                     <th>Product</th>
                     <th style={{ textAlign: 'right' }}>Opening</th>
                     <th style={{ textAlign: 'right', color: '#059669' }}>+Received</th>
-                    <th style={{ textAlign: 'right', color: '#ef4444' }}>−Damaged</th>
-                    <th style={{ textAlign: 'right', color: '#c8456a' }}>−Sold</th>
+                    <th style={{ textAlign: 'right', color: '#ef4444' }}>-Damaged</th>
+                    <th style={{ textAlign: 'right', color: '#c8456a' }}>-Sold</th>
                     <th style={{ textAlign: 'right' }}>Closing Qty</th>
                     <th style={{ textAlign: 'right' }}>Cost/Unit</th>
                     <th style={{ textAlign: 'right', fontWeight: 800 }}>Closing Value</th>
@@ -464,8 +464,8 @@ export default function InventoryPage() {
                       </td>
                       <td style={{ textAlign: 'right', color: '#3b82f6', fontWeight: 600 }}>{p.opening}</td>
                       <td style={{ textAlign: 'right', color: '#059669', fontWeight: 600 }}>+{p.received}</td>
-                      <td style={{ textAlign: 'right', color: '#ef4444', fontWeight: 600 }}>{p.damaged > 0 ? '−' + p.damaged : '—'}</td>
-                      <td style={{ textAlign: 'right', color: '#c8456a', fontWeight: 600 }}>−{p.sold}</td>
+                      <td style={{ textAlign: 'right', color: '#ef4444', fontWeight: 600 }}>{p.damaged > 0 ? '-' + p.damaged : '�'}</td>
+                      <td style={{ textAlign: 'right', color: '#c8456a', fontWeight: 600 }}>-{p.sold}</td>
                       <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 15 }}>{p.closing}</td>
                       <td style={{ textAlign: 'right', color: '#9b6070', fontSize: 12 }}>{fmtKES(p.cost_price_kes || 0)}</td>
                       <td style={{ textAlign: 'right', fontWeight: 800, color: '#3d1020', fontSize: 14 }}>{fmtKES(p.closingValue)}</td>
@@ -476,8 +476,8 @@ export default function InventoryPage() {
                       <td style={{ fontWeight: 800, color: '#3d1020' }}>TOTAL</td>
                       <td style={{ textAlign: 'right', fontWeight: 800, color: '#3b82f6' }}>{valTotals.opening}</td>
                       <td style={{ textAlign: 'right', fontWeight: 800, color: '#059669' }}>+{valTotals.received}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#ef4444' }}>{valTotals.damaged > 0 ? '−' + valTotals.damaged : '—'}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#c8456a' }}>−{valTotals.sold}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#ef4444' }}>{valTotals.damaged > 0 ? '-' + valTotals.damaged : '�'}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#c8456a' }}>-{valTotals.sold}</td>
                       <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 16 }}>{valTotals.closing}</td>
                       <td></td>
                       <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 16, color: '#c8456a' }}>{fmtKES(valTotals.closingValue)}</td>
@@ -508,8 +508,8 @@ export default function InventoryPage() {
                       <td style={{ fontWeight: 700, color: m.qty > 0 ? '#059669' : '#dc2626' }}>{m.qty > 0 ? '+' : ''}{m.qty}</td>
                       <td style={{ color: '#9b6070' }}>{r2(m.before_qty)}</td>
                       <td style={{ fontWeight: 600 }}>{r2(m.after_qty)}</td>
-                      <td style={{ fontSize: 12, fontFamily: 'monospace' }}>{m.reference || '—'}</td>
-                      <td style={{ fontSize: 12, color: '#9b6070' }}>{m.notes || '—'}</td>
+                      <td style={{ fontSize: 12, fontFamily: 'monospace' }}>{m.reference || '�'}</td>
+                      <td style={{ fontSize: 12, color: '#9b6070' }}>{m.notes || '�'}</td>
                     </tr>
                   )
                 })}
@@ -539,17 +539,17 @@ export default function InventoryPage() {
                   </div>
                 )}
                 {adjustProduct && <div style={{ background: '#fce8ed', borderRadius: 10, padding: '10px 14px', fontSize: 14 }}>
-                  <strong>{adjustProduct.name}</strong> · Current stock: <strong>{r2(adjustProduct.stock_qty || 0)} {adjustProduct.unit || 'pcs'}</strong>
+                  <strong>{adjustProduct.name}</strong> � Current stock: <strong>{r2(adjustProduct.stock_qty || 0)} {adjustProduct.unit || 'pcs'}</strong>
                 </div>}
                 <div>
                   <label className="label">Movement Type</label>
                   <select className="input" value={adjustType} onChange={e => setAdjustType(e.target.value)}>
-                    <option value="opening_stock">🏁 Opening Stock (Day 1 entry)</option>
-                    <option value="stock_in">📦 Stock Received (GRN)</option>
-                    <option value="stock_out">📤 Stock Out (Removed)</option>
-                    <option value="return">🔄 Customer Return</option>
-                    <option value="damage">💔 Damaged / Written Off</option>
-                    <option value="adjustment">✏️ Manual Adjustment</option>
+                    <option value="opening_stock">?? Opening Stock (Day 1 entry)</option>
+                    <option value="stock_in">?? Stock Received (GRN)</option>
+                    <option value="stock_out">?? Stock Out (Removed)</option>
+                    <option value="return">?? Customer Return</option>
+                    <option value="damage">?? Damaged / Written Off</option>
+                    <option value="adjustment">?? Manual Adjustment</option>
                   </select>
                 </div>
                 <div>
@@ -576,20 +576,20 @@ export default function InventoryPage() {
                     <div>
                       <label className="label">How did you pay for this stock? *</label>
                       <select className="input" value={adjustFunding} onChange={e => setAdjustFunding(e.target.value)}>
-                        <option value="cash">💵 Cash / M-Pesa — paid now</option>
-                        <option value="payable">🧾 On Credit — supplier not yet paid</option>
-                        <option value="owner_capital">💼 From my own capital (new investment)</option>
+                        <option value="cash">?? Cash / M-Pesa � paid now</option>
+                        <option value="payable">?? On Credit � supplier not yet paid</option>
+                        <option value="owner_capital">?? From my own capital (new investment)</option>
                       </select>
                     </div>
                     <div>
                       <label className="label">Supplier Name</label>
-                      <input className="input" value={adjustSupplier} onChange={e => setAdjustSupplier(e.target.value)} placeholder="e.g. Safaricom Devices, Jumia, Mr. Hassan…" />
+                      <input className="input" value={adjustSupplier} onChange={e => setAdjustSupplier(e.target.value)} placeholder="e.g. Safaricom Devices, Jumia, Mr. Hassan�" />
                     </div>
                   </>
                 )}
                 <div>
                   <label className="label">Notes / Reference</label>
-                  <input className="input" value={adjustNote} onChange={e => setAdjustNote(e.target.value)} placeholder="e.g. Supplier invoice #123, LPO reference…" />
+                  <input className="input" value={adjustNote} onChange={e => setAdjustNote(e.target.value)} placeholder="e.g. Supplier invoice #123, LPO reference�" />
                 </div>
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                   <button type="button" className="btn-secondary" onClick={() => setShowAdjust(false)}>Cancel</button>
@@ -607,7 +607,7 @@ export default function InventoryPage() {
       {showBulkImport && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowBulkImport(false)}>
           <div className="modal" style={{ maxWidth: 560 }}>
-            <div className="modal-header"><span className="modal-title">📋 Bulk Stock Import</span><button onClick={() => setShowBulkImport(false)} className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
+            <div className="modal-header"><span className="modal-title">?? Bulk Stock Import</span><button onClick={() => setShowBulkImport(false)} className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
             <div className="modal-body">
               <div style={{ background: '#f0fdf4', borderRadius: 10, padding: 12, marginBottom: 14, fontSize: 12, color: '#166534' }}>
                 <strong>Format:</strong> Paste CSV with columns: name, qty, cost, notes
@@ -625,7 +625,7 @@ export default function InventoryPage() {
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button className="btn-secondary" onClick={() => setShowBulkImport(false)} disabled={importing}>Cancel</button>
                 <button className="btn-primary" onClick={handleBulkImportCSV} disabled={importing || !importData.trim()}>
-                  {importing ? <><div style={{ width: 14, height: 14, border: '2px solid #fff4', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block', marginRight: 6 }} /> Importing…</> : `<Zap size={14} /> Import ${importData.split('\n').length - 1} items`}
+                  {importing ? <><div style={{ width: 14, height: 14, border: '2px solid #fff4', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block', marginRight: 6 }} /> Importing�</> : `<Zap size={14} /> Import ${importData.split('\n').length - 1} items`}
                 </button>
               </div>
             </div>
@@ -635,6 +635,7 @@ export default function InventoryPage() {
     </div>
   )
 }
+
 
 
 
