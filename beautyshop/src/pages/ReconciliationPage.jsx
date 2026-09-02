@@ -54,9 +54,34 @@ export default function ReconciliationPage() {
 
   const handleCount = (denom, val) => setCounts(c => ({ ...c, [denom]: val }))
 
-  const handleSave = () => {
-    setSaved(true)
-    toast.success('Z-Report saved! Cash reconciliation complete ✅')
+  const handleSave = async () => {
+    try {
+      const denominations = DENOMINATIONS.reduce((acc, d) => { acc[d] = Number(counts[d]) || 0; return acc }, {})
+      await pb.collection(C.ZREPORTS).create({
+        shop_id: shop.id,
+        report_date: date,
+        opening_float_kes: Number(openingFloat) || 0,
+        total_cash_sales_kes: totalCashSales,
+        total_mpesa_sales_kes: totalMpesaSales,
+        total_card_sales_kes: totalCardSales,
+        total_revenue_kes: totalRevenue,
+        cash_expenses_kes: cashExpenses,
+        expected_cash_kes: expectedCash,
+        actual_cash_kes: actualCash,
+        variance_kes: variance,
+        denominations_json: denominations,
+        is_balanced: isBalanced,
+        closed_by: admin?.id || pb.authStore.model?.id,
+      })
+      setSaved(true)
+      toast.success('Z-Report saved! Cash reconciliation complete')
+    } catch (err) {
+      if (err?.status === 400) {
+        toast.error('A Z-Report for this date has already been closed. Each day can only be closed once.')
+      } else {
+        toast.error('Failed to save Z-Report: ' + (err?.data?.message || err?.message || 'Unknown error'))
+      }
+    }
   }
 
   return (
