@@ -17,6 +17,17 @@ export const PLAN_RANK = {
   enterprise: 2,
 }
 
+// Monthly plan prices in KES â€” single source of truth, must match PricingPage.jsx's
+// PLANS.monthly prices exactly. NOTE: shops have no stored billing `period` field yet
+// (monthly vs yearly), so anything using this (e.g. SubscriptionPaybackDay) assumes
+// monthly billing. This under-estimates true cost for yearly subscribers, which is the
+// safe direction (shows payback sooner, never later) until a billing_period field exists.
+export const PLAN_PRICES = {
+  starter: 2999,
+  growth: 4999,
+  enterprise: 6999,
+}
+
 /**
  * hasRequiredPlan(shop, requiredPlan)
  *

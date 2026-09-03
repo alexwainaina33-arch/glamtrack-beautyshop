@@ -1,6 +1,6 @@
-﻿import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { generateInsight, buildShareCardData, loadShopBaseline, recordInsightShown, loadSalesAssistant } from '../lib/insightsEngine'
-import { hasRequiredPlan } from '../lib/planAccess'
+import { hasRequiredPlan, PLAN_PRICES } from '../lib/planAccess'
 import PlanGuard from '../components/PlanGuard'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
@@ -22,7 +22,7 @@ const parseDateFromReceipt = (receipt_no) => {
 function SubscriptionPaybackDay({ shop, avgDailyRevenue }) {
   if (!shop || avgDailyRevenue == null || avgDailyRevenue === 0) return null
 
-  const PLAN_COST = 10000
+  const PLAN_COST = PLAN_PRICES[shop.plan] ?? PLAN_PRICES.starter
   const daysToPayback = Math.ceil(PLAN_COST / avgDailyRevenue)
   const paybackDate = new Date(Date.now() + daysToPayback * 86400000)
   const subStart = shop.subscription_ends_at
@@ -44,7 +44,7 @@ function SubscriptionPaybackDay({ shop, avgDailyRevenue }) {
         {alreadyPaidBack ? (
           <>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#059669' }}>Running on pure profit since {paybackDateLabel}</div>
-            <div style={{ fontSize: 11, color: '#34d399', marginTop: 2 }}>Your KES 10,000 subscription paid itself back — everything from here is yours.</div>
+            <div style={{ fontSize: 11, color: '#34d399', marginTop: 2 }}>Your KES {PLAN_COST.toLocaleString('en-KE')} subscription paid itself back — everything from here is yours.</div>
           </>
         ) : (
           <>
