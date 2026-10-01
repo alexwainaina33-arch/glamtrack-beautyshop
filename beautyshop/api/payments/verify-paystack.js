@@ -34,7 +34,7 @@ async function referral(superToken,shop,hadPrevious){
   const now=new Date();const x=ref.subscription_ends_at?new Date(ref.subscription_ends_at):null;const base=x&&!Number.isNaN(x.getTime())&&x>now?x:now;const n=new Date(base);n.setUTCMonth(n.getUTCMonth()+1)
   await patch(superToken,`/api/collections/bs_shops/records/${encodeURIComponent(ref.id)}`,{subscription_ends_at:n.toISOString(),subscription_status:'active'})
 }
-module.exports=async function handler(req,res){
+export default async function handler(req,res){
   if(req.method!=='POST')return j(res,405,{error:'Method not allowed'})
   try{
     const token=bearer(req);if(!token)return j(res,401,{error:'Sign in again before activating a plan.'})
