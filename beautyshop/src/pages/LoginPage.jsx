@@ -600,53 +600,35 @@ export default function LoginPage() {
   const handleRegister = async () => {
     setLoading(true)
     try {
-      // 1. Create admin account
-      await pb.collection(C.ADMINS).create({
-        name, email, password, passwordConfirm: password,
-        role: 'owner', is_active: true, business_type: bizType,
+      // 1. Create account + shop on the server (role, trial dates and referral are set there)
+      const bizTypeLabel = bizType === 'other' ? (bizTypeCustom || 'Other') : (currentBizType?.label || bizType)
+      const utmSource = new URLSearchParams(window.location.search).get('utm_source') || 'organic'
+      const signupRes = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name, email, password, bizName, bizType, bizTypeLabel,
+          phone, address, bizEmail, currency, taxRate,
+          brandColor: activeBrandColor, receiptFooter,
+          referralCode, utmSource,
+        }),
       })
+      let signupData = {}
+      try { signupData = await signupRes.json() } catch { /* not JSON */ }
+      if (!signupRes.ok || !signupData.ok) throw new Error(signupData.error || 'We could not create your account. Please try again.')
 
       // 2. Login immediately
       await login(email, password)
 
-      // 3. Create shop with all settings
-      const slug = bizName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') + '-' + Date.now()
-      const fd = new FormData()
-      fd.append('name', bizName)
-      fd.append('slug', slug)
-      fd.append('phone', phone)
-      fd.append('address', address)
-      fd.append('email', bizEmail || email)
-      fd.append('currency', currency)
-      fd.append('tax_rate', String(taxRate))
-      fd.append('is_active', 'true')
-      fd.append('business_type', bizType === 'other' ? (bizTypeCustom || 'Other') : (currentBizType?.label || bizType))
-      fd.append('brand_color', activeBrandColor)
-      fd.append('receipt_footer', receiptFooter || `Thank you for visiting ${bizName}! 🙏`)
-      fd.append('receipt_show_logo', 'true')
-      fd.append('receipt_show_tax', 'true')
-      // Auto-generate this shop's unique outbound referral code
-      const initials = bizName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'SHOP'
-      const rand = Math.random().toString(36).slice(2, 6).toUpperCase()
-      fd.append('referral_code', `${initials}${rand}`)
-      // Subscription fields — 7-day free trial
-      fd.append('subscription_status', 'trial')
-      const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-      fd.append('trial_ends_at', trialEnd.toISOString().replace('T', ' ').replace('Z', '.000Z'))
-      if (referralCode.trim()) fd.append('referral_code_used', referralCode.trim().toUpperCase())
-      // Track signup attribution — reads UTM param if present, falls back to 'organic'
-      const utmSource = new URLSearchParams(window.location.search).get('utm_source') || 'organic'
-      fd.append('signup_source', utmSource)
-      if (logoFile) fd.append('logo', logoFile)
-
-      const newShop = await pb.collection(C.SHOPS).create(fd)
-
-      // 4. Link admin to shop
-      await pb.collection(C.SHOP_ADMINS).create({
-        shop_id: newShop.id,
-        admin_id: pb.authStore.model.id,
-        role: 'owner',
-      })
+      // 3. Upload the logo (optional) to the shop the server just created
+      const newShop = { id: signupData.shopId }
+      if (logoFile) {
+        try {
+          const lf = new FormData()
+          lf.append('logo', logoFile)
+          await pb.collection(C.SHOPS).update(newShop.id, lf)
+        } catch { /* non-critical */ }
+      }
 
       // 5. Create selected categories
       for (let i = 0; i < selectedCats.length; i++) {
