@@ -301,9 +301,9 @@ function ShopSetupWizard() {
     if (!form.name.trim()) { toast.error('Shop name is required'); return }
     setSaving(true)
     try {
-      const slug = form.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') + '-' + Date.now()
-      const newShop = await pb.collection(C.SHOPS).create({ ...form, slug, is_active: true })
-      await pb.collection(C.SHOP_ADMINS).create({ shop_id: newShop.id, admin_id: admin.id, role: 'owner' })
+      // slug, trial dates and owner link are now set by the server
+      const r = await fetch('/api/shops/create', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pb.authStore.token }, body: JSON.stringify(form) }); const data = await r.json().catch(() => ({})); if (!r.ok || !data?.ok) throw new Error(data?.error || 'Failed to create shop'); const newShop = data.shop
+      // (shop and owner link are created by /api/shops/create)
       toast.success(`Welcome to ${newShop.name}! 🎉`)
       completeShopSetup(newShop)
     } catch (err) {
@@ -318,7 +318,7 @@ function ShopSetupWizard() {
           <div style={{ width: 72, height: 72, background: 'linear-gradient(135deg,#e6b800,#c8456a)', borderRadius: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 28px #c8456a44', marginBottom: 16 }}>
             <Store size={34} color="#fff" />
           </div>
-          <h1 style={{ fontFamily: 'Playfair Display,serif', fontSize: 28, color: '#3d1020', margin: '0 0 8px' }}>Set up your shop 🏪</h1>
+          <h1 style={{ fontFamily: 'Playfair Display,serif', fontSize: 28, color: '#3d1020', margin: '0 0 8px' }}>Set up your business 🏪</h1>
           <p style={{ color: '#9b6070', fontSize: 14, margin: 0 }}>Welcome, {admin?.name?.split(' ')[0]}! Let's get your business set up in 60 seconds.</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 28 }}>
@@ -361,7 +361,7 @@ function ShopSetupWizard() {
                     <div style={{ fontSize: 11, color: '#9b6070', marginTop: 4 }}>Standard Kenya VAT is 16%. Set to 0 if not VAT-registered.</div>
                   </div>
                   <div style={{ background: '#fdf5f7', border: '1px solid #f0e4e8', borderRadius: 12, padding: '14px 16px', marginTop: 4 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#8b2550', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your shop summary</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#8b2550', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your business summary</div>
                     <div style={{ fontSize: 13, color: '#6b4050', lineHeight: 1.8 }}>
                       🏪 <strong>{form.name || 'Your Shop'}</strong><br />
                       {form.phone && <>📞 {form.phone}<br /></>}
@@ -377,7 +377,7 @@ function ShopSetupWizard() {
                 <button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1.5px solid #f0e4e8', background: '#fff', color: '#8b2550', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>← Back</button>
               )}
               <button type="submit" disabled={saving} style={{ flex: 2, padding: '12px', borderRadius: 10, border: 'none', background: saving ? '#6b1e38' : 'linear-gradient(135deg,#c8456a,#8b2550)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'Nunito,sans-serif', boxShadow: '0 4px 16px #c8456a44', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                {saving ? <><div style={{ width: 16, height: 16, border: '2px solid #fff4', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Creating…</> : step === 1 ? 'Continue →' : '🎉 Create My Shop'}
+                {saving ? <><div style={{ width: 16, height: 16, border: '2px solid #fff4', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Creating…</> : step === 1 ? 'Continue →' : '🎉 Create My Business'}
               </button>
             </div>
           </form>
@@ -422,7 +422,7 @@ function OnboardingChecklist({ shop, onDismiss }) {
   }
 
   const steps = [
-    { key: 'shop',     icon: Store,        label: 'Create your shop',       desc: 'Shop profile set up',               action: null },
+    { key: 'shop',     icon: Store,        label: 'Create your business',       desc: 'Shop profile set up',               action: null },
     { key: 'category', icon: Tag,          label: 'Add a product category', desc: 'e.g. Hair, Nails, Skincare',        action: () => navigate('/app/products') },
     { key: 'product',  icon: Package,      label: 'Add your first product', desc: 'Add products with price and stock', action: () => navigate('/app/products') },
     { key: 'staff',    icon: Users,        label: 'Add a staff member',     desc: 'Set up your team and commissions',  action: () => navigate('/app/staff') },
@@ -438,7 +438,7 @@ function OnboardingChecklist({ shop, onDismiss }) {
       <button onClick={onDismiss} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', cursor: 'pointer', color: '#c8b0b8', padding: 4 }}><X size={16} /></button>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
         <div>
-          <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 17, color: '#3d1020', fontWeight: 700 }}>🚀 Set up your shop — {pct}% done</div>
+          <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 17, color: '#3d1020', fontWeight: 700 }}>🚀 Set up your business — {pct}% done</div>
           <div style={{ fontSize: 12, color: '#9b6070', marginTop: 2 }}>{completed} of {steps.length} steps complete · Takes about 5 minutes</div>
         </div>
       </div>

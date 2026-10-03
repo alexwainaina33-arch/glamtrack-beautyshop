@@ -188,16 +188,17 @@ export default function SettingsPage() {
     catch { toast.error('Failed') }
   }
 
+  const callStaff = async (payload) => { const r = await fetch('/api/staff/manage', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pb.authStore.token }, body: JSON.stringify(payload) }); const data = await r.json().catch(() => ({})); if (!r.ok || !data?.ok) throw new Error(data?.error || 'Request failed'); return data }
   const handleAddStaff = async (e) => {
     e.preventDefault()
     setAddingStaff(true)
     try {
-      const admin = await pb.collection(C.ADMINS).create({
-        name: newStaff.name, email: newStaff.email,
-        password: newStaff.password, passwordConfirm: newStaff.password,
-        phone: newStaff.phone, role: newStaff.role, is_active: true,
-      })
-      await pb.collection(C.SHOP_ADMINS).create({ shop_id: shop.id, admin_id: admin.id, role: newStaff.role })
+      await callStaff({ action: 'add', shopId: shop.id, name: newStaff.name, email: newStaff.email, password: newStaff.password, phone: newStaff.phone, role: newStaff.role })
+        
+        
+        
+      
+      
       toast.success('Staff member added!')
       setShowAddStaff(false)
       setNewStaff({ name:'', email:'', password:'', role:'cashier', phone:'' })
@@ -208,14 +209,14 @@ export default function SettingsPage() {
 
   const removeStaff = async (id) => {
     if (!confirm('Remove this staff member?')) return
-    try { await pb.collection(C.SHOP_ADMINS).delete(id); toast.success('Removed'); loadStaff() }
-    catch { toast.error('Failed') }
+    try { await callStaff({ action: 'remove', shopId: shop.id, linkId: id }); toast.success('Removed'); loadStaff() }
+    catch (err) { toast.error(err?.message || 'Failed') }
   }
 
   const changeStaffRole = async (shopAdminId, adminId, newRole) => {
     try {
-      await pb.collection(C.SHOP_ADMINS).update(shopAdminId, { role: newRole })
-      if (adminId) await pb.collection(C.ADMINS).update(adminId, { role: newRole })
+      await callStaff({ action: 'changeRole', shopId: shop.id, linkId: shopAdminId, role: newRole })
+      
       toast.success(`Role updated to ${newRole}`)
       loadStaff()
     } catch (err) {
@@ -911,7 +912,7 @@ export default function SettingsPage() {
                           onChange={e => changeStaffRole(s.id, s.expand?.admin_id?.id, e.target.value)}
                           style={{ padding:'4px 10px', borderRadius:20, border:'1.5px solid #f0e4e8', background:'#fce8ed', color:'#8b2550', fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}
                         >
-                          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                          {(s.role === 'owner' ? ROLES : ROLES.filter(r => r !== 'owner')).map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                       </td>
                       <td>
@@ -965,7 +966,7 @@ export default function SettingsPage() {
                 <div>
                   <label className="label">Role</label>
                   <select className="input" value={newStaff.role} onChange={e=>setNewStaff(f=>({...f,role:e.target.value}))}>
-                    {ROLES.map(r=><option key={r} value={r}>{r} — {ROLE_DESC[r]}</option>)}
+                    {ROLES.filter(r => r !== 'owner').map(r=><option key={r} value={r}>{r} — {ROLE_DESC[r]}</option>)}
                   </select>
                 </div>
                 <div style={{ display:'flex', gap:8, justifyContent:'flex-end', paddingTop:4 }}>
