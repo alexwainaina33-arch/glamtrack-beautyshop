@@ -1,6 +1,7 @@
-﻿import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import pb, { C, PB_URL } from '../lib/pb'
+import { fetchPublicShop } from '../lib/publicShop'
 import { computeIsLocked } from '../context/AuthContext'
 import { r2 } from '../lib/utils'
 
@@ -154,9 +155,7 @@ export default function ShopPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const shopRes = await pb.collection(C.SHOPS).getFirstListItem(
-          `slug="${slug}"`, { '$autoCancel': false }
-        )
+        const shopRes = await fetchPublicShop({ slug })
         setShop(shopRes)
         const [svcs, prods, staffList, reviewsList, galleryItems, sales, custs] = await Promise.all([
           pb.collection(C.SERVICES).getList(1, 200, {

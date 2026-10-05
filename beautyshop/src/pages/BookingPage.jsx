@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import pb, { C, PB_URL } from '../lib/pb'
+import { fetchPublicShop } from '../lib/publicShop'
 import { computeIsLocked } from '../context/AuthContext'
 
 const CAT_EMOJI = {
@@ -94,9 +95,7 @@ export default function BookingPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const shopRes = await pb.collection(C.SHOPS).getFirstListItem(
-          `slug="${slug}"`, { '$autoCancel': false }
-        )
+        const shopRes = await fetchPublicShop({ slug })
         setShop(shopRes)
 
         // GOLDMINE #2 — restore returning customer

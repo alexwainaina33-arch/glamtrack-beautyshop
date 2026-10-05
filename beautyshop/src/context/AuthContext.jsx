@@ -15,6 +15,7 @@ const AuthContext = createContext(null)
 export function computeIsLocked(shop) {
   if (!shop) return false
   if (shop.id === DEMO_SHOP_ID) return false
+  if (typeof shop.locked === 'boolean') return shop.locked
 
   const now = new Date()
 

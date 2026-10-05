@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import pb, { C, PB_URL } from '../lib/pb'
+import { fetchPublicShop } from '../lib/publicShop'
 
 function fmtKES(n) {
   return `KES ${Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`
@@ -65,7 +66,7 @@ export default function ReceiptPublicPage() {
         saleRes.served_by_name = saleRes.expand?.served_by?.name || ''
 
         const [shopRes, itemsRes] = await Promise.all([
-          pb.collection(C.SHOPS).getOne(saleRes.shop_id, { '$autoCancel': false }),
+          fetchPublicShop({ token }),
           pb.collection(C.SALE_ITEMS).getList(1, 100, {
             filter: `sale_id="${saleRes.id}"`,
             '$autoCancel': false,
