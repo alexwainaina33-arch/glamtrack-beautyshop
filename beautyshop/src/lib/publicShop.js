@@ -8,3 +8,9 @@ export async function fetchPublicShop(params) {
   }
   return r.json()
 }
+
+export async function fetchCatalog(slug) {
+  const r = await fetch('/api/shops/public?' + new URLSearchParams({ slug, catalog: '1' }).toString())
+  if (!r.ok) throw new Error('Catalog not found')
+  return r.json()
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import pb, { C, PB_URL } from '../lib/pb'
-import { fetchPublicShop } from '../lib/publicShop'
+import { fetchPublicShop, fetchCatalog } from '../lib/publicShop'
 import { computeIsLocked } from '../context/AuthContext'
 
 const CAT_EMOJI = {
@@ -111,10 +111,7 @@ export default function BookingPage() {
             filter: `shop_id="${shopRes.id}" && is_active=true`,
             sort: 'name', '$autoCancel': false,
           }).then(r => r.items),
-          pb.collection(C.STAFF).getList(1, 100, {
-            filter: `shop_id="${shopRes.id}" && is_active=true`,
-            sort: 'name', '$autoCancel': false,
-          }).then(r => r.items),
+          fetchCatalog(slug).then(c => c.staff).catch(() => []),
         ])
         setServices(svcs)
         setStaff(stf)

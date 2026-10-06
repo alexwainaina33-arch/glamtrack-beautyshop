@@ -4,6 +4,10 @@ const PB_URL = process.env.PB_URL || 'https://fieldtrack-kenya.fly.dev'
 const SHOP_FIELDS = ['id', 'collectionId', 'collectionName', 'name', 'slug', 'logo', 'cover_image', 'tagline', 'about_text', 'address', 'phone', 'email', 'website', 'instagram', 'business_type', 'business_hours', 'brand_color', 'currency', 'founded_year']
 const RECEIPT_FIELDS = ['id', 'collectionId', 'collectionName', 'name', 'logo', 'address', 'phone', 'currency', 'tax_rate', 'receipt_header', 'receipt_footer', 'receipt_show_logo', 'receipt_show_tax']
 
+const PRODUCT_FIELDS = ['id', 'collectionId', 'collectionName', 'shop_id', 'name', 'category_id', 'description', 'unit', 'price_kes', 'compare_price_kes', 'images', 'stock_qty', 'track_inventory', 'is_service', 'has_variants', 'is_taxable', 'status', 'brand', 'tags']
+const CATEGORY_FIELDS = ['id', 'collectionId', 'collectionName', 'name', 'icon', 'sort_order']
+const STAFF_FIELDS = ['id', 'collectionId', 'collectionName', 'shop_id', 'name', 'role']
+
 let cached = { token: '', exp: 0 }
 
 async function readJson(r) {
@@ -75,6 +79,16 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'slug or token required' })
     }
     if (!shop || !shop.id) return res.status(404).json({ error: 'Not found' })
+    if (slug && String(q.catalog || '') === '1') {
+      const fp = encodeURIComponent('shop_id="' + shop.id + '" && status="active"')
+      const fs = encodeURIComponent('shop_id="' + shop.id + '" && is_active=true')
+      const p = await pbGet(t, '/api/collections/bs_products/records?filter=' + fp + '&perPage=200&sort=name&expand=category_id')
+      const s = await pbGet(t, '/api/collections/bs_staff/records?filter=' + fs + '&perPage=100&sort=name')
+      const products = (p.items || []).map(r => { const o = pick(r, PRODUCT_FIELDS); const c = r.expand && r.expand.category_id; if (c) o.expand = { category_id: pick(c, CATEGORY_FIELDS) }; return o })
+      const staff = (s.items || []).map(r => pick(r, STAFF_FIELDS))
+      res.setHeader('Cache-Control', 'public, s-maxage=30')
+      return res.status(200).json({ products, staff })
+    }
     res.setHeader('Cache-Control', 'public, s-maxage=30')
     const out = pick(shop, fields)
     out.locked = isLocked(shop)

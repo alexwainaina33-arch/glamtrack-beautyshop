@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import pb, { C, PB_URL } from '../lib/pb'
-import { fetchPublicShop } from '../lib/publicShop'
+import { fetchPublicShop, fetchCatalog } from '../lib/publicShop'
 import { computeIsLocked } from '../context/AuthContext'
 import { r2 } from '../lib/utils'
 
@@ -157,19 +157,14 @@ export default function ShopPage() {
       try {
         const shopRes = await fetchPublicShop({ slug })
         setShop(shopRes)
+        const catalogP = fetchCatalog(slug)
         const [svcs, prods, staffList, reviewsList, galleryItems, sales, custs] = await Promise.all([
           pb.collection(C.SERVICES).getList(1, 200, {
             filter: `shop_id="${shopRes.id}" && is_active=true`,
             sort: 'category,name', '$autoCancel': false,
           }).then(r => r.items),
-          pb.collection(C.PRODUCTS).getList(1, 200, {
-            filter: `shop_id="${shopRes.id}" && status="active"`,
-            sort: 'name', expand: 'category_id', '$autoCancel': false,
-          }).then(r => r.items),
-          pb.collection('bs_staff').getList(1, 100, {
-            filter: `shop_id="${shopRes.id}" && is_active=true`,
-            sort: 'name', '$autoCancel': false,
-          }).then(r => r.items).catch(() => []),
+          catalogP.then(c => c.products),
+          catalogP.then(c => c.staff).catch(() => []),
           pb.collection('bs_reviews').getList(1, 50, {
             filter: `shop_id="${shopRes.id}" && is_approved=true`,
             sort: '-created', '$autoCancel': false,
