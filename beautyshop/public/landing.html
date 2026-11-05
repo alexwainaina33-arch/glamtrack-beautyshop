@@ -4,1510 +4,311 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SalesTrack &mdash; Know what you sold. Know what you made.</title>
-<meta name="description" content="SalesTrack helps Kenyan businesses run sales, stock, customers and expenses from one connected system.">
+<meta name="description" content="SalesTrack helps Kenyan salons, barbershops, beauty shops and small retailers run sales, stock, customers and expenses from one connected system. Start a 7-day free trial.">
+<meta name="theme-color" content="#240610">
+<link rel="canonical" href="https://getsalestrack.vercel.app/landing.html">
+<link rel="icon" type="image/png" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SalesTrack">
+<meta property="og:locale" content="en_KE">
+<meta property="og:title" content="SalesTrack &mdash; Know what you sold. Know what you made.">
+<meta property="og:description" content="Run sales, stock, customers and expenses from one connected system, then see what your business actually made.">
+<meta property="og:url" content="https://getsalestrack.vercel.app/landing.html">
+<meta property="og:image" content="https://getsalestrack.vercel.app/marketing/dashboard-real.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SalesTrack &mdash; Know what you sold. Know what you made.">
+<meta name="twitter:description" content="Sales, stock, customers and expenses in one connected system for Kenyan businesses.">
+<meta name="twitter:image" content="https://getsalestrack.vercel.app/marketing/dashboard-real.png">
+
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@graph":[
+    {
+      "@type":"SoftwareApplication",
+      "name":"SalesTrack",
+      "applicationCategory":"BusinessApplication",
+      "operatingSystem":"Web",
+      "description":"Sales, stock, customers and expenses in one connected system for Kenyan businesses.",
+      "url":"https://getsalestrack.vercel.app/landing.html",
+      "offers":[
+        {"@type":"Offer","name":"Starter","price":"2999","priceCurrency":"KES","description":"Starting price per month"},
+        {"@type":"Offer","name":"Growth","price":"4999","priceCurrency":"KES","description":"Starting price per month"},
+        {"@type":"Offer","name":"Enterprise","price":"6999","priceCurrency":"KES","description":"Starting price per month"}
+      ]
+    },
+    {
+      "@type":"FAQPage",
+      "mainEntity":[
+        {"@type":"Question","name":"How long is the free trial?","acceptedAnswer":{"@type":"Answer","text":"7 full days, with no card required to start."}},
+        {"@type":"Question","name":"Do I need a credit card to start?","acceptedAnswer":{"@type":"Answer","text":"No. You can start the free trial without entering payment-card details."}},
+        {"@type":"Question","name":"What happens when the trial ends?","acceptedAnswer":{"@type":"Answer","text":"Your existing business data remains viewable. New sales, expenses and bookings pause until you renew."}},
+        {"@type":"Question","name":"Can I sell when internet is down?","acceptedAnswer":{"@type":"Answer","text":"SalesTrack supports offline selling for signed-in users and can sync queued sales when connectivity returns."}},
+        {"@type":"Question","name":"Is M-Pesa supported?","acceptedAnswer":{"@type":"Answer","text":"You can record M-Pesa as a customer payment method in the POS."}},
+        {"@type":"Question","name":"What kinds of businesses is SalesTrack for?","acceptedAnswer":{"@type":"Answer","text":"Beauty salons, barbershops, beauty shops and small retail businesses."}},
+        {"@type":"Question","name":"Can my customers book or order online?","acceptedAnswer":{"@type":"Answer","text":"SalesTrack can help a business share a public page, accept bookings or orders, and bring that activity back into the same business records."}}
+      ]
+    }
+  ]
+}
+</script>
+
 <style>
-:root{--ink:#240610;--wine:#5f1230;--rose:#ce2f68;--pink:#e33c79;--gold:#f2ad32;--cream:#fffaf1;--paper:#fffefa;--green:#054a36;--green2:#0a6349;--muted:#725f66;--line:#eadedb;--shadow:0 26px 70px rgba(36,6,16,.13);--serif:Georgia,'Times New Roman',serif;--sans:Inter,system-ui,-apple-system,'Segoe UI',sans-serif}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--sans);line-height:1.5}img{display:block;max-width:100%}a{text-decoration:none;color:inherit}.wrap{width:min(1280px,calc(100% - 48px));margin:auto}.eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--rose);font-weight:950;margin-bottom:11px}.title{font:800 clamp(42px,4.8vw,66px)/.96 var(--serif);letter-spacing:-.045em;margin:0}.copy{color:var(--muted);font-size:16px;max-width:700px}.btn{display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:14px 18px;font-weight:900;font-size:13px;border:1px solid transparent}.btn.primary{background:linear-gradient(100deg,#b41952,#e23a78);color:#fff}.btn.secondary{background:#fff;border-color:#e8d9d4}.top{height:66px;background:linear-gradient(90deg,#21040f,#43091d);color:#fff;display:flex;align-items:center;position:sticky;top:0;z-index:80}.nav{display:flex;align-items:center;justify-content:space-between}.brand{font-weight:900}.navlinks{display:flex;gap:26px;font-size:13px;font-weight:800}.hero{padding:58px 0 0;background:radial-gradient(circle at 78% 12%,rgba(229,59,120,.18),transparent 31%),var(--cream);overflow:hidden}.hero-grid{display:grid;grid-template-columns:.72fr 1.48fr;gap:44px;align-items:center}.hero h1{font:800 clamp(60px,6.6vw,98px)/.91 var(--serif);letter-spacing:-.05em;margin:0}.hero h1 span{color:var(--pink)}.hero p{max-width:470px;color:var(--muted);font-size:16px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0 15px}.hero-screen{position:relative}.hero-screen img{width:100%;border:8px solid #2d0a17;border-radius:20px;box-shadow:0 36px 86px rgba(36,6,16,.25)}.hero-note{position:absolute;right:20px;top:30px;background:#2a0916;color:#fff;padding:12px 15px;border-radius:10px;font-size:12px;font-weight:900;box-shadow:0 16px 34px rgba(48,5,21,.25)}.proofbar{margin-top:38px;background:#fff;border-block:1px solid var(--line)}.proofgrid{display:grid;grid-template-columns:repeat(5,1fr)}.proof{padding:16px;border-right:1px solid var(--line);font-size:11px;font-weight:850}.proof:last-child{border-right:0}.section{padding:86px 0}.intro{display:flex;justify-content:space-between;gap:40px;align-items:end;margin-bottom:34px}.screen-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px;box-shadow:var(--shadow)}.screen-card img{width:100%;border-radius:13px}.split{display:grid;grid-template-columns:1.18fr .82fr;gap:40px;align-items:center}.split.reverse{grid-template-columns:.82fr 1.18fr}.split.reverse .screen-card{order:2}.story h3{font:800 38px/1 var(--serif);margin:0 0 12px}.story p{color:var(--muted);margin:0 0 14px}.story ul{padding-left:18px;color:#5f4c53}.story li{margin:7px 0}.profit{padding:72px 0;background:linear-gradient(115deg,#043e2f,#075741);color:#fff}.profit-grid{display:grid;grid-template-columns:.7fr 1.3fr;gap:48px;align-items:center}.profit .eyebrow{color:#8fdab6}.profit p{color:#d5ece3}.ledger{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;color:var(--ink);border-radius:16px;overflow:hidden}.metric{padding:22px 16px;border-right:1px solid #e6ece9}.metric:last-child{border:0;background:#e9f7f0}.metric small{display:block;color:#7d6f73}.metric strong{font-size:18px}.industry{padding:84px 0}.industry-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:30px}.industry-card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(48,15,26,.06)}.industry-card img{width:100%;height:235px;object-fit:cover}.industry-card div{padding:16px}.industry-card h3{font:800 23px/1 var(--serif);margin:0 0 7px}.industry-card p{margin:0;color:var(--muted);font-size:12px}.questions{padding:82px 0;background:#fff}.qgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px}.q{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px}.q b{display:block;font:800 21px/1.05 var(--serif);margin-bottom:8px}.q p{margin:0;color:var(--muted);font-size:13px}.pricing{padding:82px 0;background:#240610;color:#fff}.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}.plan{border:1px solid rgba(255,255,255,.13);border-radius:17px;padding:24px;background:rgba(255,255,255,.045)}.plan.hot{border-color:var(--pink)}.price{font:800 36px/1 var(--serif);margin:12px 0 18px}.plan ul{padding-left:18px;color:#eedde3;font-size:12px}.plan .btn{width:100%}.faq{padding:78px 0}.faqgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:25px}.faq details{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 17px}.closing{padding:72px 0;text-align:center;background:linear-gradient(115deg,#54102a,#71183a);color:#fff}.closing h2{font:800 clamp(38px,5vw,62px)/.93 var(--serif);margin:0 0 15px}.footer{padding:26px 0;background:#20040f;color:#fff}
+:root{--ink:#240610;--wine:#5f1230;--rose:#ce2f68;--pink:#e33c79;--gold:#f2ad32;--cream:#fffaf1;--paper:#fffefa;--muted:#6a565d;--line:#eadedb;--shadow:0 26px 70px rgba(36,6,16,.13);--serif:Georgia,'Times New Roman',serif;--sans:Inter,system-ui,-apple-system,'Segoe UI',sans-serif}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-text-size-adjust:100%}
+img{display:block;max-width:100%;height:auto}
+a{text-decoration:none;color:inherit}
+a:focus-visible,summary:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:6px}
+.skip{position:absolute;left:12px;top:-70px;z-index:200;padding:10px 14px;border-radius:8px;background:#fff;color:var(--ink);font-weight:900;font-size:14px}
+.skip:focus{top:12px}
+.wrap{width:min(1280px,calc(100% - 48px));margin:auto}
+section[id]{scroll-margin-top:72px}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
 
+/* Type + buttons */
+.eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--rose);font-weight:900;margin-bottom:11px}
+.title{font:800 clamp(38px,4.8vw,66px)/.98 var(--serif);letter-spacing:-.045em;margin:0}
+.copy{color:var(--muted);font-size:16px;max-width:700px;margin:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:14px 20px;font-weight:900;font-size:14px;border:1px solid transparent;min-height:46px;transition:transform .15s ease,filter .15s ease}
+.btn:hover{transform:translateY(-1px);filter:brightness(.97)}
+.btn.primary{background:linear-gradient(100deg,#b41952,#e23a78);color:#fff}
+.btn.secondary{background:#fff;border-color:#e8d9d4;color:var(--ink)}
 
-.customer-web-clean{padding:88px 0;background:linear-gradient(180deg,#fffaf1 0%,#fff7f7 100%)}
-.customer-clean-head{display:grid;grid-template-columns:.9fr 1.1fr;gap:42px;align-items:end;margin-bottom:32px}
-.customer-clean-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-.customer-clean-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 14px 32px rgba(36,6,16,.06)}
-.customer-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#fff0f4;margin-bottom:17px;font-size:20px}
-.customer-clean-card h3{font:800 24px/1 var(--serif);margin:0 0 9px}
-.customer-clean-card p{margin:0;color:var(--muted);font-size:13px}
-.customer-flow{margin-top:26px;background:#240610;color:#fff;border-radius:18px;padding:22px 24px}
-.customer-flow-label{font-size:9px;letter-spacing:.17em;color:#ffc44b;font-weight:950;margin-bottom:12px}
-.customer-flow-steps{display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:900;font-size:14px}
-.customer-flow-steps b{color:#e8457c}
-.customer-flow p{margin:14px 0 0;color:#dbcbd1;font-size:12px;max-width:900px}
+/* Header */
+.top{height:64px;background:linear-gradient(90deg,#21040f,#43091d);color:#fff;display:flex;align-items:center;position:sticky;top:0;z-index:80}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{font-weight:900;font-size:18px;letter-spacing:.01em}
+.navlinks{display:flex;align-items:center;gap:26px;font-size:14px;font-weight:800}
+.navlinks .btn{padding:10px 16px;min-height:40px;font-size:13px}
+
+/* Hero */
+.hero{padding:54px 0 0;background:radial-gradient(circle at 82% 18%,rgba(233,35,111,.13),transparent 24%),linear-gradient(180deg,#fffaf2 0%,#fff9f4 100%);overflow:hidden}
+.hero-grid{display:grid;grid-template-columns:.78fr 1.22fr;gap:38px;align-items:center}
+.hero h1{font:800 clamp(52px,6.1vw,94px)/.9 var(--serif);letter-spacing:-.055em;margin:8px 0 0}
+.hero h1 span{position:relative;display:inline-block;padding-bottom:.08em;color:var(--pink)}
+.hero h1 span::after{content:"";position:absolute;left:1%;right:2%;bottom:-.02em;height:.09em;min-height:6px;border-radius:999px;background:linear-gradient(90deg,#e9236f,#f22b76 52%,#d91359);transform:rotate(-1.4deg) skewX(-8deg);transform-origin:left center}
+.hero-copy>p{max-width:560px;margin:20px 0 0;color:var(--muted);font-size:17px;line-height:1.55}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0 15px}
+.trial-trust{display:flex;flex-wrap:wrap;gap:8px 16px;margin:4px 0 0;padding:0;list-style:none;color:#5d4850;font-size:13px;font-weight:800}
+.trial-trust li{position:relative;padding-left:14px}
+.trial-trust li:before{content:"";position:absolute;left:0;top:.55em;width:6px;height:6px;border-radius:50%;background:#1b8f68}
+.hero-screen img{width:100%;border:7px solid #2a0715;border-radius:20px;box-shadow:0 30px 70px rgba(42,7,21,.22)}
+.hero-note{margin-top:10px;color:var(--muted);font-size:12px;font-weight:800;text-align:right}
+.commercial-strip{width:min(1280px,calc(100% - 48px));margin:42px auto 0;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border:1px solid var(--line);border-radius:18px 18px 0 0;overflow:hidden;box-shadow:0 16px 36px rgba(48,15,26,.06)}
+.commercial-cap{padding:20px 22px;border-right:1px solid var(--line)}
+.commercial-cap:last-child{border-right:0}
+.commercial-cap strong{display:block;margin-bottom:5px;color:var(--wine);font-size:15px}
+.commercial-cap span{display:block;color:var(--muted);font-size:13px;line-height:1.55}
+
+/* Product */
+.section{padding:86px 0}
+.intro{display:flex;justify-content:space-between;gap:40px;align-items:end;margin-bottom:34px}
+.screen-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px;box-shadow:var(--shadow)}
+.screen-card img{width:100%;border-radius:13px}
+
+/* Profit */
+.profit{padding:72px 0;background:linear-gradient(115deg,#043e2f,#075741);color:#fff}
+.profit-grid{display:grid;grid-template-columns:.7fr 1.3fr;gap:48px;align-items:center}
+.profit .eyebrow{color:#8fdab6}
+.profit p{color:#d5ece3;margin:14px 0 0}
+.ledger{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;color:var(--ink);border-radius:16px;overflow:hidden}
+.metric{padding:22px 16px;border-right:1px solid #e6ece9}
+.metric:last-child{border:0;background:#e9f7f0}
+.metric small{display:block;color:#6d5f63;font-size:13px}
+.metric strong{font-size:20px}
+.ledger-note{margin-top:10px;color:#b9dccf;font-size:12px}
+
+/* Proof trio */
+.proof-trio-intro,.customer-commerce-head{display:grid;grid-template-columns:1fr .72fr;gap:40px;align-items:end;margin-bottom:32px}
+.proof-trio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.proof-trio-card{display:flex;flex-direction:column;min-width:0;background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 14px 34px rgba(48,15,26,.07)}
+.proof-trio-copy h3{font:800 30px/1.04 var(--serif);letter-spacing:-.035em;margin:0 0 10px}
+.proof-trio-copy p{min-height:66px;margin:0 0 16px;color:var(--muted);font-size:14px}
+.proof-trio-card img{width:100%;height:250px;object-fit:cover;object-position:top;border:1px solid var(--line);border-radius:12px;background:#fff}
+.proof-trio-card ul{margin:17px 0 0;padding-left:19px;color:#554249;font-size:13px}
+.proof-trio-card li{margin:6px 0}
+
+/* Mid-page CTA */
+.cta-band{background:#fff;border-block:1px solid var(--line)}
+.cta-band-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:26px 0}
+.cta-band strong{display:block;font:800 26px/1.1 var(--serif);letter-spacing:-.02em}
+.cta-band span{color:var(--muted);font-size:14px}
+
+/* Customer commerce */
+.customer-commerce{background:linear-gradient(180deg,#fffaf1 0%,#fff6f3 100%)}
+.customer-commerce-body{border:1px solid #eadad5;border-radius:20px;background:#fff;padding:20px;box-shadow:0 14px 34px rgba(48,15,26,.06)}
+.customer-capability-list{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.customer-capability-list>div{padding:16px;background:#fff8f6;border:1px solid #f1dfdc;border-radius:12px}
+.customer-capability-list strong{display:block;margin-bottom:6px;color:var(--wine);font-size:14px}
+.customer-capability-list span{color:var(--muted);font-size:13px;line-height:1.5}
+.journey-bar{margin:14px 0 20px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:9px;border-radius:12px;background:#2a0715;color:#fff;font-size:13px;font-weight:850}
+.journey-bar b{color:#ef6998}
+.industry-inline{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.industry-inline article{overflow:hidden;border:1px solid var(--line);border-radius:14px;background:#fff}
+.industry-inline img{width:100%;height:180px;object-fit:cover}
+.industry-inline h3{margin:12px 13px 3px;font:800 21px/1 var(--serif)}
+.industry-inline p{margin:0 13px 14px;color:var(--muted);font-size:13px}
+
+/* Pricing */
+.pricing{padding:88px 0 82px;background:#fffaf2}
+.pricing-head{max-width:820px;margin:0 auto 36px;text-align:center}
+.pricing-head h2{margin:0;font:800 clamp(38px,4.7vw,62px)/.98 var(--serif);letter-spacing:-.04em}
+.pricing-head p{max-width:700px;margin:14px auto 0;color:var(--muted);font-size:15px}
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1120px;margin:0 auto}
+.plan{display:flex;flex-direction:column;min-height:430px;padding:26px 25px 24px;background:#fff;border:1px solid #ead8d4;border-radius:18px;box-shadow:0 15px 38px rgba(46,12,24,.07)}
+.plan-focus{border:2px solid #e23a78;box-shadow:0 23px 55px rgba(192,27,87,.14);transform:translateY(-7px)}
+.badge{width:max-content;margin-bottom:13px;padding:6px 10px;border-radius:999px;background:#f8e5ec;color:#a72150;font-size:11px;font-weight:950;letter-spacing:.12em}
+.plan-focus .badge{background:#2a0715;color:#fff}
+.plan h3{margin:0 0 6px;font:800 27px/1 var(--serif)}
+.plan-audience{min-height:44px;margin:0 0 18px;color:var(--muted);font-size:13px;line-height:1.45}
+.price{display:flex;align-items:baseline;gap:5px;margin:0 0 20px}
+.price strong{font:800 30px/1 var(--serif);letter-spacing:-.03em}
+.price span{color:var(--muted);font-size:13px}
+.plan ul{flex:1;margin:0 0 22px;padding:0;list-style:none}
+.plan li{position:relative;margin:10px 0;padding-left:22px;color:#49383f;font-size:14px}
+.plan li:before{content:"";position:absolute;left:1px;top:.5em;width:8px;height:4px;border-left:2px solid #119d6d;border-bottom:2px solid #119d6d;transform:rotate(-45deg)}
+.plan-cta{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;border-radius:9px;border:1px solid #d8c5c1;background:#fff;color:var(--ink);font-size:14px;font-weight:950}
+.plan-cta-primary{border-color:transparent;background:linear-gradient(100deg,#b41952,#e23a78);color:#fff;box-shadow:0 10px 20px rgba(194,29,88,.14)}
+.early-note{max-width:1120px;margin:24px auto 0;padding:16px 18px;display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;border:1px solid #ead8d4;border-radius:14px;background:#fff}
+.early-note strong{color:#2a0715;font-size:14px;white-space:nowrap}
+.early-note span{color:var(--muted);font-size:13px;line-height:1.55}
+.confidence{display:grid;grid-template-columns:repeat(3,1fr);max-width:1120px;margin:20px auto 0;overflow:hidden;background:#fff;border:1px solid #ead8d4;border-radius:14px}
+.confidence>div{padding:16px 18px;border-right:1px solid #eadeda}
+.confidence>div:last-child{border-right:0}
+.confidence strong{display:block;margin-bottom:3px;color:#2a0715;font-size:14px}
+.confidence span{display:block;color:var(--muted);font-size:13px;line-height:1.45}
+
+/* FAQ */
+.faq{padding:70px 0 76px;background:#fffdf9}
+.faq-head{margin-bottom:22px}
+.faq-head h2{max-width:760px;margin:0;font:800 clamp(34px,4vw,54px)/1 var(--serif);letter-spacing:-.035em}
+.faq-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:22px;align-items:start}
+.faq-list{display:grid;gap:9px}
+.faq-list details{background:#fff;border:1px solid #ead8d4;border-radius:10px;overflow:hidden}
+.faq-list summary{min-height:50px;padding:14px 16px;cursor:pointer;color:#2a0715;font-size:15px;font-weight:900}
+.faq-list details p{margin:0;padding:0 16px 15px;color:var(--muted);font-size:14px;line-height:1.55}
+.safe-card{display:grid;grid-template-columns:auto 1fr;gap:14px;padding:24px;border:1px solid #bfe6cf;border-radius:14px;background:#ebfbf2}
+.safe-icon{display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:13px;background:#0a8a5b;color:#fff;font-size:11px;font-weight:950}
+.safe-card strong{display:block;margin:2px 0 6px;color:#154e39;font-size:16px}
+.safe-card p{margin:0;color:#3a6552;font-size:14px;line-height:1.55}
+
+/* Closing */
+.closing{padding:60px 0;text-align:center;background:linear-gradient(110deg,#5f0b2c,#8d1746 55%,#5a0928);color:#fff}
+.closing h2{max-width:850px;margin:0 auto 8px;font:800 clamp(38px,4.5vw,60px)/1 var(--serif)}
+.closing p{margin:0 0 20px;color:#f6e0e8;font-size:16px}
+.closing .btn{min-width:180px}
+
+/* Footer */
+.footer{padding:44px 0 16px;background:linear-gradient(110deg,#21040f,#3f081c 60%,#21040f);color:#fff}
+.footer-main{display:grid;grid-template-columns:1.05fr 1.95fr;gap:64px;padding-bottom:34px}
+.wordmark{font-size:24px;font-weight:950;letter-spacing:.035em}
+.tagline{margin-top:2px;color:#e58aad;font-size:12px;font-weight:900;letter-spacing:.04em}
+.footer-brand p{max-width:380px;margin:13px 0 18px;color:#dcc4ce;font-size:14px;line-height:1.6}
+.footer-actions{display:flex;gap:8px;flex-wrap:wrap}
+.footer-trial,.footer-signin{display:flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:8px;font-size:13px;font-weight:950}
+.footer-trial{background:#e9236f;color:#fff}
+.footer-signin{border:1px solid rgba(255,255,255,.25);color:#fff}
+.footer-nav{display:grid;grid-template-columns:repeat(4,1fr);gap:26px}
+.footer-nav>div{display:flex;flex-direction:column;gap:9px}
+.footer-nav h3{margin:0 0 4px;color:#f3c54a;font:900 12px/1.2 var(--sans);letter-spacing:.14em}
+.footer-nav a{width:max-content;max-width:100%;color:#ecdbe2;font-size:14px}
+.footer-nav a:hover{color:#fff;text-decoration:underline}
+.footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-top:14px;border-top:1px solid rgba(255,255,255,.12);color:#b9a0ab;font-size:12px}
+
+/* WhatsApp */
+.wa-float{position:fixed;right:16px;bottom:16px;z-index:90;display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:999px;background:#0b7a6b;color:#fff;font-size:14px;font-weight:900;box-shadow:0 12px 28px rgba(0,0,0,.25);transition:transform .15s ease}
+.wa-float:hover{transform:translateY(-2px)}
+.wa-float svg{width:20px;height:20px;fill:#fff;flex:none}
+.btn.wa{background:#0b7a6b;color:#fff}
+.footer-wa{border:1px solid rgba(255,255,255,.25);color:#fff}
+
+/* Tablet/mobile */
+@media(max-width:1000px){
+  .proof-trio-grid{grid-template-columns:1fr 1fr}
+  .customer-capability-list,.industry-inline{grid-template-columns:1fr 1fr}
+}
 @media(max-width:820px){
-  .customer-web-clean{padding:54px 0}
-  .customer-clean-head{display:block}
-  .customer-clean-head .copy{margin-top:14px}
-  .customer-clean-grid{grid-template-columns:1fr 1fr;gap:10px}
-  .customer-clean-card{padding:16px}
-  .customer-clean-card h3{font-size:19px}
-  .customer-clean-card p{font-size:11px}
-  .customer-flow{padding:18px}
-  .customer-flow-steps{display:grid;grid-template-columns:1fr;gap:7px}
-  .customer-flow-steps b{display:none}
+  .wrap{width:min(100% - 24px,600px)}
+  .top{height:60px}
+  .navlinks{gap:14px}
+  .navlinks .nl-hide{display:none}
+  .navlinks .btn{padding:9px 12px;font-size:12px}
+  .hero{padding-top:28px}
+  .hero-grid{grid-template-columns:1fr;gap:24px}
+  .hero h1{font-size:clamp(48px,14.5vw,70px)}
+  .hero-copy>p{font-size:16px}
+  .actions{display:grid}
+  .actions .btn{width:100%}
+  .trial-trust{display:grid;gap:7px;margin-top:10px}
+  .hero-screen img{border-width:4px;border-radius:14px}
+  .hero-note{text-align:left}
+  .commercial-strip{width:100%;margin-top:26px;grid-template-columns:1fr 1fr;border-radius:0}
+  .commercial-cap:nth-child(2){border-right:0}
+  .commercial-cap:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .section,.faq{padding:54px 0}
+  .intro,.profit-grid{display:block}
+  .intro .copy{margin-top:14px}
+  .screen-card{margin-bottom:18px}
+  .profit{padding:52px 0}
+  .ledger{display:block;margin-top:22px}
+  .metric{display:flex;justify-content:space-between;align-items:center;border-right:0;border-bottom:1px solid #e6ece9;padding:13px 14px}
+  .proof-trio-intro,.customer-commerce-head{grid-template-columns:1fr;gap:10px}
+  .proof-trio-grid{grid-template-columns:1fr}
+  .proof-trio-copy p{min-height:0}
+  .proof-trio-card img{height:auto}
+  .cta-band-inner{flex-direction:column;align-items:stretch;text-align:center}
+  .customer-capability-list{grid-template-columns:1fr 1fr}
+  .journey-bar{overflow-x:auto;justify-content:flex-start;white-space:nowrap}
+  .industry-inline{display:flex;overflow-x:auto;gap:12px;padding-bottom:4px;scrollbar-width:none;scroll-snap-type:x mandatory}
+  .industry-inline::-webkit-scrollbar{display:none}
+  .industry-inline article{flex:0 0 78%;scroll-snap-align:start}
+  .industry-inline img{height:190px}
+  .pricing{padding:60px 0 56px}
+  .plans{grid-template-columns:1fr;gap:13px}
+  .plan,.plan-focus{min-height:0;transform:none}
+  .plan-audience{min-height:0}
+  .early-note{grid-template-columns:1fr;gap:5px}
+  .confidence{grid-template-columns:1fr}
+  .confidence>div{border-right:0;border-bottom:1px solid #eadeda}
+  .confidence>div:last-child{border-bottom:0}
+  .faq-grid{grid-template-columns:1fr}
+  .safe-card{grid-template-columns:1fr}
+  .closing{padding:52px 0}
+  .footer-main{grid-template-columns:1fr;gap:28px}
+  .footer-nav{grid-template-columns:1fr 1fr;gap:25px 18px}
+  .footer-bottom{align-items:flex-start;flex-direction:column;gap:6px}
 }
-@media(max-width:820px){.wrap{width:min(100% - 24px,600px)}.navlinks a:not(:last-child){display:none}.hero{padding-top:32px}.hero-grid{display:block}.hero h1{font-size:49px}.actions{display:grid}.actions .btn{width:100%}.hero-screen{margin-top:24px}.hero-screen img{border-width:5px;border-radius:14px}.hero-note{right:8px;top:12px;font-size:8px;padding:8px 9px}.proofgrid{display:block}.proof{border-right:0;border-bottom:1px solid var(--line)}.section,.industry,.questions,.faq{padding:54px 0}.intro,.split,.split.reverse,.profit-grid{display:block}.split.reverse .screen-card{order:initial}.screen-card{margin-bottom:18px}.story h3{font-size:31px}.title{font-size:38px}.profit{padding:52px 0}.ledger{display:block;margin-top:22px}.metric{display:flex;justify-content:space-between;border-right:0;border-bottom:1px solid #e6ece9;padding:12px 14px}.industry-grid{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x mandatory}.industry-card{min-width:82%;scroll-snap-align:start}.industry-card img{height:230px}.qgrid,.plans,.faqgrid{display:block}.q,.plan,.faq details{margin-bottom:12px}.pricing{padding:56px 0}}
-
-/* S3.14 FINAL CONVERSION POLISH
-   Scope: navigation/anchor safety + mobile readability only.
-   Approved product proof, pricing, copy and conversion sections remain unchanged. */
-
-/* A normal-flow header prevents sticky-header collisions in long-page captures
-   and keeps every conversion section visually independent. */
-.top{
-  position:relative;
-  top:auto;
-  z-index:20;
-}
-
-/* Anchor destinations should never feel cramped against the browser edge. */
-#product,
-#customer-web,
-#industries,
-#pricing{
-  scroll-margin-top:24px;
-}
-
-/* Pricing is a protected conversion surface. */
-.pricing{
-  position:relative;
-  z-index:1;
-  isolation:isolate;
-}
-.pricing .title{
-  max-width:900px;
-}
-.pricing .plans{
-  position:relative;
-  z-index:2;
-}
-
-/* Make horizontal industry browsing visibly intentional. */
-.industry-grid{
-  scrollbar-width:none;
-}
-.industry-grid::-webkit-scrollbar{
-  display:none;
-}
-
-@media(max-width:820px){
-  /* Public-business capabilities must be readable, not miniature. */
-  .customer-clean-head{
-    margin-bottom:24px;
-  }
-  .customer-clean-grid{
-    grid-template-columns:1fr;
-    gap:12px;
-  }
-  .customer-clean-card{
-    padding:18px;
-  }
-  .customer-clean-card h3{
-    font-size:22px;
-    margin-bottom:7px;
-  }
-  .customer-clean-card p{
-    font-size:13px;
-    line-height:1.55;
-  }
-  .customer-icon{
-    width:40px;
-    height:40px;
-    margin-bottom:13px;
-  }
-  .customer-flow{
-    margin-top:18px;
-    padding:20px;
-  }
-  .customer-flow-steps{
-    gap:0;
-  }
-  .customer-flow-steps span{
-    display:block;
-    padding:10px 0;
-    border-bottom:1px solid rgba(255,255,255,.10);
-  }
-  .customer-flow-steps span:last-child{
-    border-bottom:0;
-  }
-  .customer-flow p{
-    font-size:12px;
-    line-height:1.55;
-  }
-
-  /* One strong card plus a deliberate preview of the next. */
-  .industry-grid{
-    width:calc(100% + 12px);
-    margin-right:-12px;
-    padding-right:42px;
-    overscroll-behavior-x:contain;
-    -webkit-overflow-scrolling:touch;
-  }
-  .industry-card{
-    min-width:84%;
-    flex:0 0 84%;
-  }
-
-  /* These are decision prompts, not tiny labels. */
-  .qgrid{
-    margin-top:22px;
-  }
-  .q{
-    padding:20px 18px;
-    margin-bottom:12px;
-  }
-  .q b{
-    font-size:22px;
-    margin-bottom:9px;
-  }
-  .q p{
-    font-size:13px;
-    line-height:1.5;
-  }
-
-  /* Give the highest-intent section a clean entrance and readable cards. */
-  .pricing{
-    padding:62px 0 58px;
-  }
-  .pricing .title{
-    margin-bottom:6px;
-  }
-  .plans{
-    margin-top:26px;
-  }
-  .plan{
-    padding:22px 20px;
-    margin-bottom:14px;
-  }
-  .price{
-    font-size:32px;
-  }
-}
-
 @media(max-width:420px){
-  .customer-web-clean{
-    padding:58px 0;
-  }
-  .industry-card{
-    min-width:86%;
-    flex-basis:86%;
-  }
-  .industry-card img{
-    height:220px;
-  }
-  .questions{
-    padding:58px 0;
-  }
+  .customer-capability-list{grid-template-columns:1fr}
 }
-
-/* S3.15 FINAL BRAND POLISH */
-
-/* Fix the real pricing defect: secondary CTA text inherited white from .pricing,
-   so Starter and Enterprise became white-on-white. */
-.pricing .plan .btn.secondary{
-  color:var(--ink) !important;
-  background:#fff !important;
-  border-color:#fff !important;
-  font-weight:950;
-}
-.pricing .plan .btn.primary{
-  color:#fff !important;
-  background:linear-gradient(100deg,#b41952,#e23a78) !important;
-  border-color:transparent !important;
-}
-.pricing .plan .btn{
-  min-height:46px;
-  width:100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  opacity:1 !important;
-  visibility:visible !important;
-  text-decoration:none;
-  box-shadow:none;
-}
-.pricing .plan:hover{
-  transform:translateY(-2px);
-  transition:transform .18s ease, border-color .18s ease;
-}
-.pricing .plan.hot{
-  box-shadow:0 18px 46px rgba(227,60,121,.14);
-}
-
-/* Premium photography treatment */
-.industry-card img{
-  width:100%;
-  height:250px;
-  object-fit:cover;
-  object-position:center;
-  filter:none;
-}
-.industry-card{
-  overflow:hidden;
-}
-.industry-card div{
-  background:#fff;
-}
-
-@media(max-width:820px){
-  .pricing .plan .btn{
-    min-height:48px;
-    font-size:13px;
-  }
-  .industry-card img{
-    height:240px;
-  }
-}
-
-@media(max-width:420px){
-  .industry-card img{
-    height:225px;
-  }
-}
-
-/* S3.17 ENCODING COPY INTEGRITY V2 */
-.customer-icon{
-  width:auto !important;
-  min-width:42px;
-  padding:0 10px;
-  font-size:10px !important;
-  letter-spacing:.11em;
-  font-weight:950;
-  color:var(--wine);
-  font-family:var(--sans);
-}
-
-/* S3.18 FINAL FOOTER */
-.footer-v2{
-  padding:0;
-  background:
-    radial-gradient(circle at 12% 0%,rgba(227,60,121,.11),transparent 30%),
-    linear-gradient(180deg,#20040f 0%,#16020a 100%);
-  color:#fff;
-  border-top:1px solid rgba(255,255,255,.08);
-}
-.footer-main{
-  display:grid;
-  grid-template-columns:1.05fr 1.95fr;
-  gap:72px;
-  padding-top:58px;
-  padding-bottom:46px;
-}
-.footer-brand{
-  max-width:420px;
-}
-.footer-logo{
-  display:inline-block;
-  font:800 34px/1 var(--serif);
-  letter-spacing:-.035em;
-  margin-bottom:16px;
-}
-.footer-brand p{
-  margin:0;
-  color:#d9c8cf;
-  font-size:13px;
-  line-height:1.7;
-}
-.footer-actions{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  margin-top:22px;
-}
-.footer-secondary{
-  border-color:rgba(255,255,255,.2) !important;
-  color:#fff !important;
-  background:rgba(255,255,255,.05) !important;
-}
-.footer-links{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:30px;
-}
-.footer-links h3{
-  margin:0 0 14px;
-  color:#ffc74d;
-  font-size:10px;
-  letter-spacing:.17em;
-  text-transform:uppercase;
-}
-.footer-links a{
-  display:block;
-  width:max-content;
-  max-width:100%;
-  margin:0 0 10px;
-  color:#eadce1;
-  font-size:12px;
-}
-.footer-links a:hover,
-.footer-legal a:hover{
-  color:#fff;
-}
-.footer-bottom{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:20px;
-  padding-top:18px;
-  padding-bottom:22px;
-  border-top:1px solid rgba(255,255,255,.09);
-  color:#a9939c;
-  font-size:11px;
-}
-.footer-legal{
-  display:flex;
-  gap:18px;
-}
-@media(max-width:820px){
-  .footer-main{
-    display:block;
-    padding-top:42px;
-    padding-bottom:32px;
-  }
-  .footer-brand{
-    max-width:none;
-  }
-  .footer-actions{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-  }
-  .footer-actions .btn{
-    width:100%;
-  }
-  .footer-links{
-    grid-template-columns:1fr 1fr;
-    gap:28px 18px;
-    margin-top:38px;
-  }
-  .footer-bottom{
-    display:block;
-  }
-  .footer-legal{
-    margin-top:10px;
-  }
-}
-
-/* S3.21 V3 FIRST CUSTOMER TRIAL CONVERSION */
-.trial-trust{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px 16px;
-  margin-top:4px;
-  color:#6f5861;
-  font-size:11px;
-  font-weight:800;
-}
-.trial-trust span{
-  position:relative;
-  padding-left:13px;
-}
-.trial-trust span:before{
-  content:"";
-  position:absolute;
-  left:0;
-  top:.52em;
-  width:5px;
-  height:5px;
-  border-radius:50%;
-  background:#1b8f68;
-}
-.pricing-trust{
-  max-width:720px;
-  margin:14px 0 0;
-  color:#e8d6dd;
-  font-size:13px;
-  line-height:1.65;
-}
-@media(max-width:820px){
-  .trial-trust{
-    display:grid;
-    grid-template-columns:1fr;
-    gap:7px;
-    margin-top:10px;
-  }
-  .pricing-trust{
-    font-size:12px;
-  }
-}
-
-/* S3.22 COMMERCIAL STORY ARCHITECTURE */
-.hero{
-  padding-top:48px;
-}
-.hero-grid{
-  grid-template-columns:.62fr 1.38fr;
-  gap:38px;
-}
-.hero h1{
-  font-size:clamp(58px,6vw,92px);
-}
-.hero-screen img{
-  border-width:6px;
-  border-radius:18px;
-  box-shadow:0 28px 70px rgba(36,6,16,.22);
-}
-.commercial-strip{
-  width:min(1280px,calc(100% - 48px));
-  margin:34px auto 0;
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  background:#fff;
-  border:1px solid var(--line);
-  border-radius:18px 18px 0 0;
-  overflow:hidden;
-  box-shadow:0 16px 36px rgba(48,15,26,.06);
-}
-.commercial-cap{
-  padding:20px 22px;
-  border-right:1px solid var(--line);
-}
-.commercial-cap:last-child{
-  border-right:0;
-}
-.commercial-cap strong{
-  display:block;
-  margin-bottom:5px;
-  color:var(--wine);
-  font-size:14px;
-}
-.commercial-cap span{
-  display:block;
-  color:var(--muted);
-  font-size:12px;
-  line-height:1.55;
-}
-.commercial-proof-trio{
-  padding-top:78px;
-  padding-bottom:78px;
-}
-.proof-trio-intro{
-  display:grid;
-  grid-template-columns:1fr .72fr;
-  gap:40px;
-  align-items:end;
-  margin-bottom:32px;
-}
-.proof-trio-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:18px;
-}
-.proof-trio-card{
-  display:flex;
-  flex-direction:column;
-  min-width:0;
-  background:#fff;
-  border:1px solid var(--line);
-  border-radius:18px;
-  padding:18px;
-  box-shadow:0 14px 34px rgba(48,15,26,.07);
-}
-.proof-trio-copy h3{
-  font:800 30px/1.02 var(--serif);
-  letter-spacing:-.035em;
-  margin:0 0 10px;
-}
-.proof-trio-copy p{
-  min-height:66px;
-  margin:0 0 16px;
-  color:var(--muted);
-  font-size:13px;
-}
-.proof-trio-card img{
-  width:100%;
-  height:250px;
-  object-fit:cover;
-  object-position:top;
-  border:1px solid var(--line);
-  border-radius:12px;
-  background:#fff;
-}
-.proof-trio-card ul{
-  margin:17px 0 0;
-  padding-left:19px;
-  color:#604b54;
-  font-size:12px;
-}
-.proof-trio-card li{
-  margin:6px 0;
-}
-.customer-commerce{
-  padding-top:78px;
-  padding-bottom:78px;
-  background:linear-gradient(180deg,#fffaf1 0%,#fff6f3 100%);
-}
-.customer-commerce-head{
-  display:grid;
-  grid-template-columns:1fr .72fr;
-  gap:40px;
-  align-items:end;
-  margin-bottom:30px;
-}
-.customer-commerce-body{
-  border:1px solid #eadad5;
-  border-radius:20px;
-  background:#fff;
-  padding:20px;
-  box-shadow:0 14px 34px rgba(48,15,26,.06);
-}
-.customer-capability-list{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-}
-.customer-capability-list>div{
-  padding:16px;
-  background:#fff8f6;
-  border:1px solid #f1dfdc;
-  border-radius:12px;
-}
-.customer-capability-list strong{
-  display:block;
-  margin-bottom:6px;
-  color:var(--wine);
-  font-size:13px;
-}
-.customer-capability-list span{
-  color:var(--muted);
-  font-size:11px;
-  line-height:1.5;
-}
-.journey-bar{
-  margin:14px 0 20px;
-  padding:13px 16px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:9px;
-  border-radius:12px;
-  background:#2a0715;
-  color:#fff;
-  font-size:11px;
-  font-weight:850;
-}
-.journey-bar b{
-  color:#ef6998;
-}
-.industry-inline{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:14px;
-}
-.industry-inline article{
-  overflow:hidden;
-  border:1px solid var(--line);
-  border-radius:14px;
-  background:#fff;
-}
-.industry-inline img{
-  width:100%;
-  height:180px;
-  object-fit:cover;
-}
-.industry-inline h3{
-  margin:12px 13px 3px;
-  font:800 20px/1 var(--serif);
-}
-.industry-inline p{
-  margin:0 13px 14px;
-  color:var(--muted);
-  font-size:11px;
-}
-.pricing{
-  padding:82px 0;
-  background:#fffaf1 !important;
-  color:var(--ink) !important;
-}
-.pricing .eyebrow{
-  color:var(--rose) !important;
-  text-align:center;
-}
-.pricing .title{
-  text-align:center;
-  color:var(--ink) !important;
-}
-.pricing-trust{
-  max-width:760px;
-  margin:14px auto 30px !important;
-  color:var(--muted) !important;
-  text-align:center;
-}
-.pricing .plans{
-  gap:18px;
-}
-.pricing .plan{
-  padding:28px 24px 24px;
-  background:#fff !important;
-  color:var(--ink) !important;
-  border:1px solid #e7d7d4 !important;
-  border-radius:18px;
-  box-shadow:0 14px 34px rgba(48,15,26,.07);
-}
-.pricing .plan:nth-child(2){
-  border:2px solid #df3e78 !important;
-  transform:translateY(-6px);
-  box-shadow:0 20px 48px rgba(180,25,82,.14);
-}
-.pricing .plan h3,
-.pricing .plan .price,
-.pricing .plan li{
-  color:var(--ink) !important;
-}
-.pricing .plan .price{
-  font-size:29px;
-}
-.pricing .plan ul{
-  min-height:145px;
-}
-.pricing .plan .btn{
-  width:100%;
-  min-height:46px;
-}
-.faq{
-  padding-top:68px;
-  padding-bottom:68px;
-}
-.faq .title{
-  max-width:900px;
-}
-.faqgrid{
-  grid-template-columns:repeat(5,1fr) !important;
-  gap:10px !important;
-}
-.faq details{
-  min-width:0;
-}
-.faq summary{
-  min-height:54px;
-}
-@media(max-width:820px){
-  .hero{
-    padding-top:28px;
-  }
-  .hero-grid{
-    grid-template-columns:1fr;
-    gap:22px;
-  }
-  .commercial-strip{
-    width:100%;
-    margin-top:26px;
-    grid-template-columns:1fr 1fr;
-    border-radius:0;
-  }
-  .commercial-cap:nth-child(2){
-    border-right:0;
-  }
-  .commercial-cap:nth-child(-n+2){
-    border-bottom:1px solid var(--line);
-  }
-  .proof-trio-intro,
-  .customer-commerce-head{
-    grid-template-columns:1fr;
-    gap:10px;
-  }
-  .proof-trio-grid{
-    grid-template-columns:1fr;
-  }
-  .proof-trio-card img{
-    height:auto;
-  }
-  .customer-capability-list{
-    grid-template-columns:1fr 1fr;
-  }
-  .journey-bar{
-    overflow-x:auto;
-    justify-content:flex-start;
-    white-space:nowrap;
-  }
-  .industry-inline{
-    display:flex;
-    overflow-x:auto;
-    gap:12px;
-    padding-bottom:4px;
-    scrollbar-width:none;
-  }
-  .industry-inline::-webkit-scrollbar{
-    display:none;
-  }
-  .industry-inline article{
-    flex:0 0 78%;
-  }
-  .industry-inline img{
-    height:190px;
-  }
-  .pricing .plan:nth-child(2){
-    transform:none;
-  }
-  .pricing .plan ul{
-    min-height:0;
-  }
-  .faqgrid{
-    grid-template-columns:1fr !important;
-  }
-}
-
-/* S3.23 FINAL PRICING FOOTER */
-.pricing-final{
-  padding:92px 0 88px !important;
-  background:linear-gradient(180deg,#fffaf2 0%,#fffdf9 100%) !important;
-  color:var(--ink) !important;
-}
-.pricing-final-head{
-  max-width:820px;
-  margin:0 auto 38px;
-  text-align:center;
-}
-.pricing-final-head .eyebrow{
-  color:var(--rose) !important;
-}
-.pricing-final-head .title{
-  color:var(--ink) !important;
-  margin-bottom:14px;
-}
-.pricing-final-head>p{
-  max-width:680px;
-  margin:0 auto;
-  color:var(--muted);
-  font-size:14px;
-}
-.pricing-final-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:20px;
-  align-items:stretch;
-  max-width:1100px;
-  margin:0 auto;
-}
-.pricing-final-card{
-  position:relative;
-  display:flex;
-  flex-direction:column;
-  min-height:440px;
-  padding:28px 26px 24px;
-  background:#fff;
-  color:var(--ink);
-  border:1px solid #e8d8d4;
-  border-radius:20px;
-  box-shadow:0 18px 46px rgba(48,15,26,.07);
-}
-.pricing-final-card-focus{
-  border:2px solid #df3e78;
-  transform:translateY(-8px);
-  box-shadow:0 24px 56px rgba(180,25,82,.16);
-}
-.pricing-plan-kicker{
-  width:max-content;
-  margin-bottom:16px;
-  padding:5px 9px;
-  border-radius:999px;
-  background:#fceaf1;
-  color:#aa2252;
-  font-size:9px;
-  line-height:1;
-  font-weight:950;
-  letter-spacing:.12em;
-}
-.pricing-final-card-focus .pricing-plan-kicker{
-  background:#2a0715;
-  color:#fff;
-}
-.pricing-final-card h3{
-  margin:0 0 6px;
-  color:var(--ink) !important;
-  font:800 25px/1 var(--serif);
-}
-.pricing-plan-for{
-  min-height:44px;
-  margin:0 0 18px;
-  color:var(--muted) !important;
-  font-size:12px;
-  line-height:1.5;
-}
-.pricing-final-price{
-  display:flex;
-  align-items:baseline;
-  gap:5px;
-  margin-bottom:20px;
-}
-.pricing-final-price strong{
-  color:var(--ink) !important;
-  font:800 30px/1 var(--serif);
-  letter-spacing:-.03em;
-}
-.pricing-final-price span{
-  color:var(--muted);
-  font-size:12px;
-}
-.pricing-final-card ul{
-  flex:1;
-  min-height:0 !important;
-  margin:0 0 24px;
-  padding:0;
-  list-style:none;
-}
-.pricing-final-card li{
-  position:relative;
-  margin:10px 0;
-  padding-left:20px;
-  color:#49383f !important;
-  font-size:12px;
-}
-.pricing-final-card li:before{
-  content:"";
-  position:absolute;
-  left:0;
-  top:.55em;
-  width:8px;
-  height:4px;
-  border-left:2px solid #1a9b6f;
-  border-bottom:2px solid #1a9b6f;
-  transform:rotate(-45deg);
-}
-.pricing-final-cta{
-  width:100%;
-  min-height:48px;
-  border:1px solid #d8c5c1;
-  background:#fff;
-  color:var(--ink) !important;
-}
-.pricing-final-card-focus .pricing-final-cta{
-  border-color:transparent;
-  background:linear-gradient(100deg,#b41952,#e23a78);
-  color:#fff !important;
-}
-.pricing-final-trust{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  max-width:1100px;
-  margin:26px auto 0;
-  overflow:hidden;
-  border:1px solid #e8d8d4;
-  border-radius:16px;
-  background:#fff;
-}
-.pricing-final-trust>div{
-  padding:17px 20px;
-  border-right:1px solid #eadeda;
-}
-.pricing-final-trust>div:last-child{
-  border-right:0;
-}
-.pricing-final-trust strong{
-  display:block;
-  margin-bottom:3px;
-  color:#2a0715;
-  font-size:12px;
-}
-.pricing-final-trust span{
-  display:block;
-  color:var(--muted);
-  font-size:10px;
-  line-height:1.45;
-}
-
-.salestrack-final-footer{
-  padding:54px 0 18px;
-  background:
-    radial-gradient(circle at 12% 0%,rgba(226,58,120,.16),transparent 28%),
-    linear-gradient(110deg,#21040f,#3d081b 58%,#20030d);
-  color:#fff;
-}
-.footer-topline{
-  display:grid;
-  grid-template-columns:1.05fr 1.95fr;
-  gap:72px;
-  padding-bottom:42px;
-}
-.footer-logo{
-  margin-bottom:12px;
-  font:800 30px/1 var(--serif);
-}
-.footer-brand-block p{
-  max-width:390px;
-  margin:0 0 20px;
-  color:#d8bdc7;
-  font-size:12px;
-  line-height:1.6;
-}
-.footer-actions{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-}
-.footer-primary,
-.footer-secondary{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  min-height:38px;
-  padding:0 14px;
-  border-radius:8px;
-  font-size:11px;
-  font-weight:900;
-}
-.footer-primary{
-  background:linear-gradient(100deg,#c31f5c,#ec3d7e);
-  color:#fff;
-}
-.footer-secondary{
-  border:1px solid rgba(255,255,255,.18);
-  color:#fff;
-}
-.footer-nav-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:28px;
-}
-.footer-nav-grid>div{
-  display:flex;
-  flex-direction:column;
-  gap:9px;
-}
-.footer-nav-grid strong{
-  margin-bottom:4px;
-  color:#f2bf4b;
-  font-size:9px;
-  letter-spacing:.14em;
-}
-.footer-nav-grid a{
-  width:max-content;
-  color:#e6d2da;
-  font-size:11px;
-}
-.footer-nav-grid a:hover{
-  color:#fff;
-}
-.footer-bottomline{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:20px;
-  padding-top:18px;
-  border-top:1px solid rgba(255,255,255,.1);
-  color:#aa8d98;
-  font-size:9px;
-}
-
-@media(max-width:820px){
-  .pricing-final{
-    padding:64px 0 58px !important;
-  }
-  .pricing-final-grid{
-    grid-template-columns:1fr;
-    gap:14px;
-  }
-  .pricing-final-card,
-  .pricing-final-card-focus{
-    min-height:0;
-    transform:none;
-  }
-  .pricing-plan-for{
-    min-height:0;
-  }
-  .pricing-final-trust{
-    grid-template-columns:1fr;
-  }
-  .pricing-final-trust>div{
-    border-right:0;
-    border-bottom:1px solid #eadeda;
-  }
-  .pricing-final-trust>div:last-child{
-    border-bottom:0;
-  }
-  .footer-topline{
-    grid-template-columns:1fr;
-    gap:34px;
-  }
-  .footer-nav-grid{
-    grid-template-columns:1fr 1fr;
-    gap:28px 18px;
-  }
-  .footer-bottomline{
-    align-items:flex-start;
-    flex-direction:column;
-  }
-}
-
-/* S3.24 FINAL FIDELITY */
-.s324-pricing{
-  padding:88px 0 82px !important;
-  background:#fffaf2 !important;
-  color:var(--ink) !important;
-}
-.s324-pricing-head{
-  max-width:820px;
-  margin:0 auto 36px;
-  text-align:center;
-}
-.s324-pricing-head .eyebrow{
-  color:var(--rose) !important;
-}
-.s324-pricing-head h2{
-  margin:0;
-  color:var(--ink);
-  font:800 clamp(42px,4.7vw,62px)/.96 var(--serif);
-  letter-spacing:-.04em;
-}
-.s324-pricing-head p{
-  max-width:700px;
-  margin:14px auto 0;
-  color:var(--muted);
-  font-size:13px;
-}
-.s324-plans{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:20px;
-  max-width:1120px;
-  margin:0 auto;
-}
-.s324-plan{
-  display:flex;
-  flex-direction:column;
-  min-height:430px;
-  padding:26px 25px 24px;
-  background:#fff;
-  border:1px solid #ead8d4;
-  border-radius:18px;
-  box-shadow:0 15px 38px rgba(46,12,24,.07);
-}
-.s324-plan-focus{
-  border:2px solid #e23a78;
-  box-shadow:0 23px 55px rgba(192,27,87,.14);
-  transform:translateY(-7px);
-}
-.s324-badge{
-  width:max-content;
-  margin-bottom:13px;
-  padding:5px 9px;
-  border-radius:999px;
-  background:#f8e5ec;
-  color:#a72150;
-  font-size:9px;
-  font-weight:950;
-  letter-spacing:.12em;
-}
-.s324-plan-focus .s324-badge{
-  background:#2a0715;
-  color:#fff;
-}
-.s324-plan h3{
-  margin:0 0 6px;
-  color:var(--ink) !important;
-  font:800 26px/1 var(--serif);
-}
-.s324-plan-audience{
-  min-height:42px;
-  margin:0 0 18px;
-  color:var(--muted) !important;
-  font-size:11px;
-  line-height:1.45;
-}
-.s324-price{
-  display:flex;
-  align-items:baseline;
-  gap:5px;
-  margin:0 0 20px;
-}
-.s324-price strong{
-  color:var(--ink) !important;
-  font:800 30px/1 var(--serif);
-  letter-spacing:-.03em;
-}
-.s324-price span{
-  color:var(--muted);
-  font-size:12px;
-}
-.s324-plan ul{
-  flex:1;
-  min-height:0 !important;
-  margin:0 0 22px;
-  padding:0;
-  list-style:none;
-}
-.s324-plan li{
-  position:relative;
-  margin:10px 0;
-  padding-left:20px;
-  color:#49383f !important;
-  font-size:12px;
-}
-.s324-plan li:before{
-  content:"";
-  position:absolute;
-  left:1px;
-  top:.5em;
-  width:8px;
-  height:4px;
-  border-left:2px solid #119d6d;
-  border-bottom:2px solid #119d6d;
-  transform:rotate(-45deg);
-}
-.s324-plan-cta{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  width:100%;
-  min-height:48px;
-  border-radius:9px;
-  background:#e9236f;
-  color:#fff !important;
-  font-size:12px;
-  font-weight:950;
-  box-shadow:0 10px 20px rgba(194,29,88,.14);
-}
-.s324-plan-cta:hover{
-  filter:brightness(.97);
-}
-.s324-plan-cta-primary{
-  background:linear-gradient(100deg,#b41952,#e23a78);
-}
-.s324-pricing-confidence{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  max-width:1120px;
-  margin:26px auto 0;
-  overflow:hidden;
-  background:#fff;
-  border:1px solid #ead8d4;
-  border-radius:14px;
-}
-.s324-pricing-confidence>div{
-  padding:16px 18px;
-  border-right:1px solid #eadeda;
-}
-.s324-pricing-confidence>div:last-child{
-  border-right:0;
-}
-.s324-pricing-confidence strong{
-  display:block;
-  margin-bottom:3px;
-  color:#2a0715;
-  font-size:12px;
-}
-.s324-pricing-confidence span{
-  display:block;
-  color:var(--muted);
-  font-size:10px;
-  line-height:1.45;
-}
-
-.s324-faq{
-  padding:70px 0 76px !important;
-  background:#fffdf9;
-}
-.s324-faq-head{
-  margin-bottom:22px;
-}
-.s324-faq-head h2{
-  max-width:760px;
-  margin:0;
-  color:var(--ink);
-  font:800 clamp(38px,4vw,54px)/.98 var(--serif);
-  letter-spacing:-.035em;
-}
-.s324-faq-grid{
-  display:grid;
-  grid-template-columns:1.15fr .85fr;
-  gap:22px;
-  align-items:start;
-}
-.s324-faq-list{
-  display:grid;
-  gap:9px;
-}
-.s324-faq-list details{
-  background:#fff;
-  border:1px solid #ead8d4;
-  border-radius:10px;
-  overflow:hidden;
-}
-.s324-faq-list summary{
-  min-height:48px;
-  padding:14px 16px;
-  cursor:pointer;
-  color:#2a0715;
-  font-size:12px;
-  font-weight:900;
-}
-.s324-faq-list details p{
-  margin:0;
-  padding:0 16px 15px;
-  color:var(--muted);
-  font-size:11px;
-  line-height:1.55;
-}
-.s324-safe-card{
-  display:grid;
-  grid-template-columns:auto 1fr;
-  gap:14px;
-  padding:24px;
-  border:1px solid #bfe6cf;
-  border-radius:14px;
-  background:#ebfbf2;
-}
-.s324-safe-icon{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  width:48px;
-  height:48px;
-  border-radius:13px;
-  background:#0ca36b;
-  color:#fff;
-  font-size:10px;
-  font-weight:950;
-}
-.s324-safe-card strong{
-  display:block;
-  margin:2px 0 6px;
-  color:#154e39;
-  font-size:15px;
-}
-.s324-safe-card p{
-  margin:0;
-  color:#43705e;
-  font-size:11px;
-  line-height:1.55;
-}
-
-.s324-closing{
-  padding:55px 0 !important;
-  background:linear-gradient(110deg,#5f0b2c,#8d1746 55%,#5a0928) !important;
-  color:#fff;
-}
-.s324-closing-inner{
-  text-align:center;
-}
-.s324-closing h2{
-  max-width:850px;
-  margin:0 auto 8px;
-  color:#fff !important;
-  font:800 clamp(40px,4.5vw,60px)/.98 var(--serif);
-}
-.s324-closing p{
-  margin:0 0 18px;
-  color:#f2d8e2;
-  font-size:13px;
-}
-.s324-closing .btn{
-  min-width:160px;
-}
-
-.s324-footer{
-  padding:34px 0 14px;
-  background:linear-gradient(110deg,#21040f,#3f081c 60%,#21040f);
-  color:#fff;
-}
-.s324-footer-main{
-  display:grid;
-  grid-template-columns:1.05fr 1.95fr;
-  gap:64px;
-  padding-bottom:30px;
-}
-.s324-wordmark{
-  font-size:22px;
-  font-weight:950;
-  letter-spacing:.035em;
-}
-.s324-tagline{
-  margin-top:2px;
-  color:#de799e;
-  font-size:8px;
-  font-weight:900;
-  letter-spacing:.04em;
-}
-.s324-footer-brand p{
-  max-width:370px;
-  margin:13px 0 17px;
-  color:#d3b9c3;
-  font-size:11px;
-  line-height:1.55;
-}
-.s324-footer-actions{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-}
-.s324-footer-trial,
-.s324-footer-signin{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  min-height:36px;
-  padding:0 13px;
-  border-radius:7px;
-  font-size:10px;
-  font-weight:950;
-}
-.s324-footer-trial{
-  background:#e9236f;
-  color:#fff;
-}
-.s324-footer-signin{
-  border:1px solid rgba(255,255,255,.18);
-  color:#fff;
-}
-.s324-footer-nav{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:26px;
-}
-.s324-footer-nav>div{
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-.s324-footer-nav strong{
-  margin-bottom:3px;
-  color:#f3c54a;
-  font-size:8px;
-  letter-spacing:.14em;
-}
-.s324-footer-nav a{
-  width:max-content;
-  color:#e8d5dc;
-  font-size:10px;
-}
-.s324-footer-bottom{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:20px;
-  padding-top:13px;
-  border-top:1px solid rgba(255,255,255,.1);
-  color:#9f818d;
-  font-size:8px;
-}
-
-@media(max-width:820px){
-  .s324-pricing{
-    padding:60px 0 56px !important;
-  }
-  .s324-plans{
-    grid-template-columns:1fr;
-    gap:13px;
-  }
-  .s324-plan,
-  .s324-plan-focus{
-    min-height:0;
-    transform:none;
-  }
-  .s324-plan-audience{
-    min-height:0;
-  }
-  .s324-pricing-confidence{
-    grid-template-columns:1fr;
-  }
-  .s324-pricing-confidence>div{
-    border-right:0;
-    border-bottom:1px solid #eadeda;
-  }
-  .s324-pricing-confidence>div:last-child{
-    border-bottom:0;
-  }
-  .s324-faq-grid{
-    grid-template-columns:1fr;
-  }
-  .s324-safe-card{
-    grid-template-columns:1fr;
-  }
-  .s324-footer-main{
-    grid-template-columns:1fr;
-    gap:28px;
-  }
-  .s324-footer-nav{
-    grid-template-columns:1fr 1fr;
-    gap:25px 18px;
-  }
-  .s324-footer-bottom{
-    align-items:flex-start;
-    flex-direction:column;
-  }
-}
-
-/* S3.26 HERO EXCELLENCE */
-.s326-hero{padding:54px 0 0 !important;background:radial-gradient(circle at 82% 18%,rgba(233,35,111,.13),transparent 24%),linear-gradient(180deg,#fffaf2 0%,#fff9f4 100%)}
-.s326-hero-grid{display:grid;grid-template-columns:.78fr 1.22fr;gap:38px;align-items:center}
-.s326-hero-copy h1{margin-top:8px;font-size:clamp(58px,6.1vw,94px) !important;line-height:.88 !important;letter-spacing:-.055em !important}
-.s326-hero-copy>p{max-width:560px;margin-top:20px;font-size:15px;line-height:1.55}
-.s326-hero-copy .actions{margin-top:24px}
-.s326-hero-screen img{width:100%;border:7px solid #2a0715 !important;border-radius:20px !important;box-shadow:0 30px 70px rgba(42,7,21,.22) !important}
-.s326-hero-screen .hero-note{margin-top:8px;font-size:10px}
-.s326-commercial-strip{width:min(1280px,calc(100% - 36px));margin:42px auto 0 !important;border-radius:18px 18px 0 0 !important}
-@media(max-width:820px){
-  .s326-hero{padding-top:28px !important}
-  .s326-hero-grid{grid-template-columns:1fr;gap:24px}
-  .s326-hero-copy h1{font-size:clamp(52px,15vw,72px) !important}
-  .s326-hero-screen img{border-width:4px !important;border-radius:14px !important}
-  .s326-commercial-strip{width:100%;margin-top:26px !important}
-}
-
-/* S3.27 HERO UNDERLINE */
-.s326-hero-copy h1 span{
-  position:relative;
-  display:inline-block;
-  padding-bottom:.08em;
-}
-.s326-hero-copy h1 span::after{
-  content:"";
-  position:absolute;
-  left:1%;
-  right:2%;
-  bottom:-.02em;
-  height:.09em;
-  min-height:6px;
-  border-radius:999px;
-  background:linear-gradient(90deg,#e9236f 0%,#f22b76 52%,#d91359 100%);
-  transform:rotate(-1.4deg) skewX(-8deg);
-  transform-origin:left center;
-  box-shadow:0 .02em .06em rgba(233,35,111,.16);
-}
-.s326-hero-copy h1 span::before{
-  content:"";
-  position:absolute;
-  left:7%;
-  right:8%;
-  bottom:-.075em;
-  height:.025em;
-  border-radius:999px;
-  background:rgba(233,35,111,.38);
-  transform:rotate(.7deg);
-}
-@media(max-width:820px){
-  .s326-hero-copy h1 span::after{
-    height:.075em;
-    min-height:5px;
-  }
-}
-
-/* S3.31 EARLY CUSTOMER PRICING CLARITY */
-.s331-early-customer-note{
-  max-width:1120px;
-  margin:24px auto 0;
-  padding:16px 18px;
-  display:grid;
-  grid-template-columns:auto 1fr;
-  gap:12px;
-  align-items:start;
-  border:1px solid #ead8d4;
-  border-radius:14px;
-  background:#fff;
-  box-shadow:0 10px 24px rgba(46,12,24,.04);
-}
-.s331-early-customer-note strong{
-  color:#2a0715;
-  font-size:12px;
-  white-space:nowrap;
-}
-.s331-early-customer-note span{
-  color:var(--muted);
-  font-size:11px;
-  line-height:1.55;
-}
-@media(max-width:820px){
-  .s331-early-customer-note{
-    grid-template-columns:1fr;
-    gap:5px;
-  }
-}
-
 </style>
 </head>
 <body>
-<header class="top"><div class="wrap nav"><a class="brand" href="/">SalesTrack</a><nav class="navlinks"><a href="#product">Product</a><a href="#industries">Industries</a><a href="#pricing">Pricing</a><a href="/blog/index.html">Blog</a><a href="/login">Sign in</a><a class="btn primary" href="/login?start=trial">Start 7-Day Free Trial</a></nav></div></header>
+<a class="skip" href="#main">Skip to main content</a>
 
-<section class="hero s326-hero">
-  <div class="wrap s326-hero-grid">
-    <div class="s326-hero-copy">
+<header class="top">
+  <div class="wrap nav">
+    <a class="brand" href="/">SalesTrack</a>
+    <nav class="navlinks" aria-label="Main navigation">
+      <a class="nl-hide" href="#product">Product</a>
+      <a class="nl-hide" href="#industries">Industries</a>
+      <a class="nl-hide" href="#pricing">Pricing</a>
+      <a class="nl-hide" href="/blog/index.html">Blog</a>
+      <a href="/login">Sign in</a>
+      <a class="btn primary" href="/login?start=trial">Start Free Trial</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
       <div class="eyebrow">Built for owners who want the truth</div>
       <h1>Know what you sold.<br>Know what you made.<br><span>Know your business.</span></h1>
       <p>Run sales, stock, customers and expenses from one connected system &mdash; then see what the business actually made.</p>
@@ -1515,18 +316,18 @@
         <a class="btn primary" href="/login?start=trial">Start 7-Day Free Trial &rarr;</a>
         <a class="btn secondary" href="#product">&#9654; See SalesTrack in Action</a>
       </div>
-      <div class="trial-trust" aria-label="Free trial reassurance">
-        <span>No card required</span>
-        <span>7 full days</span>
-        <span>Your data stays viewable after trial</span>
-      </div>
+      <ul class="trial-trust" aria-label="Free trial reassurance">
+        <li>No card required</li>
+        <li>7 full days</li>
+        <li>Your data stays viewable after trial</li>
+      </ul>
     </div>
-    <div class="hero-screen s326-hero-screen">
-      <img src="/marketing/dashboard-real.png" alt="SalesTrack dashboard showing revenue, gross profit, expenses and net profit">
+    <div class="hero-screen">
+      <img src="/marketing/dashboard-real.png" alt="SalesTrack dashboard showing revenue, gross profit, expenses and net profit" fetchpriority="high" decoding="async">
       <div class="hero-note">Real demo data &middot; Sales &rarr; Stock &rarr; Expenses &rarr; Profit</div>
     </div>
   </div>
-  <div class="commercial-strip s326-commercial-strip" aria-label="SalesTrack core business capabilities">
+  <div class="commercial-strip" aria-label="SalesTrack core business capabilities">
     <div class="commercial-cap"><strong>Sales &amp; POS</strong><span>Record every sale and keep the transaction story connected.</span></div>
     <div class="commercial-cap"><strong>Stock control</strong><span>Know what moved, what remains and what needs attention.</span></div>
     <div class="commercial-cap"><strong>Expenses &amp; profit</strong><span>See what you spent and what the business actually made.</span></div>
@@ -1534,13 +335,39 @@
   </div>
 </section>
 
-<section class="section" id="product"><div class="wrap"><div class="intro"><div><div class="eyebrow">Real product. Real demo data.</div><h2 class="title">Make the sale without losing the business story.</h2></div><p class="copy">This is the actual SalesTrack POS using the populated demo business you created &mdash; not a reconstructed marketing mockup.</p></div><div class="screen-card"><img src="/marketing/pos-real.png" alt="SalesTrack POS with populated cart"></div></div></section>
+<section class="section" id="product">
+  <div class="wrap">
+    <div class="intro">
+      <div>
+        <div class="eyebrow">Real product. Real demo data.</div>
+        <h2 class="title">Make the sale without losing the business story.</h2>
+      </div>
+      <p class="copy">This is the actual SalesTrack POS, shown with a populated demo business &mdash; not a marketing mockup.</p>
+    </div>
+    <div class="screen-card"><img src="/marketing/pos-real.png" alt="SalesTrack POS with populated cart" loading="lazy" decoding="async"></div>
+  </div>
+</section>
 
+<section class="profit">
+  <div class="wrap profit-grid">
+    <div>
+      <div class="eyebrow">The difference that matters</div>
+      <h2 class="title">Revenue is not profit.</h2>
+      <p>What came in, what it cost to make the sale, and what was left after expenses &mdash; calculated by SalesTrack from the same records.</p>
+    </div>
+    <div>
+      <div class="ledger">
+        <div class="metric"><small>Revenue</small><strong>KES 6,050</strong></div>
+        <div class="metric"><small>Gross profit</small><strong>KES 3,840</strong></div>
+        <div class="metric"><small>Expenses</small><strong>KES 2,000</strong></div>
+        <div class="metric"><small>Net profit</small><strong>KES 1,840</strong></div>
+      </div>
+      <div class="ledger-note">Figures from the SalesTrack demo business.</div>
+    </div>
+  </div>
+</section>
 
-
-<section class="profit"><div class="wrap profit-grid"><div><div class="eyebrow">The difference that matters</div><h2 class="title">Revenue is not profit.</h2><p>The populated demo now proves the story with actual SalesTrack calculations.</p></div><div class="ledger"><div class="metric"><small>Revenue</small><strong>KES 6,050</strong></div><div class="metric"><small>Gross profit</small><strong>KES 3,840</strong></div><div class="metric"><small>Expenses</small><strong>KES 2,000</strong></div><div class="metric"><small>Net profit</small><strong>KES 1,840</strong></div></div></div></section>
-
-<section class="section commercial-proof-trio" id="business-proof">
+<section class="section" id="business-proof">
   <div class="wrap">
     <div class="proof-trio-intro">
       <div>
@@ -1557,7 +384,7 @@
           <h3>Close the month with numbers you can defend.</h3>
           <p>Bring sales, cost of sales and expenses together so the business can see the month clearly.</p>
         </div>
-        <img src="/marketing/pnl-real.png" alt="SalesTrack profit and loss report with populated business data">
+        <img src="/marketing/pnl-real.png" alt="SalesTrack profit and loss report with populated business data" loading="lazy" decoding="async">
         <ul>
           <li>Profit &amp; Loss reporting</li>
           <li>Cash-flow visibility</li>
@@ -1572,7 +399,7 @@
           <h3>Know which products are actually earning.</h3>
           <p>See revenue, gross profit, margin and units sold at product level instead of guessing from sales alone.</p>
         </div>
-        <img src="/marketing/sales-report-real.png" alt="SalesTrack sales and product performance report">
+        <img src="/marketing/sales-report-real.png" alt="SalesTrack sales and product performance report" loading="lazy" decoding="async">
         <ul>
           <li>Product-level profit</li>
           <li>Margin visibility</li>
@@ -1587,7 +414,7 @@
           <h3>The same records can support a lender conversation.</h3>
           <p>Turn consistent operating records into a structured view of business performance when stronger evidence matters.</p>
         </div>
-        <img src="/marketing/lender-pack-real.png" alt="SalesTrack lender pack business report">
+        <img src="/marketing/lender-pack-real.png" alt="SalesTrack lender pack business report" loading="lazy" decoding="async">
         <ul>
           <li>Consistent operating records</li>
           <li>Structured business evidence</li>
@@ -1599,6 +426,15 @@
   </div>
 </section>
 
+<section class="cta-band" aria-label="Start your free trial">
+  <div class="wrap cta-band-inner">
+    <div>
+      <strong>See your own numbers, not demo ones.</strong>
+      <span>Start free for 7 days. No card required.</span>
+    </div>
+    <a class="btn primary" href="/login?start=trial">Start Free Trial</a>
+  </div>
+</section>
 
 <section class="section customer-commerce" id="customer-web">
   <div class="wrap">
@@ -1611,40 +447,38 @@
     </div>
 
     <div class="customer-commerce-body">
-      <div class="customer-capability-panel">
-        <div class="customer-capability-list">
-          <div><strong>Public business page</strong><span>Give customers one place to discover the business.</span></div>
-          <div><strong>Bookings that connect</strong><span>Turn customer intent into scheduled business activity.</span></div>
-          <div><strong>Sell through WhatsApp</strong><span>Share links and let customers contact the business directly.</span></div>
-          <div><strong>QR sharing</strong><span>Move customers from the counter, receipt or printed material into the business journey.</span></div>
-        </div>
-        <div class="journey-bar">
-          <span>Discover</span><b>&rarr;</b>
-          <span>Book / Chat / Order</span><b>&rarr;</b>
-          <span>Sale</span><b>&rarr;</b>
-          <span>Stock &amp; Customers</span><b>&rarr;</b>
-          <span>Profit</span>
-        </div>
+      <div class="customer-capability-list">
+        <div><strong>Public business page</strong><span>Give customers one place to discover the business.</span></div>
+        <div><strong>Bookings that connect</strong><span>Turn customer intent into scheduled business activity.</span></div>
+        <div><strong>Sell through WhatsApp</strong><span>Share links and let customers contact the business directly.</span></div>
+        <div><strong>QR sharing</strong><span>Move customers from the counter, receipt or printed material into the business journey.</span></div>
+      </div>
+      <div class="journey-bar" aria-label="Customer journey">
+        <span>Discover</span><b aria-hidden="true">&rarr;</b>
+        <span>Book / Chat / Order</span><b aria-hidden="true">&rarr;</b>
+        <span>Sale</span><b aria-hidden="true">&rarr;</b>
+        <span>Stock &amp; Customers</span><b aria-hidden="true">&rarr;</b>
+        <span>Profit</span>
       </div>
 
       <div class="industry-inline" id="industries">
         <article>
-          <img src="/marketing/salon-premium.webp" alt="Kenyan beauty salon">
+          <img src="/marketing/salon-premium.webp" alt="Kenyan beauty salon" loading="lazy" decoding="async">
           <h3>Beauty salons</h3>
           <p>Bookings &middot; staff &middot; products &middot; profit</p>
         </article>
         <article>
-          <img src="/marketing/barber-premium.webp" alt="Kenyan barbershop">
+          <img src="/marketing/barber-premium.webp" alt="Kenyan barbershop" loading="lazy" decoding="async">
           <h3>Barbershops</h3>
           <p>Walk-ins &middot; commissions &middot; stock &middot; daily cash</p>
         </article>
         <article>
-          <img src="/marketing/beauty-shop-premium.webp" alt="Kenyan beauty shop">
+          <img src="/marketing/beauty-shop-premium.webp" alt="Kenyan beauty shop" loading="lazy" decoding="async">
           <h3>Beauty shops</h3>
           <p>Fast-moving stock &middot; margins &middot; customers</p>
         </article>
         <article>
-          <img src="/marketing/retail-premium.webp" alt="Kenyan small retail business">
+          <img src="/marketing/retail-premium.webp" alt="Kenyan small retail business" loading="lazy" decoding="async">
           <h3>Small retail</h3>
           <p>Sales &middot; inventory &middot; expenses &middot; profit</p>
         </article>
@@ -1653,91 +487,80 @@
   </div>
 </section>
 
-
-
-<section class="pricing s324-pricing" id="pricing">
+<section class="pricing" id="pricing">
   <div class="wrap">
-    <div class="s324-pricing-head">
+    <div class="pricing-head">
       <div class="eyebrow">Honest pricing</div>
       <h2>Choose the plan that fits your business</h2>
       <p>Start with a 7-day free trial. No card required. Plans shown below are standard starting prices; early customers receiving assisted setup and support may receive a tailored monthly rate confirmed before activation.</p>
     </div>
 
-    <div class="s324-plans">
-      <article class="s324-plan">
-        <div class="s324-badge">STARTER</div>
+    <div class="plans">
+      <article class="plan">
+        <div class="badge">ESSENTIALS</div>
         <h3>Starter</h3>
-        <p class="s324-plan-audience">For businesses that need the essentials connected properly.</p>
-        <div class="s324-price"><strong>From KES 2,999</strong><span>/month</span></div>
+        <p class="plan-audience">For businesses that need the essentials connected properly.</p>
+        <div class="price"><strong>From KES 2,999</strong><span>/month</span></div>
         <ul>
           <li>POS &amp; offline selling</li>
           <li>Products &amp; inventory</li>
           <li>Digital receipts</li>
           <li>Customer records</li>
         </ul>
-        <a class="s324-plan-cta" href="/login?start=trial">Start Free Trial</a>
+        <a class="plan-cta" href="/login?start=trial">Start Free Trial</a>
       </article>
 
-      <article class="s324-plan s324-plan-focus">
-        <div class="s324-badge">GROWTH</div>
+      <article class="plan plan-focus">
+        <div class="badge">RECOMMENDED</div>
         <h3>Growth</h3>
-        <p class="s324-plan-audience">For a growing business that needs people, appointments and insight connected.</p>
-        <div class="s324-price"><strong>From KES 4,999</strong><span>/month</span></div>
+        <p class="plan-audience">For a growing business that needs people, appointments and insight connected.</p>
+        <div class="price"><strong>From KES 4,999</strong><span>/month</span></div>
         <ul>
           <li>Everything in Starter</li>
           <li>Appointments</li>
           <li>Staff &amp; commissions</li>
           <li>Smart Business Insights</li>
         </ul>
-        <a class="s324-plan-cta s324-plan-cta-primary" href="/login?start=trial">Start Free Trial</a>
+        <a class="plan-cta plan-cta-primary" href="/login?start=trial">Start Free Trial</a>
       </article>
 
-      <article class="s324-plan">
-        <div class="s324-badge">ENTERPRISE</div>
+      <article class="plan">
+        <div class="badge">ADVANCED</div>
         <h3>Enterprise</h3>
-        <p class="s324-plan-audience">For businesses that need broader operational control as they grow.</p>
-        <div class="s324-price"><strong>From KES 6,999</strong><span>/month</span></div>
+        <p class="plan-audience">For businesses that need broader operational control as they grow.</p>
+        <div class="price"><strong>From KES 6,999</strong><span>/month</span></div>
         <ul>
           <li>Everything in Growth</li>
           <li>Multi-branch direction</li>
           <li>Advanced controls</li>
           <li>Dedicated onboarding</li>
         </ul>
-        <a class="s324-plan-cta" href="/login?start=trial">Start Free Trial</a>
+        <a class="plan-cta" href="/login?start=trial">Start Free Trial</a>
       </article>
     </div>
 
-    <div class="s331-early-customer-note">
+    <div class="early-note">
       <strong>Early Customer Programme</strong>
       <span>We are personally onboarding a limited number of Kenyan businesses. Assisted setup, support and founder-customer arrangements may use a tailored monthly rate. Your agreed rate is always confirmed before activation.</span>
     </div>
 
-    <div class="s324-pricing-confidence">
-      <div>
-        <strong>No card required</strong>
-        <span>Start the trial without entering payment-card details.</span>
-      </div>
-      <div>
-        <strong>7 full days</strong>
-        <span>Use the product before deciding whether to subscribe.</span>
-      </div>
-      <div>
-        <strong>Your data stays viewable</strong>
-        <span>Existing business records remain viewable when the trial ends.</span>
-      </div>
+    <div class="confidence">
+      <div><strong>No card required</strong><span>Start the trial without entering payment-card details.</span></div>
+      <div><strong>7 full days</strong><span>Use the product before deciding whether to subscribe.</span></div>
+      <div><strong>Your data stays viewable</strong><span>Existing business records remain viewable when the trial ends.</span></div>
     </div>
   </div>
 </section>
 
-<section class="faq s324-faq" id="faq">
+<section class="faq" id="faq">
   <div class="wrap">
-    <div class="s324-faq-head">
+    <div class="faq-head">
       <div class="eyebrow">Frequently asked questions</div>
       <h2>Questions worth answering before you start</h2>
     </div>
 
-    <div class="s324-faq-grid">
-      <div class="s324-faq-list">
+    <div class="faq-grid">
+      <div class="faq-list">
         <details>
           <summary>How long is the free trial?</summary>
           <p>7 full days, with no card required to start.</p>
@@ -1758,10 +581,18 @@
           <summary>Is M-Pesa supported?</summary>
           <p>You can record M-Pesa as a customer payment method in the POS.</p>
         </details>
+        <details>
+          <summary>What kinds of businesses is SalesTrack for?</summary>
+          <p>Beauty salons, barbershops, beauty shops and small retail businesses.</p>
+        </details>
+        <details>
+          <summary>Can my customers book or order online?</summary>
+          <p>SalesTrack can help a business share a public page, accept bookings or orders, and bring that activity back into the same business records.</p>
+        </details>
       </div>
 
-      <aside class="s324-safe-card">
-        <div class="s324-safe-icon">SAFE</div>
+      <aside class="safe-card">
+        <div class="safe-icon" aria-hidden="true">SAFE</div>
         <div>
           <strong>Your business data is safe to keep viewing.</strong>
           <p>If the trial ends, existing business information remains viewable. New sales, expenses and bookings pause until you renew.</p>
@@ -1771,58 +602,69 @@
   </div>
 </section>
 
-<section class="closing s324-closing">
+<section class="closing">
   <div class="wrap">
-    <div class="s324-closing-inner">
-      <h2>Ready to run a smarter salon or shop?</h2>
-      <p>Start your 7-day free trial today.</p>
-      <a class="btn primary" href="/login?start=trial">Start Free Trial</a>
-    </div>
+    <h2>Ready to run a smarter salon or shop?</h2>
+    <p>Start your 7-day free trial today. No card required.</p>
+    <a class="btn primary" href="/login?start=trial">Start Free Trial</a>
+    <p style="margin:16px 0 0;font-size:14px">Questions first? <a class="wa-link" style="text-decoration:underline;font-weight:900" href="https://wa.me/254716555043?text=Hi%20SalesTrack%2C%20I%27d%20like%20to%20know%20more." target="_blank" rel="noopener">Chat with us on WhatsApp</a></p>
   </div>
 </section>
-<footer class="s324-footer">
+
+</main>
+
+<a class="wa-float" href="https://wa.me/254716555043?text=Hi%20SalesTrack%2C%20I%27d%20like%20to%20know%20more." target="_blank" rel="noopener" aria-label="Chat with SalesTrack on WhatsApp">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.200zm4.5-6.1c-.2-.1-1.500-.7-1.700-.8-.2-.1-.4-.1-.6.100l-.8 1c-.1.200-.3.200-.5.100a6.700 6.700 0 0 1-3.300-2.900c-.2-.4.200-.4.700-1.300.1-.2 0-.3 0-.4l-.8-1.900c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.300 3 3 0 0 0-.9 2.200 5.200 5.200 0 0 0 1.100 2.800 11.800 11.800 0 0 0 4.500 4c1.700.7 2.300.8 3.100.6a2.600 2.600 0 0 0 1.700-1.200 2.100 2.100 0 0 0 .1-1.200c-.1-.1-.2-.2-.5-.3z"/></svg>
+  <span>Chat on WhatsApp</span>
+</a>
+
+<footer class="footer">
   <div class="wrap">
-    <div class="s324-footer-main">
-      <div class="s324-footer-brand">
-        <div class="s324-wordmark">SALESTRACK</div>
-        <div class="s324-tagline">Smart Business. Better Profits.</div>
+    <div class="footer-main">
+      <div class="footer-brand">
+        <div class="wordmark">SALESTRACK</div>
+        <div class="tagline">Smart Business. Better Profits.</div>
         <p>Practical business software for owners who want clear sales, stock, customer and profit visibility.</p>
-        <div class="s324-footer-actions">
-          <a class="s324-footer-trial" href="/login?start=trial">Start Free Trial</a>
-          <a class="s324-footer-signin" href="/login">Sign in</a>
+        <div class="footer-actions">
+          <a class="footer-trial" href="/login?start=trial">Start Free Trial</a>
+          <a class="footer-signin" href="/login">Sign in</a>
         </div>
       </div>
 
-      <nav class="s324-footer-nav" aria-label="Footer navigation">
+      <nav class="footer-nav" aria-label="Footer navigation">
         <div>
-          <strong>PRODUCT</strong>
+          <h3>PRODUCT</h3>
           <a href="#product">Features</a>
           <a href="#business-proof">Business proof</a>
           <a href="#pricing">Pricing</a>
           <a href="#customer-web">Customer tools</a>
         </div>
         <div>
-          <strong>INDUSTRIES</strong>
+          <h3>INDUSTRIES</h3>
           <a href="#industries">Beauty salons</a>
           <a href="#industries">Barbershops</a>
           <a href="#industries">Beauty shops</a>
           <a href="#industries">Small retail</a>
         </div>
         <div>
-          <strong>SUPPORT</strong>
-          <a href="/blog/index.html">Blog</a><a href="#faq">FAQ</a>
+          <h3>SUPPORT</h3>
+          <a href="/blog/index.html">Blog</a>
+          <a href="#faq">FAQ</a>
+          <a href="https://wa.me/254716555043?text=Hi%20SalesTrack%2C%20I%27d%20like%20to%20know%20more." target="_blank" rel="noopener">WhatsApp us</a>
           <a href="/login">Sign in</a>
           <a href="/login?start=trial">Start trial</a>
         </div>
         <div>
-          <strong>LEGAL</strong>
+          <h3>LEGAL</h3>
           <a href="/legal/privacy.html">Privacy</a>
-          <a href="/legal/terms.html">Terms</a><a href="/sitemap.xml">Sitemap</a><a href="/robots.txt">Robots</a>
+          <a href="/legal/terms.html">Terms</a>
+          <a href="/legal/cookies.html">Cookies</a>
+          <a href="/legal/data-processing.html">Data processing</a>
         </div>
       </nav>
     </div>
 
-    <div class="s324-footer-bottom">
+    <div class="footer-bottom">
       <span>&copy; 2026 SalesTrack. All rights reserved.</span>
       <span>Know what you sold. Know what you made.</span>
     </div>
