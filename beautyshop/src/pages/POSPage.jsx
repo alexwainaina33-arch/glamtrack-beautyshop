@@ -1,4 +1,4 @@
-﻿// Enhanced POS: Loyalty, Hold/Resume, Quick-add Customer, Split Payment
+// Enhanced POS: Loyalty, Hold/Resume, Quick-add Customer, Split Payment
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C, PB_URL } from '../lib/pb'
@@ -47,6 +47,7 @@ export default function POSPage() {
   const [variantsByProduct, setVariantsByProduct] = useState({}) // { [product_id]: [variant, ...] }
   const [variantPopupProduct, setVariantPopupProduct] = useState(null)
   const audioRef = useRef(null)
+  const custSearchTimer = useRef(null)
 
   useEffect(() => {
     if (shop && !authLoading) {
@@ -54,6 +55,8 @@ export default function POSPage() {
       return () => clearTimeout(t)
     }
   }, [shop, authLoading])
+
+  useEffect(() => () => clearTimeout(custSearchTimer.current), [])
 
   useEffect(() => {
     const goOnline = async () => {
@@ -86,25 +89,32 @@ export default function POSPage() {
     let timer
     const handleKey = (e) => {
       const tag = e.target.tagName
-      
+
       // Global shortcuts
       if (!e.ctrlKey && !e.metaKey && !e.altKey) {
         if (tag === 'INPUT' && e.target.type === 'number' && e.target.placeholder.includes('quantity')) return
         if (tag === 'INPUT' && e.target.placeholder.includes('Qty')) return
       }
-      
+
       // Ctrl+P: Pay
       if ((e.ctrlKey || e.metaKey) && e.key === 'p') { e.preventDefault(); if (cart.length) setShowPaymentConfirm(true) }
-      // Ctrl+C: Clear cart
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') { e.preventDefault(); if (cart.length) clearCart() }
+      // Ctrl+C: Clear cart — but never while typing in a field or when text is selected (normal copy must still work)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        const hasSelection = typeof window.getSelection === 'function' && String(window.getSelection()).length > 0
+        const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+        if (!typing && !hasSelection && cart.length) { e.preventDefault(); clearCart() }
+      }
       // Ctrl+H: Hold sale
       if ((e.ctrlKey || e.metaKey) && e.key === 'h') { e.preventDefault(); holdSale() }
-      // Escape: cancel qty input or close modals
-      if (e.key === 'Escape') { setQtyInput(''); setQtyTargetId(null); setShowPaymentConfirm(false) }
-      
+      // Escape: cancel qty input and close any open popup
+      if (e.key === 'Escape') {
+        setQtyInput(''); setQtyTargetId(null)
+        setShowPaymentConfirm(false); setVariantPopupProduct(null); setShowHeld(false); setShowQuickCust(false)
+      }
+
       // Number keys for quick qty when focused on quantity input
       if (tag === 'INPUT' && (e.currentTarget.placeholder?.includes('quantity') || e.currentTarget.placeholder?.includes('Qty'))) return
-      
+
       // Barcode scanning
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       if (e.key === 'Enter' && scanBuffer.length > 2) { handleBarcodeScan(scanBuffer); setScanBuffer('') }
@@ -237,7 +247,7 @@ export default function POSPage() {
           synced++
         } catch (err) {
           const fieldErrors = err?.data?.data || {}
-          
+
           if (fieldErrors?.receipt_no?.code === 'validation_not_unique') {
             await markSynced(s.id)
             synced++
@@ -262,10 +272,10 @@ export default function POSPage() {
 
   const handleBarcodeScan = (barcode) => {
     const p = products.find(p => p.barcode === barcode || p.sku === barcode)
-    if (p) { 
+    if (p) {
       addToCart(p)
       playSound('success')
-      toast.success(`Added: ${p.name}`, { icon: '📦' }) 
+      toast.success(`Added: ${p.name}`, { icon: '📦' })
     } else {
       playSound('error')
       toast.error(`No product: ${barcode}`)
@@ -280,7 +290,7 @@ export default function POSPage() {
         const gain = ctx.createGain()
         osc.connect(gain)
         gain.connect(ctx.destination)
-        
+
         if (type === 'success') {
           osc.frequency.value = 800
           osc.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.1)
@@ -288,10 +298,10 @@ export default function POSPage() {
           osc.frequency.value = 400
           osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.2)
         }
-        
+
         gain.gain.setValueAtTime(0.3, ctx.currentTime)
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (type === 'success' ? 0.1 : 0.2))
-        
+
         osc.start(ctx.currentTime)
         osc.stop(ctx.currentTime + (type === 'success' ? 0.1 : 0.2))
       } catch (e) { }
@@ -305,7 +315,14 @@ export default function POSPage() {
     setCart(prev => {
       const ex = prev.find(i => i.cartKey === cartKey)
       if (ex) {
-        return prev
+        // Already in the cart: add one more (respecting stock) instead of doing nothing
+        const next = r2((Number(ex.qty) || 0) + 1)
+        if (ex.track_inventory && next > Number(ex.stock_qty || 0)) {
+          toast.error(`Only ${r2(ex.stock_qty || 0)} ${ex.unit || 'pcs'} available`, { id: 'pos-stock-limit' })
+          return prev
+        }
+        playSound('success')
+        return prev.map(i => i.cartKey === cartKey ? { ...i, qty: next } : i)
       }
       playSound('success')
       const name = variant ? `${product.name} — ${variant.name}` : product.name
@@ -447,7 +464,8 @@ export default function POSPage() {
   }
 
   const subtotal        = cart.reduce((s, i) => s + i.unit_price * i.qty, 0)
-  const discountAmt     = Number(discount) || 0
+  // Discount can never be negative or larger than the subtotal
+  const discountAmt     = Math.min(Math.max(Number(discount) || 0, 0), subtotal)
   const loyaltyDiscount = redeemPoints && customer ? Math.min(calcMaxRedeemable(customer.loyalty_points || 0), subtotal - discountAmt) : 0
   const afterDiscount   = Math.max(0, subtotal - discountAmt - loyaltyDiscount)
   const tax             = shop?.tax_rate ? afterDiscount * (shop.tax_rate / 100) : 0
@@ -461,6 +479,7 @@ export default function POSPage() {
 
   const payLater = async () => {
     if (isLocked) return toast.error('🔒 Account locked — renew your subscription to record sales', { duration: 6000 })
+    if (processing) return
     if (!cart.length) return toast.error('Cart is empty')
     if (!customer) return toast.error('Select a customer first — credit requires a name')
     if (!confirm(`Record KES ${total.toLocaleString('en-KE', { minimumFractionDigits: 2 })} as credit for ${customer.name}?`)) return
@@ -512,6 +531,7 @@ export default function POSPage() {
 
   const processSale = async () => {
     if (isLocked) return toast.error('🔒 Account locked — renew your subscription to make sales', { duration: 6000 })
+    if (processing) return
     if (!cart.length) return toast.error('Cart is empty')
     if (paymentMethod === 'cash' && cashTendered && Number(cashTendered) < total) return toast.error('Insufficient cash')
 
@@ -669,7 +689,7 @@ export default function POSPage() {
     <div>
       {/* Offline / Sync banner */}
       {!isOnline && (
-        <div style={{ background: '#f59e0b', color: '#fff', padding: '8px 16px', borderRadius: 10, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 13 }}>
+        <div role="status" style={{ background: '#f59e0b', color: '#fff', padding: '8px 16px', borderRadius: 10, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 13 }}>
           📴 Offline mode — sales are saved locally and will sync automatically when you reconnect
           {pendingCount > 0 && <span style={{ background: '#fff', color: '#b45309', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 800 }}>{pendingCount} pending</span>}
         </div>
@@ -699,12 +719,14 @@ export default function POSPage() {
       <div className="pos-mobile-tabs">
         <button
           onClick={() => setMobileTab('products')}
+          aria-pressed={mobileTab === 'products'}
           style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '10px 0 0 10px', background: mobileTab === 'products' ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: mobileTab === 'products' ? '#fff' : '#8b2550', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', borderRight: '1px solid #f0e4e8' }}
         >
           🛍️ Products {products.length > 0 && `(${filtered.length})`}
         </button>
         <button
           onClick={() => setMobileTab('cart')}
+          aria-pressed={mobileTab === 'cart'}
           style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '0 10px 10px 0', background: mobileTab === 'cart' ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: mobileTab === 'cart' ? '#fff' : '#8b2550', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', position: 'relative' }}
         >
           🛒 Cart {cart.length > 0 && <span style={{ background: mobileTab === 'cart' ? 'rgba(255,255,255,0.3)' : '#c8456a', color: '#fff', borderRadius: 20, fontSize: 11, padding: '1px 7px', marginLeft: 4, fontWeight: 800 }}>{cart.length}</span>}
@@ -716,8 +738,8 @@ export default function POSPage() {
         <div className="pos-panel-products" data-mobile-hidden={mobileTab === 'cart'} style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden', minHeight: 0 }}>
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ position: 'relative', flex: 1 }}>
-              <Search size={14} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: '#9b6070' }} />
-              <input className="input" style={{ paddingLeft: 38 }} placeholder="Search name, barcode, SKU…" value={search} onChange={e => setSearch(e.target.value)} />
+              <Search size={14} aria-hidden="true" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: '#9b6070' }} />
+              <input className="input" style={{ paddingLeft: 38 }} placeholder="Search name, barcode, SKU…" aria-label="Search products by name, barcode or SKU" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <button className={`btn-secondary ${scanning ? 'scanning' : ''}`} onClick={() => setScanning(!scanning)}>
               <ScanLine size={15} /> {scanning ? '🟢' : 'Scan'}
@@ -725,7 +747,7 @@ export default function POSPage() {
           </div>
           <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
             {[{ id: 'all', name: 'All', icon: '🛍️' }, { id: '__services__', name: 'Services', icon: '✂️' }, ...categories].map(cat => (
-              <button key={cat.id} onClick={() => setActiveCategory(cat.id)} style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${activeCategory === cat.id ? '#c8456a' : '#f0e4e8'}`, background: activeCategory === cat.id ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: activeCategory === cat.id ? '#fff' : '#6b1e38', fontWeight: 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'Nunito,sans-serif' }}>
+              <button key={cat.id} onClick={() => setActiveCategory(cat.id)} aria-pressed={activeCategory === cat.id} style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${activeCategory === cat.id ? '#c8456a' : '#f0e4e8'}`, background: activeCategory === cat.id ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: activeCategory === cat.id ? '#fff' : '#6b1e38', fontWeight: 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'Nunito,sans-serif' }}>
                 {cat.icon} {cat.name}
               </button>
             ))}
@@ -744,18 +766,30 @@ export default function POSPage() {
                 addToCart(p)
               }
               return (
-                <div key={p.id} className={`product-tile ${out ? 'out-of-stock' : ''}`} onClick={handleTileClick} style={{ outline: inCart ? '2px solid #c8456a' : 'none' }}>
+                <div
+                  key={p.id}
+                  className={`product-tile ${out ? 'out-of-stock' : ''}`}
+                  role="button"
+                  tabIndex={out ? -1 : 0}
+                  aria-disabled={out}
+                  aria-label={`${p.name}, ${fmtKES(p.price_kes)}${out ? ', out of stock' : ''}`}
+                  onClick={handleTileClick}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleTileClick() } }}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 3px #e6b800' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = '' }}
+                  style={{ outline: inCart ? '2px solid #c8456a' : 'none' }}
+                >
                   {inCart && <div style={{ position: 'absolute', top: 6, right: 6, background: '#c8456a', color: '#fff', borderRadius: '50%', width: 20, height: 20, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{inCart.qty}</div>}
                   {bestSellerId === p.id && !inCart && (
                     <div style={{ position: 'absolute', top: 6, left: 6, background: 'linear-gradient(135deg,#e6b800,#f59e0b)', color: '#fff', borderRadius: 6, fontSize: 9, fontWeight: 800, padding: '2px 5px', letterSpacing: '0.04em', lineHeight: 1.3 }}>🔥 TOP</div>
                   )}
                   {p.images && p.images.length > 0
-  ? <img src={`${PB_URL}/api/files/${C.PRODUCTS}/${p.id}/${p.images[0]}?thumb=80x80`} alt={p.name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, display: 'block', margin: '0 auto' }} onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='block' }} />
-  : null
-}
-<div style={{ fontSize: 26, textAlign: 'center', display: p.images && p.images.length > 0 ? 'none' : 'block' }}>
-  {p.is_service ? '✂️' : categories.find(c => c.id === p.category_id)?.icon || '📦'}
-</div>
+                    ? <img src={`${PB_URL}/api/files/${C.PRODUCTS}/${p.id}/${p.images[0]}?thumb=80x80`} alt="" loading="lazy" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, display: 'block', margin: '0 auto' }} onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='block' }} />
+                    : null
+                  }
+                  <div style={{ fontSize: 26, textAlign: 'center', display: p.images && p.images.length > 0 ? 'none' : 'block' }}>
+                    {p.is_service ? '✂️' : categories.find(c => c.id === p.category_id)?.icon || '📦'}
+                  </div>
                   <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>{p.name}</div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#c8456a' }}>{p.has_variants ? `from ${fmtKES(p.price_kes)}` : `${fmtKES(p.price_kes)} / ${p.unit || 'piece'}`}</div>
                   {p.has_variants
@@ -779,8 +813,8 @@ export default function POSPage() {
           {/* Customer Search */}
           <div style={{ padding: '9px 13px', borderBottom: '1px solid #f5edf0' }}>
             <div style={{ position: 'relative' }}>
-              <User size={12} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#9b6070' }} />
-              <input className="input" style={{ paddingLeft: 30, paddingRight: 34, fontSize: 12 }} placeholder="Search or add customer…"
+              <User size={12} aria-hidden="true" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#9b6070' }} />
+              <input className="input" style={{ paddingLeft: 30, paddingRight: 34, fontSize: 12 }} placeholder="Search or add customer…" aria-label="Search customer by name or phone"
                 value={customer ? customer.name : customerSearch}
                 onChange={e => {
                   const v = e.target.value
@@ -788,16 +822,17 @@ export default function POSPage() {
                   setCustomer(null)
                   setRedeemPoints(false)
                   setCustomerResults([])
-                  if (v.length >= 1) searchCustomers(v)
+                  clearTimeout(custSearchTimer.current)
+                  if (v.length >= 1) custSearchTimer.current = setTimeout(() => searchCustomers(v), 250)
                 }} />
-              <button onClick={() => setShowQuickCust(true)} style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#c8456a' }}>
+              <button onClick={() => setShowQuickCust(true)} aria-label="Add a new customer" title="Add a new customer" style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#c8456a' }}>
                 <UserPlus size={13} />
               </button>
             </div>
             {customerResults.length > 0 && !customer && (
               <div style={{ background: '#fff', border: '1px solid #f0e4e8', borderRadius: 10, marginTop: 4, boxShadow: '0 4px 16px #0002', overflow: 'hidden', zIndex: 10, position: 'relative' }}>
                 {customerResults.map(c => (
-                  <div key={c.id} onClick={() => selectCustomer(c)} style={{ padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}
+                  <div key={c.id} role="button" tabIndex={0} onClick={() => selectCustomer(c)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectCustomer(c) } }} style={{ padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}
                     onMouseOver={e => e.currentTarget.style.background = '#fce8ed'} onMouseOut={e => e.currentTarget.style.background = ''}>
                     <span><strong>{c.name}</strong> · {c.phone}</span>
                     <span style={{ color: '#d97706', fontWeight: 700 }}>⭐ {c.loyalty_points || 0}</span>
@@ -821,7 +856,7 @@ export default function POSPage() {
               <div style={{ marginTop: 5 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 11, color: '#059669' }}>✅ {customer.name} · ⭐ {customer.loyalty_points || 0} pts</span>
-                  <button className="btn-ghost" onClick={() => { setCustomer(null); setCustomerSearch(''); setCustomerHistory(null) }} style={{ color: '#9b6070', fontSize: 9, padding: '2px 5px' }}>✕</button>
+                  <button className="btn-ghost" aria-label="Remove customer from this sale" title="Remove customer" onClick={() => { setCustomer(null); setCustomerSearch(''); setCustomerHistory(null) }} style={{ color: '#9b6070', fontSize: 9, padding: '2px 5px' }}>✕</button>
                 </div>
                 {customerHistory && (
                   <div style={{ fontSize: 10, color: '#6b4050', marginTop: 3, paddingTop: 3, borderTop: '1px solid #f0e4e8', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
@@ -886,7 +921,7 @@ export default function POSPage() {
                       style={{ marginTop: 2, width: '100%', height: 28, padding: '3px 5px', fontSize: 11, fontWeight: 700, minWidth: 0 }}
                     />
                   </label>
-                  <button onClick={() => removeItem(item.cartKey)} title="Remove" style={{ width: 22, height: 28, borderRadius: 6, border: 'none', background: '#fee2e2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={11} color="#dc2626" /></button>
+                  <button onClick={() => removeItem(item.cartKey)} title="Remove" aria-label={`Remove ${item.name} from cart`} style={{ width: 22, height: 28, borderRadius: 6, border: 'none', background: '#fee2e2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={11} color="#dc2626" /></button>
                 </div>
                 <div style={{ width: 72, minWidth: 72, flexShrink: 0, textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#c8456a', whiteSpace: 'nowrap' }}>{fmtKES(item.unit_price * item.qty)}</div>
               </div>
@@ -896,14 +931,14 @@ export default function POSPage() {
           {/* Totals */}
           <div style={{ padding: '9px 13px', borderTop: '1px solid #f5edf0' }}>
             <div style={{ display: 'flex', gap: 6, marginBottom: 7 }}>
-              <Tag size={12} style={{ color: '#9b6070', marginTop: 12, flexShrink: 0 }} />
-              <input className="input" type="number" placeholder="Discount (KES)" value={discount || ''} onChange={e => setDiscount(e.target.value)} style={{ fontSize: 12 }} />
+              <Tag size={12} aria-hidden="true" style={{ color: '#9b6070', marginTop: 12, flexShrink: 0 }} />
+              <input className="input" type="number" min="0" placeholder="Discount (KES)" aria-label="Discount in KES" value={discount || ''} onChange={e => setDiscount(e.target.value)} style={{ fontSize: 12 }} />
             </div>
             {/* Quick discount buttons */}
             {cart.length > 0 && (
               <div style={{ display: 'flex', gap: 4, marginBottom: 7, flexWrap: 'wrap' }}>
                 {[10, 15, 20].map(pct => (
-                  <button key={pct} onClick={() => setDiscount(Math.round(subtotal * pct / 100))} style={{ fontSize: 10, padding: '4px 8px', borderRadius: 6, border: '1px solid #e8d0d6', background: '#fce8ed', color: '#9b6070', fontWeight: 600, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+                  <button key={pct} onClick={() => setDiscount(Math.round(subtotal * pct / 100))} aria-label={`Apply ${pct} percent discount`} style={{ fontSize: 10, padding: '4px 8px', borderRadius: 6, border: '1px solid #e8d0d6', background: '#fce8ed', color: '#9b6070', fontWeight: 600, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
                     {pct}%
                   </button>
                 ))}
@@ -938,20 +973,20 @@ export default function POSPage() {
                 { v: 'visa_mc', icon: <CreditCard size={13}/>, label: 'Card' },
                 { v: 'mixed', icon: <Split size={13}/>, label: 'Split' },
               ].map(pm => (
-                <button key={pm.v} onClick={() => setPaymentMethod(pm.v)} style={{ padding: '6px 2px', borderRadius: 8, border: `2px solid ${paymentMethod === pm.v ? '#c8456a' : '#f0e4e8'}`, background: paymentMethod === pm.v ? '#fce8ed' : '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: paymentMethod === pm.v ? '#c8456a' : '#6b4050', fontWeight: 600, fontSize: 10, fontFamily: 'Nunito,sans-serif' }}>
+                <button key={pm.v} onClick={() => setPaymentMethod(pm.v)} aria-pressed={paymentMethod === pm.v} style={{ padding: '6px 2px', borderRadius: 8, border: `2px solid ${paymentMethod === pm.v ? '#c8456a' : '#f0e4e8'}`, background: paymentMethod === pm.v ? '#fce8ed' : '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: paymentMethod === pm.v ? '#c8456a' : '#6b4050', fontWeight: 600, fontSize: 10, fontFamily: 'Nunito,sans-serif' }}>
                   {pm.icon} {pm.label}
                 </button>
               ))}
             </div>
             {paymentMethod === 'cash' && (
               <>
-                <input className="input" type="number" placeholder="Cash tendered (KES)" value={cashTendered} onChange={e => setCashTendered(e.target.value)} style={{ marginBottom: 5, fontSize: 12 }} />
+                <input className="input" type="number" placeholder="Cash tendered (KES)" aria-label="Cash tendered in KES" value={cashTendered} onChange={e => setCashTendered(e.target.value)} style={{ marginBottom: 5, fontSize: 12 }} />
                 {cashTendered && Number(cashTendered) >= total && <div style={{ background: '#f0fdf4', color: '#059669', borderRadius: 8, padding: '5px 11px', fontSize: 12, fontWeight: 700, marginBottom: 5 }}>💵 Change: {fmtKES(change)}</div>}
               </>
             )}
             {paymentMethod === 'mixed' && (
               <div style={{ marginBottom: 5 }}>
-                <input className="input" type="number" placeholder="M-Pesa amount (KES)" value={mpesaAmount} onChange={e => setMpesaAmount(e.target.value)} style={{ marginBottom: 4, fontSize: 12 }} />
+                <input className="input" type="number" placeholder="M-Pesa amount (KES)" aria-label="M-Pesa amount in KES" value={mpesaAmount} onChange={e => setMpesaAmount(e.target.value)} style={{ marginBottom: 4, fontSize: 12 }} />
                 {mpesaAmount && Number(mpesaAmount) < total && <div style={{ background: '#f0f9ff', color: '#0369a1', borderRadius: 8, padding: '5px 11px', fontSize: 12, fontWeight: 700 }}>💵 Cash balance: {fmtKES(cashAmt)}</div>}
               </div>
             )}
@@ -969,10 +1004,10 @@ export default function POSPage() {
       {/* Variant Picker Popup */}
       {variantPopupProduct && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setVariantPopupProduct(null)}>
-          <div className="modal" style={{ maxWidth: 380 }}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label={`Choose an option for ${variantPopupProduct.name}`} style={{ maxWidth: 380 }}>
             <div className="modal-header">
               <span className="modal-title">{variantPopupProduct.name}</span>
-              <button onClick={() => setVariantPopupProduct(null)} className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button>
+              <button onClick={() => setVariantPopupProduct(null)} aria-label="Close" className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button>
             </div>
             <div className="modal-body">
               <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 10 }}>Choose an option</div>
@@ -1017,8 +1052,8 @@ export default function POSPage() {
       {/* Held Sales Modal */}
       {showHeld && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowHeld(false)}>
-          <div className="modal" style={{ maxWidth: 420 }}>
-            <div className="modal-header"><span className="modal-title">⏸️ Held Sales</span><button onClick={() => setShowHeld(false)} className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
+          <div className="modal" role="dialog" aria-modal="true" aria-label="Held sales" style={{ maxWidth: 420 }}>
+            <div className="modal-header"><span className="modal-title">⏸️ Held Sales</span><button onClick={() => setShowHeld(false)} aria-label="Close" className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
             <div className="modal-body">
               {heldSales.map(h => (
                 <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 0', borderBottom: '1px solid #f5edf0' }}>
@@ -1038,8 +1073,8 @@ export default function POSPage() {
       {/* Quick Add Customer */}
       {showQuickCust && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowQuickCust(false)}>
-          <div className="modal" style={{ maxWidth: 360 }}>
-            <div className="modal-header"><span className="modal-title">Quick Add Customer</span><button onClick={() => setShowQuickCust(false)} className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
+          <div className="modal" role="dialog" aria-modal="true" aria-label="Quick add customer" style={{ maxWidth: 360 }}>
+            <div className="modal-header"><span className="modal-title">Quick Add Customer</span><button onClick={() => setShowQuickCust(false)} aria-label="Close" className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
             <div className="modal-body">
               <form onSubmit={quickAddCustomer} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div><label className="label">Name *</label><input className="input" required autoFocus value={newCust.name} onChange={e => setNewCust(f => ({ ...f, name: e.target.value }))} /></div>
@@ -1061,8 +1096,8 @@ export default function POSPage() {
       {/* Payment Confirmation Modal */}
       {showPaymentConfirm && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowPaymentConfirm(false)}>
-          <div className="modal" style={{ maxWidth: 420 }}>
-            <div className="modal-header"><span className="modal-title">💳 Confirm Payment</span><button onClick={() => setShowPaymentConfirm(false)} className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
+          <div className="modal" role="dialog" aria-modal="true" aria-label="Confirm payment" style={{ maxWidth: 420 }}>
+            <div className="modal-header"><span className="modal-title">💳 Confirm Payment</span><button onClick={() => setShowPaymentConfirm(false)} aria-label="Close" className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
             <div className="modal-body">
               <div style={{ background: '#f9f3f5', borderRadius: 12, padding: 12, marginBottom: 12 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13, marginBottom: 10 }}>
@@ -1104,7 +1139,7 @@ export default function POSPage() {
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn-secondary" onClick={() => setShowPaymentConfirm(false)} style={{ flex: 1 }}>Cancel</button>
-                <button className="btn-primary" onClick={() => { processSale(); setShowPaymentConfirm(false) }} style={{ flex: 1 }}>
+                <button className="btn-primary" disabled={processing} onClick={() => { processSale(); setShowPaymentConfirm(false) }} style={{ flex: 1 }}>
                   ✅ Confirm Payment
                 </button>
               </div>
@@ -1115,6 +1150,3 @@ export default function POSPage() {
     </div>
   )
 }
-
-
-
