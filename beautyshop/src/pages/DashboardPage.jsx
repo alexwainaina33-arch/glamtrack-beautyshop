@@ -18,6 +18,27 @@ const parseDateFromReceipt = (receipt_no) => {
   return new Date(2000 + parseInt(c.slice(0,2)), parseInt(c.slice(2,4))-1, parseInt(c.slice(4,6)))
 }
 
+// Turn a Kenyan phone number into the format wa.me needs (254712345678).
+// 0712345678, +254712345678, 254712345678 and 712345678 all work.
+const toWaPhone = (phone) => {
+  if (!phone) return ''
+  let p = String(phone).replace(/[^\d+]/g, '')
+  if (p.startsWith('+')) p = p.slice(1)
+  if (p.startsWith('0')) p = '254' + p.slice(1)
+  if (!p.startsWith('254') && p.length === 9) p = '254' + p
+  return p
+}
+
+// Run a request again once if it fails. The first request after a quiet spell can
+// fail while the server wakes up, so one quick retry avoids a false error.
+const retryOnce = async (fn) => {
+  try { return await fn() }
+  catch (e) {
+    await new Promise(r => setTimeout(r, 2500))
+    return await fn()
+  }
+}
+
 // ─── SUBSCRIPTION PAYBACK DAY ────────────────────────────────────
 function SubscriptionPaybackDay({ shop, avgDailyRevenue }) {
   if (!shop || avgDailyRevenue == null || avgDailyRevenue === 0) return null
@@ -88,7 +109,7 @@ function EmailVerificationBanner() {
       borderRadius: 12, padding: '12px 16px', marginBottom: 20,
       display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
     }}>
-      <span style={{ fontSize: 18 }}>📧</span>
+      <span style={{ fontSize: 18 }} aria-hidden="true">📧</span>
       <div style={{ flex: 1, minWidth: 200 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>Verify your email address</div>
         <div style={{ fontSize: 12, color: '#b45309', marginTop: 2 }}>
@@ -104,7 +125,7 @@ function EmailVerificationBanner() {
         }}>
           {sending ? 'Sending…' : 'Resend email'}
         </button>
-        <button onClick={() => setDismissed(true)} style={{
+        <button onClick={() => setDismissed(true)} aria-label="Dismiss email verification reminder" style={{
           padding: '6px 10px', borderRadius: 8, border: '1px solid #fde68a',
           background: 'transparent', color: '#92400e', fontWeight: 700,
           fontSize: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif',
@@ -172,7 +193,7 @@ function DeadHoursMap({ hourData, shop, isLocked }) {
               <span style={{ display: 'inline-block', marginTop: 10, fontSize: 12, color: '#9b6070', fontStyle: 'italic' }}>🔒 Renew to send flash promos</span>
             ) : (
               <a
-                href={'https://wa.me/' + shop.phone.replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent(
+                href={'https://wa.me/' + toWaPhone(shop.phone) + '?text=' + encodeURIComponent(
                   '📢 *Flash Offer — ' + fmt(deadStart) + ' Special!*\n\n' +
                   'We have slots open right now at ' + (shop.name || 'our shop') + '!\n\n' +
                   '✨ Walk in this hour and get priority service — no waiting.\n\n' +
@@ -240,7 +261,7 @@ function BusinessHealthScore({ stats, shop }) {
   const scoreColor = finalScore >= 85 ? '#059669' : finalScore >= 70 ? '#0284c7' : finalScore >= 50 ? '#d97706' : '#dc2626'
 
   const shareScore = () => {
-    const phone = shop?.phone?.replace(/[^0-9]/g, '')
+    const phone = toWaPhone(shop?.phone)
     if (!phone) { toast.error('Add your phone number in Settings first'); return }
     const msg = [
       `📊 *${shop?.name} — Business Health*`,
@@ -277,7 +298,7 @@ function BusinessHealthScore({ stats, shop }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {breakdown.map((b, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ fontSize: 10, color: b.good ? '#059669' : '#d97706', width: 8, flexShrink: 0 }}>{b.good ? '●' : '○'}</div>
+            <div style={{ fontSize: 10, color: b.good ? '#059669' : '#d97706', width: 8, flexShrink: 0 }} aria-hidden="true">{b.good ? '●' : '○'}</div>
             <div style={{ fontSize: 11, color: '#6b4050', flex: 1 }}>
               {b.label}{b.detail ? <span style={{ color: '#9b6070' }}> · {b.detail}</span> : ''}
             </div>
@@ -435,7 +456,7 @@ function OnboardingChecklist({ shop, onDismiss }) {
 
   return (
     <div style={{ background: 'linear-gradient(135deg,#fff9fb,#fff)', border: '1.5px solid #f0e4e8', borderRadius: 16, padding: '20px 24px', marginBottom: 24, position: 'relative', boxShadow: '0 4px 20px rgba(200,69,106,0.06)' }}>
-      <button onClick={onDismiss} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', cursor: 'pointer', color: '#c8b0b8', padding: 4 }}><X size={16} /></button>
+      <button onClick={onDismiss} aria-label="Dismiss setup checklist" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', cursor: 'pointer', color: '#c8b0b8', padding: 4 }}><X size={16} /></button>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
         <div>
           <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 17, color: '#3d1020', fontWeight: 700 }}>🚀 Set up your business — {pct}% done</div>
@@ -448,14 +469,18 @@ function OnboardingChecklist({ shop, onDismiss }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {steps.map(({ key, icon: Icon, label, desc, action }) => {
           const done = checks[key]
+          const clickable = !done && !!action
           return (
-            <div key={key} onClick={!done && action ? action : undefined}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, background: done ? '#f0fdf4' : '#fdf5f7', border: `1px solid ${done ? '#bbf7d0' : '#f5e4ea'}`, cursor: !done && action ? 'pointer' : 'default', opacity: loadingChecks ? 0.6 : 1 }}>
+            <div key={key} onClick={clickable ? action : undefined}
+              role={clickable ? 'button' : undefined}
+              tabIndex={clickable ? 0 : undefined}
+              onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); action() } } : undefined}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, background: done ? '#f0fdf4' : '#fdf5f7', border: `1px solid ${done ? '#bbf7d0' : '#f5e4ea'}`, cursor: clickable ? 'pointer' : 'default', opacity: loadingChecks ? 0.6 : 1 }}>
               <div style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0, background: done ? '#dcfce7' : 'rgba(200,69,106,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Icon size={16} color={done ? '#059669' : '#c8456a'} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: done ? '#059669' : '#3d1020', textDecoration: done ? 'line-through' : 'none' }}>{label}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: done ? '#059669' : '#3d1020', textDecoration: done ? 'line-through' : 'none' }}>{label}{done && <span className="sr-only"> (done)</span>}</div>
                 <div style={{ fontSize: 11, color: '#9b6070', marginTop: 1 }}>{desc}</div>
               </div>
               {done ? <CheckCircle2 size={18} color="#059669" /> : action ? <ChevronRight size={16} color="#c8456a" /> : <Circle size={18} color="#d4a0b0" />}
@@ -493,7 +518,7 @@ function TomorrowsBanner({ shop, onViewAppointments }) {
       borderRadius: 14, padding: '14px 20px', marginBottom: 20,
       display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
     }}>
-      <div style={{ fontSize: 26, flexShrink: 0 }}>📅</div>
+      <div style={{ fontSize: 26, flexShrink: 0 }} aria-hidden="true">📅</div>
       <div style={{ flex: 1, minWidth: 200 }}>
         <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8' }}>
           You have {tomorrowCount} appointment{tomorrowCount !== 1 ? 's' : ''} tomorrow
@@ -506,7 +531,7 @@ function TomorrowsBanner({ shop, onViewAppointments }) {
         <button onClick={onViewAppointments} style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
           📲 Send Reminders →
         </button>
-        <button onClick={() => setDismissed(true)} style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #93c5fd', background: 'transparent', color: '#3b82f6', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>✕</button>
+        <button onClick={() => setDismissed(true)} aria-label="Dismiss appointments reminder" style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #93c5fd', background: 'transparent', color: '#3b82f6', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>✕</button>
       </div>
     </div>
   )
@@ -521,10 +546,11 @@ function FeedbackPromptBanner({ shop, hasSales }) {
   const storageKey = `feedback_banner_dismissed_${shop.id}`
   if (localStorage.getItem(storageKey)) return null
 
+  // The banner says "a month now", so only show it once the shop is 30+ days old.
   const shopAgeDays = shop.created
     ? Math.floor((Date.now() - new Date(shop.created).getTime()) / 86400000)
     : 0
-  if (shopAgeDays < 0) return null
+  if (shopAgeDays < 30) return null
 
   const dismiss = () => {
     localStorage.setItem(storageKey, '1')
@@ -544,7 +570,7 @@ function FeedbackPromptBanner({ shop, hasSales }) {
       borderRadius: 14, padding: '14px 20px', marginBottom: 20,
       display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
     }}>
-      <div style={{ fontSize: 26, flexShrink: 0 }}>💬</div>
+      <div style={{ fontSize: 26, flexShrink: 0 }} aria-hidden="true">💬</div>
       <div style={{ flex: 1, minWidth: 200 }}>
         <div style={{ fontSize: 13, fontWeight: 800, color: '#5b21b6' }}>
           You've been with SalesTrack a month now — how's it going?
@@ -557,7 +583,7 @@ function FeedbackPromptBanner({ shop, hasSales }) {
         <button onClick={openFeedback} style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: '#7c3aed', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
           💬 Share Feedback →
         </button>
-        <button onClick={dismiss} style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #ddd6fe', background: 'transparent', color: '#7c3aed', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>✕</button>
+        <button onClick={dismiss} aria-label="Dismiss feedback request" style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #ddd6fe', background: 'transparent', color: '#7c3aed', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>✕</button>
       </div>
     </div>
   )
@@ -617,7 +643,7 @@ function RevenueForecastWidget({ shop }) {
   return (
     <div style={{ background: 'linear-gradient(135deg,#eff6ff,#dbeafe)', border: '1.5px solid #93c5fd', borderRadius: 14, padding: '14px 18px', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 28, flexShrink: 0 }}>🔮</div>
+        <div style={{ fontSize: 28, flexShrink: 0 }} aria-hidden="true">🔮</div>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 2 }}>
             Projected Revenue This Week
@@ -687,15 +713,6 @@ function ChurnPredictorWidget({ shop }) {
 
   if (atRisk.length === 0) return null
 
-  const toWaPhone = (phone) => {
-    if (!phone) return ''
-    let p = phone.replace(/[^\d+]/g, '')
-    if (p.startsWith('+')) p = p.slice(1)
-    if (p.startsWith('0')) p = '254' + p.slice(1)
-    if (!p.startsWith('254') && p.length === 9) p = '254' + p
-    return p
-  }
-
   return (
     <div style={{ background: 'linear-gradient(135deg,#fff7ed,#ffedd5)', border: '1.5px solid #fdba74', borderRadius: 14, padding: '14px 18px', marginBottom: 20 }}>
       <div style={{ fontSize: 13, fontWeight: 800, color: '#9a3412', marginBottom: 10 }}>
@@ -753,7 +770,7 @@ function AIInsightWidget({ stats, hourData, shop, period, memory, onRecord }) {
 
   return (
     <div style={{ background: c.bg, border: `1.5px solid ${c.border}`, borderRadius: 14, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-      <div style={{ fontSize: 26, flexShrink: 0, marginTop: 2 }}>{insight.emoji}</div>
+      <div style={{ fontSize: 26, flexShrink: 0, marginTop: 2 }} aria-hidden="true">{insight.emoji}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13, fontWeight: 800, color: c.title }}>{insight.title}</span>
@@ -761,7 +778,7 @@ function AIInsightWidget({ stats, hourData, shop, period, memory, onRecord }) {
         </div>
         <div style={{ fontSize: 12, color: c.body, lineHeight: 1.6 }}>{insight.body}</div>
       </div>
-      <button onClick={() => setVisible(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.body, padding: '0 0 0 4px', flexShrink: 0, fontSize: 14, opacity: 0.6 }}>✕</button>
+      <button onClick={() => setVisible(false)} aria-label="Dismiss insight" style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.body, padding: '0 0 0 4px', flexShrink: 0, fontSize: 14, opacity: 0.6 }}>✕</button>
     </div>
   )
 }
@@ -789,7 +806,7 @@ function SalesAssistantWidget({ shop, assistantData }) {
               <button
                 onClick={() => {
                   const msg = `Hi ${c.name}! 👋 We miss you at ${shop?.name}. It's been a while since your last visit — come in this week and enjoy a special welcome-back offer just for you! 💄✨\n\n_${shop?.name} · Powered by SalesTrack_`
-                  window.open(`https://wa.me/${c.phone.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer')
+                  window.open(`https://wa.me/${toWaPhone(c.phone)}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer')
                 }}
                 style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
               >
@@ -904,7 +921,7 @@ function DailyShareCard({ stats, shop, period }) {
     ctx.fillText('Powered by SalesTrack · Run your business from your phone', W / 2, 680)
     ctx.fillStyle = 'rgba(255,255,255,0.2)'
     ctx.font = 'bold 18px Nunito, Arial, sans-serif'
-    ctx.fillText('salestrack.co.ke', W / 2, 720)
+    ctx.fillText('getsalestrack.vercel.app', W / 2, 720)
 
     return canvas
   }, [stats, shop, period])
@@ -944,7 +961,7 @@ function DailyShareCard({ stats, shop, period }) {
     <>
       <canvas ref={canvasRef} style={{ display: 'none' }} />
       <div style={{ background: 'linear-gradient(135deg,#3d1020,#8b2550)', borderRadius: 14, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 26 }}>📊</div>
+        <div style={{ fontSize: 26 }} aria-hidden="true">📊</div>
         <div style={{ flex: 1, minWidth: 180 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>Daily Summary Card</div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 2 }}>Branded image — share to WhatsApp Status in one tap</div>
@@ -956,10 +973,10 @@ function DailyShareCard({ stats, shop, period }) {
       </div>
 
       {preview && (
-        <div onClick={() => setPreview(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}>
+        <div onClick={() => setPreview(false)} role="dialog" aria-modal="true" aria-label="Daily summary card preview" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}>
           <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: 400, width: '100%' }}>
             <canvas ref={canvasRef} style={{ width: '100%', height: 'auto', borderRadius: 16, display: 'block' }} />
-            <button onClick={() => setPreview(false)} style={{ position: 'absolute', top: -12, right: -12, width: 32, height: 32, borderRadius: '50%', border: 'none', background: '#fff', color: '#3d1020', fontWeight: 900, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            <button onClick={() => setPreview(false)} aria-label="Close preview" style={{ position: 'absolute', top: -12, right: -12, width: 32, height: 32, borderRadius: '50%', border: 'none', background: '#fff', color: '#3d1020', fontWeight: 900, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
             <button onClick={() => { setPreview(false); handleShare() }} style={{ display: 'block', width: '100%', marginTop: 12, padding: '12px', borderRadius: 12, border: 'none', background: '#25D366', color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>📲 Share this to WhatsApp Status</button>
           </div>
         </div>
@@ -989,6 +1006,7 @@ export default function DashboardPage() {
   const [lowStock, setLowStock]       = useState([])
   const [birthdayCustomers, setBirthdayCustomers] = useState([])
   const [loading, setLoading]         = useState(true)
+  const [loadError, setLoadError]     = useState(false)
   const [period, setPeriod]           = useState('today')
   const [showChecklist, setShowChecklist] = useState(true)
   const [avgDailyRevenue, setAvgDailyRevenue] = useState(null)
@@ -1016,6 +1034,7 @@ export default function DashboardPage() {
 
   const loadAll = async () => {
     setLoading(true)
+    setLoadError(false)
     try {
       const { from, to } = getPeriodRange()
       const prevFrom = subDays(from, period === 'today' ? 1 : 30)
@@ -1026,7 +1045,8 @@ export default function DashboardPage() {
         ? `shop_id="${shop.id}" && status="completed" && served_by="${currentUserId}"`
         : `shop_id="${shop.id}" && status="completed"`
 
-      const [sales, prevSales, expenses, products, customers, recent] = await Promise.all([
+      // One automatic retry: the first request after a quiet spell can fail while the server wakes up.
+      const [sales, prevSales, expenses, products, customers, recent] = await retryOnce(() => Promise.all([
         pb.collection(C.SALES).getList(1, 500, { filter: salesFilter, '$autoCancel': false, '$cancelKey': 'dash-sales' })
           .then(r => filterByReceiptDate(r.items, from, to)),
         pb.collection(C.SALES).getList(1, 500, { filter: salesFilter, '$autoCancel': false, '$cancelKey': 'dash-prev' })
@@ -1040,7 +1060,7 @@ export default function DashboardPage() {
           .then(r => r.items),
         pb.collection(C.CUSTOMERS).getList(1, 1, { filter: `shop_id="${shop.id}"`, '$autoCancel': false, '$cancelKey': 'dash-custs' }),
         pb.collection(C.SALES).getList(1, 8, { filter: `shop_id="${shop.id}" && status="completed"`, expand: 'customer_id', '$autoCancel': false, '$cancelKey': 'dash-recent' }),
-      ])
+      ]))
 
       const revenue       = sales.reduce((s, x) => s + (x.total_kes || 0), 0)
       const grossProfit   = sales.reduce((s, x) => s + (x.gross_profit_kes || 0), 0)
@@ -1127,17 +1147,18 @@ export default function DashboardPage() {
         loadSalesAssistant(shop.id, shop).then(setAssistantData).catch(() => {}),
       ])
 
-    } catch (err) { console.error(err) }
+    } catch (err) { console.error(err); setLoadError(true) }
     finally { setLoading(false) }
   }
 
   const sendWhatsAppSummary = () => {
-    const phone = shop?.phone?.replace(/[^0-9]/g, '')
+    const phone = toWaPhone(shop?.phone)
     if (!phone) { toast.error('Add your phone number in Settings first'); return }
     const s = stats || {}
+    const summaryTitle = period === 'today' ? 'Daily Summary' : period === '7d' ? 'Last 7 Days' : 'This Month'
     const msg = [
       `💅 *${shop.name}*`,
-      `_Daily Summary — ${format(new Date(), 'dd MMM yyyy')}_`,
+      `_${summaryTitle} — ${format(new Date(), 'dd MMM yyyy')}_`,
       ``,
       `💰 Revenue`,
       `*KES ${(s.revenue||0).toLocaleString('en-KE')}*`,
@@ -1179,6 +1200,8 @@ export default function DashboardPage() {
     ? [{ key: 'overview', label: '📊 Overview' }, { key: 'account', label: '⚙️ Account' }]
     : [{ key: 'overview', label: '📊 Overview' }, { key: 'insights', label: '✨ Insights' }, { key: 'account', label: '⚙️ Account' }]
 
+  const periodName = period === 'today' ? 'today' : period === '7d' ? 'the last 7 days' : 'this month'
+
   return (
     <div>
       {/* Header */}
@@ -1194,7 +1217,7 @@ export default function DashboardPage() {
             </button>
           )}
           {['today','7d','month'].map(p => (
-            <button key={p} onClick={() => setPeriod(p)} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: period === p ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: period === p ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', boxShadow: period === p ? '0 4px 14px #c8456a44' : '0 1px 4px #0001', fontFamily: 'Nunito,sans-serif', minHeight: 40 }}>
+            <button key={p} onClick={() => setPeriod(p)} aria-pressed={period === p} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: period === p ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: period === p ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', boxShadow: period === p ? '0 4px 14px #c8456a44' : '0 1px 4px #0001', fontFamily: 'Nunito,sans-serif', minHeight: 40 }}>
               {p === 'today' ? 'Today' : p === '7d' ? '7 Days' : 'Month'}
             </button>
           ))}
@@ -1206,9 +1229,9 @@ export default function DashboardPage() {
       {showChecklist && shop && <OnboardingChecklist shop={shop} onDismiss={() => setShowChecklist(false)} />}
 
       {/* Tab nav */}
-      <div className="tab-nav" style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+      <div className="tab-nav" role="tablist" aria-label="Dashboard sections" style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {DASHBOARD_TABS.map(t => (
-          <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
+          <button key={t.key} role="tab" aria-selected={activeTab === t.key} onClick={() => setActiveTab(t.key)} style={{
             padding: '9px 18px', borderRadius: 10, border: 'none', flexShrink: 0,
             background: activeTab === t.key ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff',
             color: activeTab === t.key ? '#fff' : '#8b2550', fontWeight: 700, fontSize: 13,
@@ -1222,7 +1245,16 @@ export default function DashboardPage() {
 
       {loading ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
-          <div className="spinner" />
+          <div className="spinner" role="status" aria-label="Loading dashboard" />
+        </div>
+      ) : loadError && !stats ? (
+        <div role="alert" style={{ background: '#fff', border: '1.5px solid #fecaca', borderRadius: 14, padding: '28px 20px', textAlign: 'center' }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }} aria-hidden="true">📡</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#3d1020', marginBottom: 4 }}>Couldn't load your dashboard</div>
+          <div style={{ fontSize: 13, color: '#9b6070', marginBottom: 14 }}>Check your internet connection and try again. Your sales and stock are safe.</div>
+          <button onClick={loadAll} style={{ padding: '10px 22px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#c8456a,#8b2550)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', minHeight: 44 }}>
+            Try again
+          </button>
         </div>
       ) : (
         <>
@@ -1232,11 +1264,11 @@ export default function DashboardPage() {
               <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
                 {statCards.map((s, i) => (
                   <div key={i} className={`stat-card ${s.cls}`}>
-                    <div style={{ fontSize: 28, marginBottom: 8 }}>{s.icon}</div>
+                    <div style={{ fontSize: 28, marginBottom: 8 }} aria-hidden="true">{s.icon}</div>
                     <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1f', fontFamily: 'Playfair Display,serif' }}>{s.value}</div>
                     <div style={{ fontSize: 12, color: '#9b6070', marginTop: 2 }}>{s.label}</div>
                     <div style={{ fontSize: 12, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4, color: s.trend ? '#059669' : '#dc2626' }}>
-                      {s.trend ? <TrendingUp size={12}/> : <TrendingDown size={12}/>}
+                      {s.trend ? <TrendingUp size={12} aria-hidden="true"/> : <TrendingDown size={12} aria-hidden="true"/>}
                       {s.sub}
                     </div>
                   </div>
@@ -1249,21 +1281,23 @@ export default function DashboardPage() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                       <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: 0 }}>Revenue Overview</h3>
                     </div>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <BarChart data={salesChart} barSize={28}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0e4e8" vertical={false} />
-                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
-                        <Tooltip formatter={v => fmtKES(v)} contentStyle={{ borderRadius: 10, border: '1px solid #f0e4e8', fontFamily: 'Nunito,sans-serif' }} />
-                        <Bar dataKey="revenue" fill="url(#roseGrad)" radius={[6,6,0,0]} />
-                        <defs>
-                          <linearGradient id="roseGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#c8456a" />
-                            <stop offset="100%" stopColor="#8b2550" />
-                          </linearGradient>
-                        </defs>
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <div role="img" aria-label={`Bar chart of revenue for ${periodName}. Total revenue ${fmtKES(stats?.revenue || 0)} from ${stats?.salesCount || 0} sales.`}>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <BarChart data={salesChart} barSize={28}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0e4e8" vertical={false} />
+                          <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+                          <Tooltip formatter={v => fmtKES(v)} contentStyle={{ borderRadius: 10, border: '1px solid #f0e4e8', fontFamily: 'Nunito,sans-serif' }} />
+                          <Bar dataKey="revenue" fill="url(#roseGrad)" radius={[6,6,0,0]} />
+                          <defs>
+                            <linearGradient id="roseGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#c8456a" />
+                              <stop offset="100%" stopColor="#8b2550" />
+                            </linearGradient>
+                          </defs>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                   <div className="card">
                     <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 20px' }}>P&L Summary</h3>
@@ -1318,7 +1352,7 @@ export default function DashboardPage() {
                     : lowStock.map(p => (
                       <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f5edf0' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <AlertCircle size={16} color="#dc2626" />
+                          <AlertCircle size={16} color="#dc2626" aria-hidden="true" />
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1f' }}>{p.name}</div>
                             <div style={{ fontSize: 11, color: '#9b6070' }}>Reorder at: {p.reorder_point || 5}</div>
@@ -1350,7 +1384,7 @@ export default function DashboardPage() {
                         {c.phone && (
                           <button onClick={() => {
                             const msg = `🎂 Happy Birthday ${c.name}! 🎉\n\nWishing you a beautiful day from all of us at ${shop?.name}.\n\nEnjoy a special birthday discount on your next visit! 💄✨`
-                            window.open(`https://wa.me/${c.phone.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(msg)}`, '_blank')
+                            window.open(`https://wa.me/${toWaPhone(c.phone)}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer')
                           }} style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                             📲 Greet
                           </button>
