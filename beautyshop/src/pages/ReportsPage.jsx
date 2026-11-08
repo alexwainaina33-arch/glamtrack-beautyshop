@@ -232,7 +232,8 @@ export default function ReportsPage() {
         // Equity
         openingCapital: tb.openingCapital,
         retainedEarnings: tb.retainedEarnings,
-        totalEquity: tb.totalEquity,
+        balancingFigure: tb.isBalanced ? 0 : tb.variance,
+        totalEquity: tb.totalEquity + (tb.isBalanced ? 0 : tb.variance),
         lifetimeRevenue: tb.revenue,
         lifetimeCOGS: tb.cogs,
         lifetimeGP: tb.grossProfit,
@@ -266,6 +267,7 @@ export default function ReportsPage() {
       `EQUITY`,``,
       `Opening Capital`,`*${fmtKES(d.openingCapital)}*`,
       `Retained Earnings`,`*${fmtKES(d.retainedEarnings)}*`,
+      ...(d.balancingFigure?[`Balancing figure (estimate)`,`*${fmtKES(d.balancingFigure)}*`]:[]),
       `Total Equity`,`*${fmtKES(d.totalEquity)}*`,``,
       `Balance Check`,`*${d.isBalanced ? '✅ Balanced' : `⚠️ Variance: ${fmtKES(Math.abs(d.variance))}`}*`,``,
       `_Generated from verified immutable records · SalesTrack_`,
@@ -705,6 +707,7 @@ export default function ReportsPage() {
                         {Section:'LIABILITIES',Item:'TOTAL LIABILITIES',Amount_KES:bsData.totalLiabilities},
                         {Section:'EQUITY',Item:'Opening Capital',Amount_KES:bsData.openingCapital},
                         {Section:'EQUITY',Item:'Retained Earnings (cumulative net profit)',Amount_KES:bsData.retainedEarnings},
+                        {Section:'EQUITY',Item:'Balancing figure (estimate)',Amount_KES:bsData.balancingFigure},
                         {Section:'EQUITY',Item:'TOTAL EQUITY',Amount_KES:bsData.totalEquity},
                         {Section:'CHECK',Item:'Balanced?',Amount_KES:bsData.isBalanced?'YES':`NO - variance ${bsData.variance.toFixed(2)}`},
                       ],'balance-sheet.csv')}><Download size={14}/> Export</button>
@@ -735,6 +738,7 @@ export default function ReportsPage() {
                   <PLSection title="EQUITY" color="#3b82f6">
                     <PLRow label="Opening Capital" value={bsData.openingCapital} indent color="#3b82f6"/>
                     <PLRow label="Retained Earnings" value={bsData.retainedEarnings} indent color={bsData.retainedEarnings>=0?'#059669':'#dc2626'}/>
+                    {bsData.balancingFigure !== 0 && <PLRow label={bsData.balancingFigure>0?'Owner funding of stock and other (estimate)':'Unrecorded withdrawals or losses (estimate)'} value={Math.abs(bsData.balancingFigure)} negative={bsData.balancingFigure<0} indent color="#d97706" sub="Balancing figure. Enter your Opening Capital in Settings > Business to replace this estimate."/>}
                     <PLRow label="TOTAL EQUITY" value={bsData.totalEquity} bold big border color={bsData.totalEquity>=0?'#059669':'#dc2626'}/>
                   </PLSection>
 
@@ -921,7 +925,7 @@ export default function ReportsPage() {
                     {Object.entries(cfData.inflowByMethod).map(([method,total],i) => (
                       <div key={i} style={{ marginBottom:10 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:3 }}>
-                          <span style={{ fontWeight:600 }}>{method==='cash'?'💵 Cash':method==='mpesa'?'📱 M-Pesa':method==='visa_mc'?'💳 Card':method}</span>
+                          <span style={{ fontWeight:600 }}>{method==='cash'?'💵 Cash':method==='mpesa'?'📱 M-Pesa':method==='mixed'?'Split':method==='visa_mc'?'💳 Card':method}</span>
                           <span style={{ color:'#059669', fontWeight:700 }}>{fmtKES(total)}</span>
                         </div>
                         <div style={{ background:'#f5edf0', borderRadius:4, height:5 }}>
