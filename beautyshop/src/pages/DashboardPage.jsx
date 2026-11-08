@@ -6,7 +6,7 @@ import PlanGuard from '../components/PlanGuard'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDate, fmtDateTime, pctChange, r2 } from '../lib/utils'
-import { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, format } from 'date-fns'
+import { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, addDays, subMonths, differenceInCalendarDays, format } from 'date-fns'
 import { TrendingUp, TrendingDown, AlertCircle, ArrowRight, CheckCircle2, Circle, Store, Package, Tag, Users, ShoppingCart, Wrench, ChevronRight, X } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { useNavigate } from 'react-router-dom'
@@ -17,6 +17,44 @@ const toDate = (s) => new Date(String(s || '').replace(' ', 'T'))
 
 // Format a Date for a PocketBase filter, e.g. created>="2026-11-07 21:00:00.000Z"
 const toPbDate = (d) => d.toISOString().replace('T', ' ')
+
+// "2026-11-08" (from a date input) -> local Date at 00:00, or null if invalid
+const parseDay = (s) => {
+  const [y, m, d] = String(s || '').split('-').map(Number)
+  if (!y || !m || !d) return null
+  const dt = new Date(y, m - 1, d)
+  return isNaN(dt.getTime()) ? null : dt
+}
+const MAX_CUSTOM_DAYS = 366
+
+// Revenue bars for a date range: one bar per day (up to 31 days), otherwise one bar per week.
+const buildDailyChart = (sales, from, to) => {
+  const now = new Date()
+  const start = startOfDay(from)
+  const end = startOfDay(to > now ? now : to)
+  if (end < start) return []
+  const totalDays = differenceInCalendarDays(end, start) + 1
+  const perBar = totalDays <= 31 ? 1 : 7
+  const byDay = {}
+  sales.forEach(s => {
+    const d = toDate(s.created)
+    if (isNaN(d.getTime())) return
+    const key = format(d, 'yyyy-MM-dd')
+    const cur = byDay[key] || (byDay[key] = { revenue: 0, count: 0 })
+    cur.revenue += s.total_kes || 0
+    cur.count += 1
+  })
+  const bars = []
+  for (let i = 0; i < totalDays; i += perBar) {
+    let revenue = 0, count = 0
+    for (let j = i; j < Math.min(i + perBar, totalDays); j++) {
+      const cur = byDay[format(addDays(start, j), 'yyyy-MM-dd')]
+      if (cur) { revenue += cur.revenue; count += cur.count }
+    }
+    bars.push({ label: format(addDays(start, i), totalDays <= 7 ? 'EEE' : 'd MMM'), revenue, count })
+  }
+  return bars
+}
 
 // Turn a Kenyan phone number into the format wa.me needs (254712345678).
 // 0712345678, +254712345678, 254712345678 and 712345678 all work.
@@ -147,7 +185,7 @@ function DeadHoursMap({ hourData, shop, isLocked }) {
     <div className="card" style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 17, color: '#3d1020', margin: 0 }}>🕐 Shop Traffic by Hour</h3>
-        <span style={{ fontSize: 10, color: '#9b6070', background: '#fdf5f7', padding: '3px 8px', borderRadius: 20, border: '1px solid #f0e4e8' }}>All-time</span>
+        <span style={{ fontSize: 10, color: '#9b6070', background: '#fdf5f7', padding: '3px 8px', borderRadius: 20, border: '1px solid #f0e4e8' }}>Last 90 days</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(24,1fr)', gap: 2, marginBottom: 6 }}>
         {hourData.map(({ hour, count }) => {
@@ -1016,22 +1054,60 @@ export default function DashboardPage() {
   const [hasLifetimeSales, setHasLifetimeSales] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
 
-  useEffect(() => { if (shop) loadAll() }, [shop, period])
+  const loadSeq = useRef(0)
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
+  const [customDraft, setCustomDraft] = useState({ from: format(startOfMonth(new Date()), 'yyyy-MM-dd'), to: todayStr })
+  const [customRange, setCustomRange] = useState(null) // applied range: { from, to } as yyyy-MM-dd
+  const [showCustom, setShowCustom] = useState(false)
+
+  useEffect(() => {
+    if (!shop) return
+    if (period === 'custom' && !customRange) return
+    loadAll()
+  }, [shop, period, customRange])
 
   const getPeriodRange = () => {
     const now = new Date()
     if (period === 'today') return { from: startOfDay(now), to: endOfDay(now) }
+    if (period === 'custom') {
+      const a = parseDay(customRange?.from), b = parseDay(customRange?.to)
+      if (a && b) return { from: startOfDay(a), to: endOfDay(b) }
+    }
     if (period === 'month') return { from: startOfMonth(now), to: endOfMonth(now) }
     return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) }
+  }
+
+  // The comparison window always has the same length as the current one.
+  const getPrevRange = (from, to) => {
+    const now = new Date()
+    if (period === 'today') {
+      return { prevFrom: subDays(from, 1), prevTo: subDays(to, 1), prevLabel: 'yesterday' }
+    }
+    if (period === 'month') {
+      const days = differenceInCalendarDays(now, from) + 1 // days of this month so far
+      const prevFrom = startOfMonth(subMonths(from, 1))
+      const prevMonthEnd = endOfMonth(prevFrom)
+      let prevTo = endOfDay(addDays(prevFrom, days - 1))
+      if (prevTo > prevMonthEnd) prevTo = prevMonthEnd
+      const label = days === 1 ? format(prevFrom, 'd MMM') : format(prevFrom, 'd') + '\u2013' + format(prevTo, 'd MMM')
+      return { prevFrom, prevTo, prevLabel: label }
+    }
+    const days = differenceInCalendarDays(to, from) + 1
+    return {
+      prevFrom: startOfDay(subDays(from, days)),
+      prevTo: endOfDay(subDays(from, 1)),
+      prevLabel: period === '7d' ? 'previous 7 days' : 'previous ' + days + ' day' + (days === 1 ? '' : 's'),
+    }
   }
 
   const loadAll = async () => {
     setLoading(true)
     setLoadError(false)
+    const seq = ++loadSeq.current
     try {
       const { from, to } = getPeriodRange()
-      const prevFrom = subDays(from, period === 'today' ? 1 : 30)
-      const prevTo   = subDays(to,   period === 'today' ? 1 : 30)
+      // Comparison window: same length as the current period (see getPrevRange)
+      const { prevFrom, prevTo, prevLabel } = getPrevRange(from, to)
 
       const currentUserId = pb.authStore.model?.id
       const salesFilter = isCashier
@@ -1065,8 +1141,9 @@ export default function DashboardPage() {
       const prevRevenue   = prevSales.reduce((s, x) => s + (x.total_kes || 0), 0)
       const netProfit     = grossProfit - totalExpenses
       const lowStockProds = products.filter(p => p.stock_qty !== null && p.stock_qty <= (p.reorder_point || 5))
+      if (seq !== loadSeq.current) return // a newer load has started; drop this one
 
-      setStats({ revenue, grossProfit, totalExpenses, netProfit, salesCount: sales.length, prevRevenue, totalCustomers: customers.totalItems, lowStockCount: lowStockProds.length, avgOrderValue: sales.length ? revenue / sales.length : 0 })
+      setStats({ revenue, grossProfit, totalExpenses, netProfit, salesCount: sales.length, prevRevenue, prevLabel, totalCustomers: customers.totalItems, lowStockCount: lowStockProds.length, avgOrderValue: sales.length ? revenue / sales.length : 0 })
       setLowStock(lowStockProds.slice(0, 5))
       setRecentSales(recent.items)
 
@@ -1086,15 +1163,15 @@ export default function DashboardPage() {
         setBirthdayCustomers(upcoming)
       } catch { setBirthdayCustomers([]) }
 
-      // Dead Hours Map data (most recent 500 sales)
+      // Dead Hours Map data (all completed sales of the last 90 days)
       try {
-        const allSalesRes = await pb.collection(C.SALES).getList(1, 500, {
-          filter: `shop_id="${shop.id}" && status="completed"`,
+        const allSalesRes = await pb.collection(C.SALES).getFullList({
+          filter: `shop_id="${shop.id}" && status="completed" && created>="${toPbDate(new Date(Date.now() - 90 * 86400000))}"`,
           sort: '-created',
           '$autoCancel': false, '$cancelKey': 'dash-hours'
         })
         const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }))
-        allSalesRes.items.forEach(s => {
+        allSalesRes.forEach(s => {
           const hr = toDate(s.created).getHours()
           if (buckets[hr]) buckets[hr].count++
         })
@@ -1121,6 +1198,8 @@ export default function DashboardPage() {
         setHasLifetimeSales(lifetime.totalItems > 0)
       } catch { setHasLifetimeSales(false) }
 
+      if (seq !== loadSeq.current) return
+
       // Chart (built from each sale's real created time)
       if (period === 'today') {
         setSalesChart(Array.from({ length: 12 }, (_, i) => {
@@ -1130,12 +1209,7 @@ export default function DashboardPage() {
           return { label, revenue: ds.reduce((a,s) => a+s.total_kes, 0), count: ds.length }
         }))
       } else {
-        setSalesChart(Array.from({ length: 7 }, (_, i) => {
-          const d = subDays(new Date(), 6-i)
-          const label = format(d, 'EEE')
-          const ds = sales.filter(s => toDate(s.created).toDateString() === d.toDateString())
-          return { label, revenue: ds.reduce((a,s) => a+s.total_kes, 0), count: ds.length }
-        }))
+        setSalesChart(buildDailyChart(sales, from, to))
       }
 
       // Load AI memory and sales assistant in parallel (non-blocking)
@@ -1145,14 +1219,38 @@ export default function DashboardPage() {
       ])
 
     } catch (err) { console.error(err); setLoadError(true) }
-    finally { setLoading(false) }
+    finally { if (seq === loadSeq.current) setLoading(false) }
+  }
+
+  const customLabel = (() => {
+    const a = parseDay(customRange?.from), b = parseDay(customRange?.to)
+    return a && b ? format(a, 'd MMM yyyy') + ' to ' + format(b, 'd MMM yyyy') : 'custom range'
+  })()
+
+  const applyCustom = () => {
+    const a = parseDay(customDraft.from), b = parseDay(customDraft.to)
+    if (!a || !b) { toast.error('Pick both dates'); return }
+    if (a > b) { toast.error('The From date must be before the To date'); return }
+    if (differenceInCalendarDays(b, a) + 1 > MAX_CUSTOM_DAYS) { toast.error('Please choose a range of one year or less'); return }
+    setCustomRange({ from: customDraft.from, to: customDraft.to })
+    setPeriod('custom')
+  }
+
+  const selectPeriod = (p) => {
+    if (p === 'custom') {
+      if (!customRange) setCustomRange({ ...customDraft })
+      setShowCustom(true)
+    } else {
+      setShowCustom(false)
+    }
+    setPeriod(p)
   }
 
   const sendWhatsAppSummary = () => {
     const phone = toWaPhone(shop?.phone)
     if (!phone) { toast.error('Add your phone number in Settings first'); return }
     const s = stats || {}
-    const summaryTitle = period === 'today' ? 'Daily Summary' : period === '7d' ? 'Last 7 Days' : 'This Month'
+    const summaryTitle = period === 'today' ? 'Daily Summary' : period === '7d' ? 'Last 7 Days' : period === 'custom' ? customLabel : 'This Month'
     const msg = [
       `💅 *${shop.name}*`,
       `_${summaryTitle} — ${format(new Date(), 'dd MMM yyyy')}_`,
@@ -1187,7 +1285,7 @@ export default function DashboardPage() {
     { label: 'My Sales Today', value: stats.salesCount,       sub: 'Transactions you processed', icon: '🧾', cls: 'blue', trend: true },
     { label: 'My Revenue',     value: fmtKES(stats.revenue), sub: 'Your sales total',            icon: '💰', cls: 'rose', trend: stats.revenue > 0 },
   ] : [
-    { label: 'Revenue',      value: fmtKES(stats.revenue),     sub: `${pctChange(stats.revenue, stats.prevRevenue)}% vs prev`, icon: '💰', cls: 'rose', trend: stats.revenue >= stats.prevRevenue },
+    { label: 'Revenue',      value: fmtKES(stats.revenue),     sub: stats.prevRevenue > 0 ? `${pctChange(stats.revenue, stats.prevRevenue)}% vs ${stats.prevLabel}` : 'No earlier sales to compare', icon: '💰', cls: 'rose', trend: stats.revenue >= stats.prevRevenue },
     { label: 'Gross Profit', value: fmtKES(stats.grossProfit), sub: `Margin ${stats.revenue ? ((stats.grossProfit/stats.revenue)*100).toFixed(1) : 0}%`, icon: '📈', cls: 'gold', trend: stats.grossProfit > 0 },
     { label: 'Net Profit',   value: fmtKES(stats.netProfit),   sub: `After KES ${(stats.totalExpenses/1000).toFixed(1)}k expenses`, icon: '🎯', cls: stats.netProfit >= 0 ? 'green' : 'rose', trend: stats.netProfit >= 0 },
     { label: 'Transactions', value: stats.salesCount,          sub: `Avg ${fmtKES(stats.avgOrderValue)}`, icon: '🧾', cls: 'blue', trend: true },
@@ -1197,7 +1295,7 @@ export default function DashboardPage() {
     ? [{ key: 'overview', label: '📊 Overview' }, { key: 'account', label: '⚙️ Account' }]
     : [{ key: 'overview', label: '📊 Overview' }, { key: 'insights', label: '✨ Insights' }, { key: 'account', label: '⚙️ Account' }]
 
-  const periodName = period === 'today' ? 'today' : period === '7d' ? 'the last 7 days' : 'this month'
+  const periodName = period === 'today' ? 'today' : period === '7d' ? 'the last 7 days' : period === 'custom' ? customLabel : 'this month'
 
   return (
     <div>
@@ -1213,15 +1311,29 @@ export default function DashboardPage() {
               📲 WhatsApp Summary
             </button>
           )}
-          {['today','7d','month'].map(p => (
-            <button key={p} onClick={() => setPeriod(p)} aria-pressed={period === p} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: period === p ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: period === p ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', boxShadow: period === p ? '0 4px 14px #c8456a44' : '0 1px 4px #0001', fontFamily: 'Nunito,sans-serif', minHeight: 40 }}>
-              {p === 'today' ? 'Today' : p === '7d' ? '7 Days' : 'Month'}
+          {['today','7d','month','custom'].map(p => (
+            <button key={p} onClick={() => selectPeriod(p)} aria-pressed={period === p} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: period === p ? 'linear-gradient(135deg,#c8456a,#8b2550)' : '#fff', color: period === p ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', boxShadow: period === p ? '0 4px 14px #c8456a44' : '0 1px 4px #0001', fontFamily: 'Nunito,sans-serif', minHeight: 40 }}>
+              {p === 'today' ? 'Today' : p === '7d' ? '7 Days' : p === 'month' ? 'Month' : 'Custom'}
             </button>
           ))}
         </div>
       </div>
 
       {/* Always visible — time-critical, not tabbed */}
+      {showCustom && period === 'custom' && (
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, flexWrap: 'wrap', background: '#fff', border: '1px solid #f0e4e8', borderRadius: 12, padding: '12px 16px', marginBottom: 20 }}>
+          <div>
+            <label className="label" htmlFor="dash-from">From</label>
+            <input id="dash-from" className="input" type="date" max={customDraft.to || todayStr} value={customDraft.from} onChange={e => setCustomDraft(d => ({ ...d, from: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label" htmlFor="dash-to">To</label>
+            <input id="dash-to" className="input" type="date" min={customDraft.from || undefined} max={todayStr} value={customDraft.to} onChange={e => setCustomDraft(d => ({ ...d, to: e.target.value }))} />
+          </div>
+          <button onClick={applyCustom} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#c8456a,#8b2550)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', minHeight: 40 }}>Apply</button>
+          <div style={{ fontSize: 12, color: '#9b6070', paddingBottom: 10 }}>Showing {customLabel}</div>
+        </div>
+      )}
       <TomorrowsBanner shop={shop} onViewAppointments={() => { navigate('/app/appointments'); toast.success('Pre-filtered to tomorrow — hit Remind All!') }} />
       {showChecklist && shop && <OnboardingChecklist shop={shop} onDismiss={() => setShowChecklist(false)} />}
 
@@ -1280,7 +1392,7 @@ export default function DashboardPage() {
                     </div>
                     <div role="img" aria-label={`Bar chart of revenue for ${periodName}. Total revenue ${fmtKES(stats?.revenue || 0)} from ${stats?.salesCount || 0} sales.`}>
                       <ResponsiveContainer width="100%" height={200}>
-                        <BarChart data={salesChart} barSize={28}>
+                        <BarChart data={salesChart} barSize={salesChart.length > 12 ? undefined : 28}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f0e4e8" vertical={false} />
                           <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} />
                           <YAxis tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
