@@ -122,6 +122,8 @@ export function generateInsight({ stats, hourData, shop, period, memory }) {
   }
 
   const candidates = []
+  // Name of the period we compare against (e.g. 'yesterday', '1-8 Oct'); older callers fall back to yesterday
+  const cmp = stats?.prevLabel || 'yesterday'
 
   // ── ZERO SALES (highest urgency) ────────────────────────────────
   if (stats?.salesCount === 0 && !wasRecentlyShown('zero_sales')) {
@@ -148,8 +150,8 @@ export function generateInsight({ stats, hourData, shop, period, memory }) {
         emoji: '🚀',
         title: 'Strong growth day',
         body: baseline && baseline.avgRevenue > 0
-          ? `Revenue is up ${pct.toFixed(0)}% vs yesterday and ${((stats.revenue / baseline.avgRevenue - 1) * 100).toFixed(0)}% above your 30-day average. Your best performers are driving this — stock up before the week peaks.`
-          : `Revenue is up ${pct.toFixed(0)}% vs yesterday. Your top performers are driving it — consider stocking up before the week peaks.`,
+          ? `Revenue is up ${pct.toFixed(0)}% vs ${cmp} and ${((stats.revenue / baseline.avgRevenue - 1) * 100).toFixed(0)}% above your 30-day average. Your best performers are driving this — stock up before the week peaks.`
+          : `Revenue is up ${pct.toFixed(0)}% vs ${cmp}. Your top performers are driving it — consider stocking up before the week peaks.`,
         type: 'positive',
       })
     } else if (pct <= -25) {
@@ -158,7 +160,7 @@ export function generateInsight({ stats, hourData, shop, period, memory }) {
         type_key: 'revenue_trend',
         emoji: '⚠️',
         title: 'Slow day alert',
-        body: `Revenue is down ${Math.abs(pct).toFixed(0)}% vs yesterday. A quick WhatsApp flash deal to your top 5 customers could recover KES ${Math.round(Math.abs(stats.prevRevenue - stats.revenue)).toLocaleString('en-KE')}.`,
+        body: `Revenue is down ${Math.abs(pct).toFixed(0)}% vs ${cmp}. A quick WhatsApp flash deal to your top 5 customers could recover KES ${Math.round(Math.abs(stats.prevRevenue - stats.revenue)).toLocaleString('en-KE')}.`,
         type: 'warning',
       })
     }
@@ -360,7 +362,7 @@ export async function loadSalesAssistant(shopId, shop) {
 
 // ─── DAILY SHARE CARD DATA ───────────────────────────────────────
 export function buildShareCardData({ stats, shop, period }) {
-  const periodLabel = period === 'today' ? 'Today' : period === '7d' ? 'Last 7 Days' : 'This Month'
+  const periodLabel = period === 'today' ? 'Today' : period === '7d' ? 'Last 7 Days' : period === 'custom' ? 'Custom Range' : 'This Month'
   const margin = stats?.revenue > 0 ? ((stats.grossProfit / stats.revenue) * 100).toFixed(0) : '0'
   return {
     shopName: shop?.name || 'My Shop',
