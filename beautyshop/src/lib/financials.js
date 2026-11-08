@@ -73,7 +73,7 @@ export async function buildTrialBalance(shop, asOfDate) {
 
   // ── ASSETS ───────────────────────────────────────────────────────────
   const cashSales = salesToDate.filter(s =>
-    ['cash', 'mpesa', 'visa_mc'].includes(s.payment_method) &&
+    ['cash', 'mpesa', 'visa_mc', 'mixed'].includes(s.payment_method) && // SPLIT-FIX-2026-11-08: Split (mixed) sales are money received
     (s.payment_status === 'paid' || !s.payment_status)
   )
   const paySaleIds = new Set(allPayments.map(p => p.sale_id))
@@ -184,7 +184,7 @@ export async function buildCashFlow(shop, dateFrom, dateTo) {
   const paySaleIds = new Set(allPayments.map(p => p.sale_id))
   const saleById = {}; allSales.forEach(s => { saleById[s.id] = s })
   const payRows = allPayments.filter(p => { const d = payDate(p); return saleById[p.sale_id] && d && d >= dateFrom && d <= dateTo })
-  const cashInSales = sales.filter(s => ['cash', 'mpesa', 'visa_mc'].includes(s.payment_method) && !paySaleIds.has(s.id))
+  const cashInSales = sales.filter(s => ['cash', 'mpesa', 'visa_mc', 'mixed'].includes(s.payment_method) && !paySaleIds.has(s.id))
   const cashInTxSource = [...cashInSales, ...payRows.map(p => ({ receipt_no: saleById[p.sale_id].receipt_no, payment_method: p.method, total_kes: p.amount_kes, customer_id: saleById[p.sale_id].customer_id, _payDate: payDate(p) }))]
   const totalInflows = cashInSales.reduce((s, x) => s + (x.total_kes || 0), 0) + payRows.reduce((s, p) => s + (p.amount_kes || 0), 0)
   const totalOutflows = expenses.reduce((s, e) => s + (e.amount_kes || 0), 0)
