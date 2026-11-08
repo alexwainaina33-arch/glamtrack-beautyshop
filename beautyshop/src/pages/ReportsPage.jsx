@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDate, r2 } from '../lib/utils'
@@ -122,8 +122,8 @@ export default function ReportsPage() {
   const loadPL = async () => {
     setPlLoad(true)
     try {
-      const [salesAll, expenses, expCats] = await Promise.all([
-        pb.collection(C.SALES).getList(1, 500, { filter: `shop_id="${shop.id}" && status="completed"`, '$autoCancel': false, '$cancelKey': 'pl-sales' }).then(r => r.items.filter(x => { const d = rDate(x); return d && d >= plFrom && d <= plTo })),
+      let allCompleted = []; const [salesAll, expenses, expCats] = await Promise.all([
+        pb.collection(C.SALES).getFullList({ filter: `shop_id="${shop.id}" && status="completed"`, '$autoCancel': false, '$cancelKey': 'pl-sales' }).then(all => { allCompleted = all; return { items: all } }).then(r => r.items.filter(x => { const d = rDate(x); return d && d >= plFrom && d <= plTo })),
         pb.collection(C.EXPENSES).getList(1, 500, { filter: `shop_id="${shop.id}"`, expand: 'category_id', '$autoCancel': false, '$cancelKey': 'pl-exp' }).then(r => r.items.filter(e => { const d = e.expense_date?.slice(0,10); return d && d >= plFrom && d <= plTo })),
         pb.collection(C.EXPENSE_CATS).getList(1, 200, { filter: `shop_id="${shop.id}"`, '$autoCancel': false, '$cancelKey': 'pl-expcats' }).then(r => r.items),
       ])
@@ -160,7 +160,7 @@ export default function ReportsPage() {
         const mKey = format(month,'yyyy-MM')
         const mF = format(startOfMonth(month),'yyyy-MM-dd')
         const mT = format(endOfMonth(month),'yyyy-MM-dd')
-        const mS = await pb.collection(C.SALES).getList(1,500,{ filter:`shop_id="${shop.id}" && status="completed"`, '$autoCancel':false, '$cancelKey':`pl-trend-${mKey}` }).then(r=>r.items.filter(x=>{const d=rDate(x);return d&&d>=mF&&d<=mT}))
+        const mS = allCompleted.filter(x=>{const d=rDate(x);return d&&d>=mF&&d<=mT})
         const mE = await pb.collection(C.EXPENSES).getList(1,500,{ filter:`shop_id="${shop.id}"`, '$autoCancel':false, '$cancelKey':`pl-texp-${mKey}` }).then(r=>r.items.filter(e=>{const d=e.expense_date?.slice(0,10);return d&&d>=mF&&d<=mT}))
         const rev=mS.reduce((s,x)=>s+x.total_kes,0)
         const cost=mS.reduce((s,x)=>s+(x.total_cost_kes||0),0)
@@ -333,10 +333,10 @@ export default function ReportsPage() {
     setSrLoad(true)
     try {
       const [salesAll, saleItems] = await Promise.all([
-        pb.collection(C.SALES).getList(1,500,{ filter:`shop_id="${shop.id}" && status="completed"`, '$autoCancel':false, '$cancelKey':'sr-sales' }).then(r=>r.items.filter(x=>{const d=rDate(x);return d&&d>=srFrom&&d<=srTo})),
-        pb.collection(C.SALE_ITEMS).getList(1,500,{ filter:`sale_id.shop_id="${shop.id}"`, expand:'product_id', '$autoCancel':false, '$cancelKey':'sr-items' }).then(r=>r.items),
+        pb.collection(C.SALES).getFullList({ filter:`shop_id="${shop.id}" && status="completed"`, '$autoCancel':false, '$cancelKey':'sr-sales' }).then(r=>r.filter(x=>{const d=rDate(x);return d&&d>=srFrom&&d<=srTo})),
+        pb.collection(C.SALE_ITEMS).getFullList({ filter:`sale_id.shop_id="${shop.id}"`, expand:'product_id', '$autoCancel':false, '$cancelKey':'sr-items' }),
       ])
-      const salesByDay = {}
+      const salesByDay = {}; const saleIds = new Set(salesAll.map(s => s.id))
       salesAll.forEach(s => {
         const mm=s.receipt_no?.match(/-(\d{6})-/)
         if(!mm) return
@@ -346,7 +346,7 @@ export default function ReportsPage() {
       })
       const salesChart=Object.entries(salesByDay).map(([label,revenue])=>({label,revenue})).slice(-30)
       const prodSales={}
-      saleItems.forEach(item=>{
+      saleItems.filter(it=>saleIds.has(it.sale_id)).forEach(item=>{
         const name=item.product_name||item.expand?.product_id?.name||item.product_id
         if(!prodSales[name]) prodSales[name]={revenue:0,qty:0,profit:0}
         prodSales[name].revenue+=item.total_kes
