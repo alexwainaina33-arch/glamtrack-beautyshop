@@ -1,4 +1,5 @@
 // Enhanced POS: Loyalty, Hold/Resume, Quick-add Customer, Split Payment
+// POS-FIX-2026-11-08: Pay Later validates quantities and ignores loyalty redeem; Split M-Pesa amount capped at total
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C, PB_URL } from '../lib/pb'
@@ -476,13 +477,37 @@ export default function POSPage() {
   const mpesaAmt        = paymentMethod === 'mixed' ? (Number(mpesaAmount) || 0) : 0
   const cashAmt         = paymentMethod === 'mixed' ? Math.max(0, total - mpesaAmt) : 0
   const change          = paymentMethod === 'cash' && cashTendered ? Math.max(0, Number(cashTendered) - total) : 0
+  // Split payment: the M-Pesa part can never be negative or larger than the total
+  const mpesaTooHigh    = paymentMethod === 'mixed' && Math.round(mpesaAmt * 100) > Math.round(total * 100)
+  const mpesaNegative   = paymentMethod === 'mixed' && mpesaAmt < 0
+
+  // Credit (Pay Later) sales never apply loyalty points: no points are deducted for them,
+  // so the credit total is calculated WITHOUT the loyalty discount.
+  const creditAfterDiscount = Math.max(0, subtotal - discountAmt)
+  const creditTax           = shop?.tax_rate ? creditAfterDiscount * (shop.tax_rate / 100) : 0
+  const creditTotal         = creditAfterDiscount + creditTax
+  const creditProfit        = creditTotal - totalCost
+  const loyaltyIgnoredForCredit = redeemPoints && loyaltyDiscount > 0
 
   const payLater = async () => {
     if (isLocked) return toast.error('🔒 Account locked — renew your subscription to record sales', { duration: 6000 })
     if (processing) return
     if (!cart.length) return toast.error('Cart is empty')
     if (!customer) return toast.error('Select a customer first — credit requires a name')
-    if (!confirm(`Record KES ${total.toLocaleString('en-KE', { minimumFractionDigits: 2 })} as credit for ${customer.name}?`)) return
+
+    const invalidCreditQtyItem = cart.find(item =>
+      item.qty === '' ||
+      !Number.isFinite(Number(item.qty)) ||
+      Number(item.qty) <= 0
+    )
+    if (invalidCreditQtyItem) {
+      return toast.error(`Enter a valid quantity for ${invalidCreditQtyItem.name}`)
+    }
+
+    const creditConfirmText =
+      `Record KES ${creditTotal.toLocaleString('en-KE', { minimumFractionDigits: 2 })} as credit for ${customer.name}?` +
+      (loyaltyIgnoredForCredit ? '\n\nNote: loyalty points are not applied to credit sales, so this is recorded at full price.' : '')
+    if (!confirm(creditConfirmText)) return
     setProcessing(true)
     try {
       const receiptNo = generateReceiptNo(shop.slug)
@@ -490,10 +515,10 @@ export default function POSPage() {
         shop_id: shop.id, receipt_no: receiptNo,
         customer_id: customer.id,
         subtotal_kes: subtotal, discount_kes: discountAmt,
-        tax_amount_kes: tax, total_kes: total,
+        tax_amount_kes: creditTax, total_kes: creditTotal,
         payment_method: 'credit', payment_status: 'pending',
         status: 'completed',
-        total_cost_kes: totalCost, gross_profit_kes: grossProfit,
+        total_cost_kes: totalCost, gross_profit_kes: creditProfit,
         served_by: admin?.id, etims_status: 'pending',
         notes: `CREDIT — awaiting payment`,
         share_token: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -524,7 +549,7 @@ export default function POSPage() {
         visit_count: (customer.visit_count || 0) + 1,
       })
       clearCart(); loadData()
-      toast.success(`💳 Credit recorded for ${customer.name} — KES ${total.toLocaleString('en-KE', { minimumFractionDigits: 2 })}`, { duration: 5000 })
+      toast.success(`💳 Credit recorded for ${customer.name} — KES ${creditTotal.toLocaleString('en-KE', { minimumFractionDigits: 2 })}`, { duration: 5000 })
     } catch (err) { toast.error('Failed: ' + (err?.message || 'Unknown')) }
     finally { setProcessing(false) }
   }
@@ -543,6 +568,10 @@ export default function POSPage() {
     if (invalidQtyItem) {
       return toast.error(`Enter a valid quantity for ${invalidQtyItem.name}`)
     }
+
+    // Split payment: the M-Pesa part must be between 0 and the total
+    if (mpesaNegative) return toast.error('M-Pesa amount cannot be negative')
+    if (mpesaTooHigh) return toast.error(`M-Pesa amount cannot be more than the total (${fmtKES(total)})`)
 
     // OFFLINE MODE — queue locally
     if (!isOnline) {
@@ -986,8 +1015,10 @@ export default function POSPage() {
             )}
             {paymentMethod === 'mixed' && (
               <div style={{ marginBottom: 5 }}>
-                <input className="input" type="number" placeholder="M-Pesa amount (KES)" aria-label="M-Pesa amount in KES" value={mpesaAmount} onChange={e => setMpesaAmount(e.target.value)} style={{ marginBottom: 4, fontSize: 12 }} />
-                {mpesaAmount && Number(mpesaAmount) < total && <div style={{ background: '#f0f9ff', color: '#0369a1', borderRadius: 8, padding: '5px 11px', fontSize: 12, fontWeight: 700 }}>💵 Cash balance: {fmtKES(cashAmt)}</div>}
+                <input className="input" type="number" min="0" placeholder="M-Pesa amount (KES)" aria-label="M-Pesa amount in KES" value={mpesaAmount} onChange={e => setMpesaAmount(e.target.value)} style={{ marginBottom: 4, fontSize: 12 }} />
+                {mpesaAmount && !mpesaTooHigh && !mpesaNegative && Number(mpesaAmount) < total && <div style={{ background: '#f0f9ff', color: '#0369a1', borderRadius: 8, padding: '5px 11px', fontSize: 12, fontWeight: 700 }}>💵 Cash balance: {fmtKES(cashAmt)}</div>}
+                {mpesaTooHigh && <div role="alert" style={{ background: '#fef2f2', color: '#b91c1c', borderRadius: 8, padding: '5px 11px', fontSize: 12, fontWeight: 700 }}>⚠️ M-Pesa amount is more than the total ({fmtKES(total)})</div>}
+                {mpesaNegative && <div role="alert" style={{ background: '#fef2f2', color: '#b91c1c', borderRadius: 8, padding: '5px 11px', fontSize: 12, fontWeight: 700 }}>⚠️ M-Pesa amount cannot be negative</div>}
               </div>
             )}
             <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: 14, borderRadius: 12 }} onClick={() => setShowPaymentConfirm(true)} disabled={processing || !cart.length || isLocked}>
@@ -997,6 +1028,11 @@ export default function POSPage() {
               style={{ width: '100%', marginTop: 6, padding: '9px', borderRadius: 12, border: '2px solid #f59e0b', background: !cart.length || !customer || isLocked ? '#f5edf0' : '#fffbeb', color: !cart.length || !customer || isLocked ? '#9b6070' : '#b45309', fontWeight: 700, fontSize: 13, cursor: !cart.length || !customer || isLocked ? 'not-allowed' : 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               💳 Pay Later {!customer && cart.length > 0 && !isLocked ? '(select customer first)' : ''}
             </button>
+            {loyaltyIgnoredForCredit && (
+              <div style={{ marginTop: 5, fontSize: 11, color: '#b45309', textAlign: 'center' }}>
+                Pay Later is recorded at full price: {fmtKES(creditTotal)} (loyalty points are not applied to credit sales).
+              </div>
+            )}
           </div>
         </div>
       </div>
