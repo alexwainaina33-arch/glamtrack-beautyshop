@@ -11,6 +11,13 @@ import pb, { C } from './pb'
 
 // Receipt-no date parser (same pattern used everywhere in ReportsPage)
 // receipt_no format contains -YYMMDD- → returns 'YYYY-MM-DD' or null
+async function loadPayments(shop) {
+  try {
+    return await pb.collection('bs_payments').getFullList({ filter: `shop_id="${shop.id}"`, '$autoCancel': false })
+  } catch (e) { console.error('payments load failed', e); return [] }
+}
+function payDate(p) { return String(p.paid_on || p.created || '').slice(0, 10) }
+
 function receiptDate(sale) {
   const m = sale?.receipt_no?.match(/-(\d{6})-/)
   if (!m) return null
@@ -31,6 +38,7 @@ function receiptDate(sale) {
 export async function buildTrialBalance(shop, asOfDate) {
   if (!shop?.id) throw new Error('buildTrialBalance: shop is required')
 
+  const allPayments = await loadPayments(shop)
   const [allSales, allExpenses, products, openDeposits, payableMovements] = await Promise.all([
     pb.collection(C.SALES).getFullList({
       filter: `shop_id="${shop.id}" && status="completed"`,
@@ -68,12 +76,21 @@ export async function buildTrialBalance(shop, asOfDate) {
     ['cash', 'mpesa', 'visa_mc'].includes(s.payment_method) &&
     (s.payment_status === 'paid' || !s.payment_status)
   )
-  const cash = cashSales.reduce((s, x) => s + (x.total_kes || 0), 0)
+  const paySaleIds = new Set(allPayments.map(p => p.sale_id))
+  const paidToDate = {}
+  allPayments.forEach(p => { const d = payDate(p); if (d && d <= asOfDate) paidToDate[p.sale_id] = (paidToDate[p.sale_id] || 0) + (p.amount_kes || 0) })
+  const paidOn = (x) => Math.min(x.total_kes || 0, paidToDate[x.id] || 0)
+  const cash = cashSales.filter(s => !paySaleIds.has(s.id)).reduce((s, x) => s + (x.total_kes || 0), 0)
+    + salesToDate.filter(s => paySaleIds.has(s.id)).reduce((s, x) => s + paidOn(x), 0)
 
   const arSales = salesToDate.filter(s =>
     s.payment_status === 'pending' || s.payment_status === 'partial' || s.payment_method === 'credit'
   )
-  const accountsReceivable = arSales.reduce((s, x) => s + (x.total_kes || 0), 0)
+  const accountsReceivable = salesToDate.reduce((s, x) => {
+    if (paySaleIds.has(x.id)) return s + Math.max(0, (x.total_kes || 0) - paidOn(x))
+    const isAr = x.payment_status === 'pending' || x.payment_status === 'partial' || x.payment_method === 'credit'
+    return s + (isAr ? (x.total_kes || 0) : 0)
+  }, 0)
 
   // Stock is always a CURRENT snapshot (PocketBase doesn't store historical
   // stock levels) — this is the one line item that isn't truly "as at
@@ -144,6 +161,7 @@ export async function buildTrialBalance(shop, asOfDate) {
 export async function buildCashFlow(shop, dateFrom, dateTo) {
   if (!shop?.id) throw new Error('buildCashFlow: shop is required')
 
+  const allPayments = await loadPayments(shop)
   const [allSales, allExpenses, expCats] = await Promise.all([
     pb.collection(C.SALES).getFullList({
       filter: `shop_id="${shop.id}" && status="completed"`,
@@ -163,18 +181,23 @@ export async function buildCashFlow(shop, dateFrom, dateTo) {
   const sales = allSales.filter(s => { const d = receiptDate(s); return d && d >= dateFrom && d <= dateTo })
   const expenses = allExpenses.filter(e => { const d = e.expense_date?.slice(0, 10); return d && d >= dateFrom && d <= dateTo })
 
-  const cashInSales = sales.filter(s => ['cash', 'mpesa', 'visa_mc'].includes(s.payment_method))
-  const totalInflows = cashInSales.reduce((s, x) => s + (x.total_kes || 0), 0)
+  const paySaleIds = new Set(allPayments.map(p => p.sale_id))
+  const saleById = {}; allSales.forEach(s => { saleById[s.id] = s })
+  const payRows = allPayments.filter(p => { const d = payDate(p); return saleById[p.sale_id] && d && d >= dateFrom && d <= dateTo })
+  const cashInSales = sales.filter(s => ['cash', 'mpesa', 'visa_mc'].includes(s.payment_method) && !paySaleIds.has(s.id))
+  const cashInTxSource = [...cashInSales, ...payRows.map(p => ({ receipt_no: saleById[p.sale_id].receipt_no, payment_method: p.method, total_kes: p.amount_kes, customer_id: saleById[p.sale_id].customer_id, _payDate: payDate(p) }))]
+  const totalInflows = cashInSales.reduce((s, x) => s + (x.total_kes || 0), 0) + payRows.reduce((s, p) => s + (p.amount_kes || 0), 0)
   const totalOutflows = expenses.reduce((s, e) => s + (e.amount_kes || 0), 0)
   const netCashFlow = totalInflows - totalOutflows
 
   // Detailed per-method inflow rows (for the export the user said was too shallow)
   const inflowByMethod = {}
+  payRows.forEach(p => { inflowByMethod[p.method] = (inflowByMethod[p.method] || 0) + (p.amount_kes || 0) })
   cashInSales.forEach(s => {
     inflowByMethod[s.payment_method] = (inflowByMethod[s.payment_method] || 0) + (s.total_kes || 0)
   })
   const inflowRows = Object.entries(inflowByMethod).map(([method, total]) => ({
-    method, total, count: cashInSales.filter(s => s.payment_method === method).length,
+    method, total, count: cashInSales.filter(s => s.payment_method === method).length + payRows.filter(p => p.method === method).length,
   })).sort((a, b) => b.total - a.total)
 
   // Detailed per-category outflow rows
@@ -195,11 +218,11 @@ export async function buildCashFlow(shop, dateFrom, dateTo) {
     dateFrom, dateTo,
     totalInflows, totalOutflows, netCashFlow,
     inflowRows, outflowByCat,
-    cashSalesCount: cashInSales.length,
-    creditSalesTotal: sales.filter(s => s.payment_method === 'credit' || s.payment_status === 'pending').reduce((s, x) => s + (x.total_kes || 0), 0),
+    cashSalesCount: cashInSales.length + payRows.length,
+    creditSalesTotal: sales.filter(s => s.payment_method === 'credit' || s.payment_status === 'pending').reduce((s, x) => s + Math.max(0, (x.total_kes || 0) - allPayments.filter(p => p.sale_id === x.id).reduce((a, p) => a + (p.amount_kes || 0), 0)), 0),
     // Raw line-level detail for a genuinely deep CSV export
-    inflowTransactions: cashInSales.map(s => ({
-      date: receiptDate(s), receipt_no: s.receipt_no, method: s.payment_method,
+    inflowTransactions: cashInTxSource.map(s => ({
+      date: s._payDate || receiptDate(s), receipt_no: s.receipt_no, method: s.payment_method,
       amount: s.total_kes, customer: s.customer_id || 'Walk-in',
     })),
     outflowTransactions: expenses.map(e => ({
