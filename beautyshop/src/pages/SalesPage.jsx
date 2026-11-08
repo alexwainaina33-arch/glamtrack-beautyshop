@@ -111,6 +111,7 @@ export default function SalesPage() {
   }
 
   const markPaid = async (sale) => {
+    if (isCashier) return // the bs_sales update rule only allows owner/manager
     const due = balanceOf(sale)
     if (!confirm(`Mark ${sale.receipt_no} as paid? This records ${fmtKES(due)} received in cash.`)) return
     try {
@@ -393,7 +394,7 @@ export default function SalesPage() {
                         <button className="btn-ghost" style={{ padding: '5px 10px' }} aria-label="View receipt" title="View receipt" onClick={() => viewSale(sale)}><Eye size={14} /></button>
                         {sale.payment_status === 'pending' && (
                           <>
-                            <button onClick={() => markPaid(sale)} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0fdf4', color: '#059669', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>✅ Paid</button>
+                            {!isCashier && <button onClick={() => markPaid(sale)} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0fdf4', color: '#059669', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>✅ Paid</button>}
                             <button onClick={() => sendWhatsAppReminder(sale)} aria-label="Send WhatsApp reminder" title="Send WhatsApp reminder" style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0fdf4', color: '#25D366', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>📲</button>
                           </>
                         )}
