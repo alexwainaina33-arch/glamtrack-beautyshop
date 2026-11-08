@@ -13,8 +13,8 @@ import toast from 'react-hot-toast'
 const TABS = ['P&L Statement', 'Balance Sheet', 'Cash Flow', 'Sales Report', 'Expense Report', 'Stock Valuation', '🏦 Lender Pack']
 
 // ── Shared period picker component ─────────────────────────────────────────
-function PeriodPicker({ dateFrom, dateTo, setDateFrom, setDateTo, style }) {
-  const [period, setPeriod] = useState('month')
+function PeriodPicker({ dateFrom, dateTo, setDateFrom, setDateTo, style, initial = 'month' }) {
+  const [period, setPeriod] = useState(initial); useEffect(() => { apply(initial) }, [])
   const apply = (v) => {
     setPeriod(v)
     if (v === 'month') {
@@ -104,6 +104,16 @@ export default function ReportsPage() {
   useEffect(() => { if (shop && tab === 6 && !lenderData) loadLenderData() }, [shop, tab])
 
   // ── exportCSV helper ───────────────────────────────────────────────────
+  const loadPayMap = async () => {
+    try {
+      const rows = await pb.collection('bs_payments').getFullList({ filter: `shop_id="${shop.id}"`, '$autoCancel': false })
+      const m = {}
+      rows.forEach(p => { m[p.sale_id] = (m[p.sale_id] || 0) + (p.amount_kes || 0) })
+      return m
+    } catch (e) { console.error('payments load failed', e); return {} }
+  }
+  const owed = (s, m) => Math.max(0, (s.total_kes || 0) - ((m && m[s.id]) || 0))
+
   const exportCSV = (rows, filename) => {
     if (!rows?.length) return toast.error('No data to export')
     const headers = Object.keys(rows[0])
@@ -122,7 +132,7 @@ export default function ReportsPage() {
   const loadPL = async () => {
     setPlLoad(true)
     try {
-      let allCompleted = []; const [salesAll, expenses, expCats] = await Promise.all([
+      let allCompleted = []; const payMap = await loadPayMap(); const [salesAll, expenses, expCats] = await Promise.all([
         pb.collection(C.SALES).getFullList({ filter: `shop_id="${shop.id}" && status="completed"`, '$autoCancel': false, '$cancelKey': 'pl-sales' }).then(all => { allCompleted = all; return { items: all } }).then(r => r.items.filter(x => { const d = rDate(x); return d && d >= plFrom && d <= plTo })),
         pb.collection(C.EXPENSES).getList(1, 500, { filter: `shop_id="${shop.id}"`, expand: 'category_id', '$autoCancel': false, '$cancelKey': 'pl-exp' }).then(r => r.items.filter(e => { const d = e.expense_date?.slice(0,10); return d && d >= plFrom && d <= plTo })),
         pb.collection(C.EXPENSE_CATS).getList(1, 200, { filter: `shop_id="${shop.id}"`, '$autoCancel': false, '$cancelKey': 'pl-expcats' }).then(r => r.items),
@@ -176,7 +186,7 @@ export default function ReportsPage() {
         returningCount: Object.keys(customerSales).length,
         walkInCount: salesAll.filter(s=>!s.customer_id).length,
         avgCustomerValue: Object.keys(customerSales).length ? Object.values(customerSales).reduce((s,c)=>s+c.total,0)/Object.keys(customerSales).length : 0,
-        creditOutstanding: salesAll.filter(s=>s.payment_status==='pending').reduce((s,x)=>s+x.total_kes,0),
+        creditOutstanding: salesAll.filter(s=>s.payment_status==='pending').reduce((s,x)=>s+owed(x,payMap),0),
       })
     } catch(err) { console.error(err); toast.error('Failed to load P&L') }
     finally { setPlLoad(false) }
@@ -332,7 +342,7 @@ export default function ReportsPage() {
   const loadSR = async () => {
     setSrLoad(true)
     try {
-      const [salesAll, saleItems] = await Promise.all([
+      const payMap = await loadPayMap(); const [salesAll, saleItems] = await Promise.all([
         pb.collection(C.SALES).getFullList({ filter:`shop_id="${shop.id}" && status="completed"`, '$autoCancel':false, '$cancelKey':'sr-sales' }).then(r=>r.filter(x=>{const d=rDate(x);return d&&d>=srFrom&&d<=srTo})),
         pb.collection(C.SALE_ITEMS).getFullList({ filter:`sale_id.shop_id="${shop.id}"`, expand:'product_id', '$autoCancel':false, '$cancelKey':'sr-items' }),
       ])
@@ -373,7 +383,7 @@ export default function ReportsPage() {
         returningCount:Object.keys(customerSales).length,
         walkInCount:salesAll.filter(s=>!s.customer_id).length,
         avgCustomerValue:Object.keys(customerSales).length?Object.values(customerSales).reduce((s,c)=>s+c.total,0)/Object.keys(customerSales).length:0,
-        creditOutstanding:salesAll.filter(s=>s.payment_status==='pending').reduce((s,x)=>s+x.total_kes,0),
+        creditOutstanding:salesAll.filter(s=>s.payment_status==='pending').reduce((s,x)=>s+owed(x,payMap),0),
       })
     } catch(err){console.error(err);toast.error('Failed to load Sales Report')}
     finally{setSrLoad(false)}
@@ -420,17 +430,17 @@ export default function ReportsPage() {
         filter: `shop_id="${shop.id}" && status="completed"`,
         '$autoCancel': false, '$cancelKey': 'lender-lifetime',
       })
-      const shopCreated = shop.created ? new Date(shop.created) : new Date()
+      const lenderPay = await loadPayMap(); const shopCreated = shop.created ? new Date(shop.created) : new Date()
       const monthsActive = Math.max(1, Math.round((new Date() - shopCreated) / (1000*60*60*24*30.44)))
       const lifetimeRevenue = lifetimeSales.reduce((s,x) => s+(x.total_kes||0), 0)
       const avgMonthlyRevenue = lifetimeRevenue / monthsActive
-      const pendingSales = lifetimeSales.filter(s => s.payment_status==='pending'||s.payment_status==='partial')
+      const pendingSales = lifetimeSales.filter(s => s.payment_status==='pending'||s.payment_status==='partial').filter(s => owed(s,lenderPay)>0)
       const today = new Date()
       const arBuckets = { current:{count:0,total:0}, d30:{count:0,total:0}, d60:{count:0,total:0}, d90:{count:0,total:0} }
       pendingSales.forEach(s => {
         const d=rDate(s); if(!d) return
         const age=Math.floor((today-new Date(d))/86400000)
-        const amt=s.total_kes||0
+        const amt=owed(s,lenderPay)
         if(age<=30){arBuckets.current.count++;arBuckets.current.total+=amt}
         else if(age<=60){arBuckets.d30.count++;arBuckets.d30.total+=amt}
         else if(age<=90){arBuckets.d60.count++;arBuckets.d60.total+=amt}
@@ -562,6 +572,7 @@ export default function ReportsPage() {
                 <PLSection title="OPERATING EXPENSES" color="#dc2626" style={{ marginTop:12 }}>
                   {plData.expByCat.map((cat,i) => <PLRow key={i} label={cat.name} value={cat.total} negative indent/>)}
                   <PLRow label="Total Expenses" value={plData.totalExpenses} negative bold border/>
+                  {plData.totalExpenses===0 && <div style={{ fontSize:11, color:'#92400e', background:'#fef3c7', borderRadius:8, padding:'6px 10px', marginTop:6 }}>No expenses recorded for this period, so Net Profit equals Gross Profit. Record rent, wages and other costs under Expenses to see your true profit.</div>}
                 </PLSection>
                 <div style={{ height:8 }}/>
                 <PLRow label="NET PROFIT / (LOSS)" value={plData.netProfit} bold big border sub={`Net Margin: ${plData.netMargin.toFixed(1)}%`} color={plData.netProfit>=0?'#059669':'#dc2626'}/>
@@ -615,7 +626,7 @@ export default function ReportsPage() {
                     {plData.payBreakdown.map((pm,i) => (
                       <div key={i} style={{ marginBottom:10 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:3 }}>
-                          <span style={{ fontWeight:600 }}>{pm.method==='cash'?'💵 Cash':pm.method==='mpesa'?'📱 M-Pesa':pm.method==='credit'?'💳 Credit':pm.method==='mixed'?'🔀 Split':pm.method}</span>
+                          <span style={{ fontWeight:600 }}>{pm.method==='cash'?'💵 Cash':pm.method==='mpesa'?'📱 M-Pesa':pm.method==='credit'?'💳 Credit':pm.method==='mixed'?'🔀 Split':pm.method==='visa_mc'?'Card':pm.method}</span>
                           <span style={{ color:'#c8456a', fontWeight:700 }}>{fmtKES(pm.total)}</span>
                         </div>
                         <div style={{ background:'#f5edf0', borderRadius:4, height:6 }}>
@@ -811,7 +822,7 @@ export default function ReportsPage() {
       {tab === 2 && (
         <div>
           <div className="card" style={{ marginBottom:20 }}>
-            <PeriodPicker dateFrom={cfFrom} dateTo={cfTo} setDateFrom={setCfFrom} setDateTo={setCfTo}/>
+            <PeriodPicker dateFrom={cfFrom} dateTo={cfTo} setDateFrom={setCfFrom} setDateTo={setCfTo} initial="last6"/>
           </div>
           {cfLoad ? <Spinner/> : cfData ? (
             <div>
@@ -959,8 +970,8 @@ export default function ReportsPage() {
                       <YAxis tick={{ fontSize:10, fill:'#9b6070' }} axisLine={false} tickLine={false} tickFormatter={v=>`${(v/1000).toFixed(0)}k`}/>
                       <Tooltip formatter={v=>fmtKES(v)} contentStyle={{ borderRadius:10, fontFamily:'Nunito,sans-serif', fontSize:12 }}/>
                       <Bar dataKey="revenue" radius={[4,4,0,0]} name="Revenue">
-                        <defs><linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#c8456a"/><stop offset="100%" stopColor="#8b2550"/></linearGradient></defs>
-                        {srData.salesChart.map((_,i)=><Cell key={i} fill="url(#rg)"/>)}
+                        
+                        {srData.salesChart.map((_,i)=><Cell key={i} fill="#c8456a"/>)}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
