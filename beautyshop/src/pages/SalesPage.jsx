@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+// SALES-FIX-2026-11-08: summary cards cover the whole selected period (not just the 25 rows on screen), voided/refunded sales are not counted, dates use the shop's local day, refund amount prefill fixed, CSV exports every matching sale
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDateTime, fmtDate, r2 } from '../lib/utils'
@@ -9,11 +10,18 @@ import toast from 'react-hot-toast'
 
 const PAYMENTS = 'bs_payments'
 
+// Format a Date for a PocketBase filter, e.g. created>="2026-11-07 21:00:00.000Z"
+const toPbDate = (d) => d.toISOString().replace('T', ' ')
+// A picked calendar day (yyyy-MM-dd) becomes the start / end of that day in the shop's local time.
+const dayStart = (s) => toPbDate(new Date(s + 'T00:00:00'))
+const dayEnd = (s) => toPbDate(new Date(s + 'T23:59:59.999'))
+
 export default function SalesPage() {
   const { shop, role } = useAuth()
   const isCashier = role === 'cashier'
   const [sales, setSales] = useState([])
   const [paidMap, setPaidMap] = useState({}) // { [sale_id]: amount received so far } for credit sales on this page
+  const [summary, setSummary] = useState(null) // totals for the whole selected period, not just this page
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
@@ -31,11 +39,32 @@ export default function SalesPage() {
   const [refundProcessing, setRefundProcessing] = useState(false)
   const [selectedSales, setSelectedSales] = useState(new Set())
   const [recentlyVoided, setRecentlyVoided] = useState([])
+  const [exporting, setExporting] = useState(false)
+  const summaryReq = useRef(0)
 
   useEffect(() => { if (shop) loadSales() }, [shop, dateFrom, dateTo, statusFilter, page])
+  useEffect(() => { if (shop) loadSummary() }, [shop, dateFrom, dateTo, statusFilter])
+
+  const refreshAll = () => { loadSales(); loadSummary() }
 
   // Amount still owed on a credit sale = total minus payments recorded for it
   const balanceOf = (sale) => Math.max(0, r2((sale.total_kes || 0) - (paidMap[sale.id] || 0)))
+
+  // The same filter is used for the table, the summary cards and the CSV export
+  const buildFilter = () => {
+    const filters = [`shop_id="${shop.id}"`]
+    if (isCashier) filters.push(`served_by="${pb.authStore.model?.id}"`)
+    if (statusFilter === 'credit') filters.push(`payment_status="pending"`)
+    else if (statusFilter) filters.push(`status="${statusFilter}"`)
+    // Day bounds are the start and end of the picked days in local time
+    if (dateFrom) filters.push(`created >= "${dayStart(dateFrom)}"`)
+    if (dateTo) filters.push(`created <= "${dayEnd(dateTo)}"`)
+    return filters.join(' && ')
+  }
+
+  const matchesSearch = (s) =>
+    !search || s.receipt_no?.toLowerCase().includes(search.toLowerCase()) ||
+    s.expand?.customer_id?.name?.toLowerCase().includes(search.toLowerCase())
 
   const loadPaid = async (items) => {
     const ids = items.filter(s => s.payment_status === 'pending').map(s => s.id)
@@ -57,27 +86,56 @@ export default function SalesPage() {
   const loadSales = async () => {
     setLoading(true)
     try {
-      const filters = [`shop_id="${shop.id}"`]
-      if (isCashier) filters.push(`served_by="${pb.authStore.model?.id}"`)
-      if (statusFilter === 'credit') filters.push(`payment_status="pending"`)
-      else if (statusFilter) filters.push(`status="${statusFilter}"`)
-      // Date filter via PocketBase using created field bounds
-      // We use start-of-day and end-of-day to make same-date ranges work correctly
-      if (dateFrom) {
-        filters.push(`created >= "${dateFrom} 00:00:00.000Z"`)
-      }
-      if (dateTo) {
-        filters.push(`created <= "${dateTo} 23:59:59.999Z"`)
-      }
       const res = await pb.collection(C.SALES).getList(page, PER_PAGE, {
-        filter: filters.join(' && '),
+        filter: buildFilter(),
         sort: '-created',
         expand: 'customer_id,served_by'
       })
       setSales(res.items)
       setTotal(res.totalItems)
       await loadPaid(res.items)
+    } catch (err) {
+      if (!err?.isAbort) toast.error('Could not load sales: ' + (err?.message || 'Unknown error'), { id: 'sales-load-err' })
     } finally { setLoading(false) }
+  }
+
+  // Totals for EVERY sale in the selected dates and status (the table only shows one page of 25)
+  const loadSummary = async () => {
+    const myReq = ++summaryReq.current
+    setSummary(null)
+    try {
+      const all = await pb.collection(C.SALES).getFullList({
+        filter: buildFilter(),
+        fields: 'id,total_kes,gross_profit_kes,status,payment_status',
+        '$autoCancel': false, '$cancelKey': 'sales-summary'
+      })
+      let revenue = 0, profit = 0, paidCount = 0, count = 0
+      const credit = []
+      all.forEach(s => {
+        if (s.status === 'voided' || s.status === 'refunded') return // not real income
+        count++
+        if (s.payment_status === 'pending') credit.push(s)
+        else { revenue += s.total_kes || 0; profit += s.gross_profit_kes || 0; paidCount++ }
+      })
+      let outstanding = 0
+      if (credit.length) {
+        const paid = {}
+        try {
+          const ps = await pb.collection(PAYMENTS).getFullList({
+            filter: `shop_id="${shop.id}"`,
+            fields: 'sale_id,amount_kes',
+            '$autoCancel': false, '$cancelKey': 'sales-summary-paid'
+          })
+          ps.forEach(p => { paid[p.sale_id] = (paid[p.sale_id] || 0) + (Number(p.amount_kes) || 0) })
+        } catch {}
+        credit.forEach(s => { outstanding += Math.max(0, r2((s.total_kes || 0) - (paid[s.id] || 0))) })
+      }
+      if (myReq === summaryReq.current) {
+        setSummary({ revenue: r2(revenue), profit: r2(profit), outstanding: r2(outstanding), paidCount, count })
+      }
+    } catch (err) {
+      if (myReq === summaryReq.current) setSummary(null)
+    }
   }
 
   const viewSale = async (sale) => {
@@ -106,7 +164,7 @@ export default function SalesPage() {
     try {
       await pb.collection(C.SALES).update(sale.id, { status: 'voided' })
       toast.success('Sale voided')
-      loadSales()
+      refreshAll()
     } catch { toast.error('Failed to void sale') }
   }
 
@@ -136,7 +194,7 @@ export default function SalesPage() {
         await pb.collection(C.CUSTOMERS).update(c.id, { total_spent_kes: (c.total_spent_kes || 0) + (sale.total_kes || 0) })
       }
       toast.success('✅ Marked as paid!')
-      loadSales()
+      refreshAll()
     } catch (err) { toast.error('Failed: ' + (err?.message || 'Unknown error')) }
   }
 
@@ -154,7 +212,7 @@ export default function SalesPage() {
     const amt = Number(refundAmount) || 0
     if (amt <= 0 || amt > refundSale.total_kes) return toast.error('Enter valid refund amount')
     if (!refundReason.trim()) return toast.error('Enter refund reason')
-    
+
     setRefundProcessing(true)
     try {
       const isFullRefund = amt >= refundSale.total_kes
@@ -177,7 +235,7 @@ export default function SalesPage() {
       setRecentlyVoided(prev => [{ id: refundSale.id, receipt: refundSale.receipt_no, amount: amt, timestamp: new Date() }, ...prev].slice(0, 3))
       toast.success(`✅ Refund processed! ${fmtKES(amt)} from ${refundSale.receipt_no}`)
       setShowRefundModal(false)
-      loadSales()
+      refreshAll()
     } catch (err) { toast.error('Refund failed: ' + err?.message) }
     finally { setRefundProcessing(false) }
   }
@@ -218,43 +276,62 @@ export default function SalesPage() {
     setPage(1)
   }
 
-  const filtered = sales.filter(s =>
-    !search || s.receipt_no?.toLowerCase().includes(search.toLowerCase()) ||
-    s.expand?.customer_id?.name?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = sales.filter(matchesSearch)
 
-  const totalRevenue = filtered.reduce((s, x) => s + (x.payment_status !== 'pending' ? (x.total_kes || 0) : 0), 0)
-  const totalProfit = filtered.reduce((s, x) => s + (x.payment_status !== 'pending' ? (x.gross_profit_kes || 0) : 0), 0)
-  const totalOutstanding = filtered.reduce((s, x) => s + (x.payment_status === 'pending' ? balanceOf(x) : 0), 0)
-  const avgSaleValue = filtered.length ? totalRevenue / Math.max(1, filtered.filter(s => s.status === 'completed' && s.payment_status !== 'pending').length) : 0
+  const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
 
-  const exportSalesCSV = () => {
-    if (!filtered.length) return toast.error('No sales to export')
-    const rows = filtered.map(s => {
-      const base = {
-        Receipt_No: s.receipt_no,
-        Date: fmtDateTime(s.created),
-        Customer: s.expand?.customer_id?.name || 'Walk-in',
-        Subtotal_KES: s.subtotal_kes || 0,
-        Discount_KES: s.discount_kes || 0,
-        Total_KES: s.total_kes || 0,
-        Payment_Method: s.payment_method,
-        Payment_Status: s.payment_status,
-        Status: s.status,
-      }
-      if (!isCashier) {
-        base.Served_By = s.expand?.served_by?.name || ''
-        base.Profit_KES = s.gross_profit_kes || 0
-      }
-      return base
-    })
-    const headers = Object.keys(rows[0])
-    const csv = [headers.join(','), ...rows.map(r => headers.map(h => `"${r[h] ?? ''}"`).join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = `sales-${dateFrom}-to-${dateTo}.csv`; a.click()
-    URL.revokeObjectURL(url)
+  // Exports EVERY sale matching the dates, status and search (not only the 25 on screen)
+  const exportSalesCSV = async () => {
+    if (exporting) return
+    setExporting(true)
+    try {
+      const all = await pb.collection(C.SALES).getFullList({
+        filter: buildFilter(),
+        sort: '-created',
+        expand: 'customer_id,served_by',
+        '$autoCancel': false, '$cancelKey': 'sales-export'
+      })
+      const list = all.filter(matchesSearch)
+      if (!list.length) { toast.error('No sales to export'); return }
+      const rows = list.map(s => {
+        const base = {
+          Receipt_No: s.receipt_no,
+          Date: fmtDateTime(s.created),
+          Customer: s.expand?.customer_id?.name || 'Walk-in',
+          Subtotal_KES: s.subtotal_kes || 0,
+          Discount_KES: s.discount_kes || 0,
+          Total_KES: s.total_kes || 0,
+          Payment_Method: s.payment_method,
+          Payment_Status: s.payment_status,
+          Status: s.status,
+        }
+        if (!isCashier) {
+          base.Served_By = s.expand?.served_by?.name || ''
+          base.Profit_KES = s.gross_profit_kes || 0
+        }
+        return base
+      })
+      const headers = Object.keys(rows[0])
+      const csv = [headers.join(','), ...rows.map(r => headers.map(h => csvCell(r[h])).join(','))].join('\n')
+      const blob = new Blob([csv], { type: 'text/csv' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = url; a.download = `sales-${dateFrom}-to-${dateTo}.csv`; a.click()
+      URL.revokeObjectURL(url)
+      toast.success(`Exported ${list.length} sales`)
+    } catch (err) {
+      toast.error('Export failed: ' + (err?.message || 'Unknown error'))
+    } finally { setExporting(false) }
   }
+
+  const summaryCards = isCashier ? [
+    { label: 'My Sales', value: summary ? summary.count : '—', color: '#3b82f6' },
+    { label: 'My Revenue', value: summary ? fmtKES(summary.revenue) : '—', color: '#c8456a' },
+  ] : [
+    { label: 'Total Revenue', value: summary ? fmtKES(summary.revenue) : '—', color: '#c8456a' },
+    { label: 'Gross Profit', value: summary ? fmtKES(summary.profit) : '—', color: '#059669' },
+    { label: 'Avg Sale Value', value: summary ? fmtKES(summary.paidCount ? summary.revenue / summary.paidCount : 0) : '—', color: '#3b82f6' },
+    { label: '💳 Total Outstanding', value: summary ? fmtKES(summary.outstanding) : '—', color: summary && summary.outstanding > 0 ? '#dc2626' : '#9b6070', alert: !!summary && summary.outstanding > 0 },
+  ]
 
   return (
     <div>
@@ -263,7 +340,7 @@ export default function SalesPage() {
           <div className="page-title">Sales 🧾</div>
           <div className="page-subtitle">{total} records found</div>
         </div>
-        <button className="btn-secondary" onClick={exportSalesCSV}><Download size={14} /> Export CSV</button>
+        <button className="btn-secondary" onClick={exportSalesCSV} disabled={exporting}><Download size={14} /> {exporting ? 'Preparing…' : 'Export CSV'}</button>
       </div>
 
       {/* Filters */}
@@ -276,7 +353,7 @@ export default function SalesPage() {
             <button onClick={() => setRecentlyVoided([])} className="btn-ghost" style={{ padding: '2px 6px' }}><X size={12} /></button>
           </div>
         )}
-        
+
         {/* Quick filters */}
         <div style={{ marginBottom: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[['today', '📅 Today'], ['week', '📊 This Week'], ['month', '📈 Last 30 Days']].map(([type, label]) => (
@@ -298,15 +375,15 @@ export default function SalesPage() {
           </div>
           <div>
             <label className="label">Date From</label>
-            <input className="input" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+            <input className="input" type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1) }} />
           </div>
           <div>
             <label className="label">Date To</label>
-            <input className="input" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+            <input className="input" type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1) }} />
           </div>
           <div>
             <label className="label">Status</label>
-            <select className="input" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <select className="input" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
               <option value="">All</option>
               <option value="completed">Completed</option>
               <option value="credit">💳 Credit (Unpaid)</option>
@@ -314,26 +391,21 @@ export default function SalesPage() {
               <option value="refunded">Refunded</option>
             </select>
           </div>
-          <button className="btn-secondary" onClick={loadSales} aria-label="Refresh" style={{ alignSelf: 'flex-end' }}><RefreshCw size={14} /></button>
+          <button className="btn-secondary" onClick={refreshAll} aria-label="Refresh" style={{ alignSelf: 'flex-end' }}><RefreshCw size={14} /></button>
         </div>
       </div>
 
       {/* Summary */}
-      <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
-        {(isCashier ? [
-          { label: 'My Sales', value: filtered.length, color: '#3b82f6', isCount: true },
-          { label: 'My Revenue', value: fmtKES(totalRevenue), color: '#c8456a' },
-        ] : [
-          { label: 'Total Revenue', value: fmtKES(totalRevenue), color: '#c8456a' },
-          { label: 'Gross Profit', value: fmtKES(totalProfit), color: '#059669' },
-          { label: 'Avg Sale Value', value: fmtKES(avgSaleValue), color: '#3b82f6' },
-          { label: '💳 Total Outstanding', value: fmtKES(totalOutstanding), color: totalOutstanding > 0 ? '#dc2626' : '#9b6070', alert: totalOutstanding > 0 },
-        ]).map((s, i) => (
+      <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 8 }}>
+        {summaryCards.map((s, i) => (
           <div key={i} className="card" style={{ textAlign: 'center', padding: '16px', border: s.alert ? '2px solid #fee2e2' : undefined, background: s.alert ? '#fff5f5' : undefined }}>
-            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'Playfair Display,serif', color: s.color }}>{s.isCount ? s.value : s.value}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'Playfair Display,serif', color: s.color }}>{s.value}</div>
             <div style={{ fontSize: 12, color: '#9b6070', marginTop: 4 }}>{s.label}</div>
           </div>
         ))}
+      </div>
+      <div style={{ fontSize: 11, color: '#9b6070', marginBottom: 20 }}>
+        These cards cover all {total} records in the dates and status chosen above, not only this page. Voided and refunded sales are not counted.
       </div>
 
       {/* Table */}
@@ -400,7 +472,7 @@ export default function SalesPage() {
                         )}
                         {!isCashier && sale.status === 'completed' && sale.payment_status !== 'pending' && (
                           <>
-                            <button onClick={() => { setRefundSale(sale); setRefundAmount(fmtKES(sale.total_kes).replace(/,/g, '')); setShowRefundModal(true) }} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}><Undo2 size={11} style={{ display: 'inline', marginRight: 3 }} /> Refund</button>
+                            <button onClick={() => { setRefundSale(sale); setRefundAmount(String(sale.total_kes || '')); setRefundReason(''); setShowRefundModal(true) }} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}><Undo2 size={11} style={{ display: 'inline', marginRight: 3 }} /> Refund</button>
                             <button onClick={() => repeatSale(sale)} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0f9ff', color: '#0369a1', fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}><Copy size={11} style={{ display: 'inline', marginRight: 3 }} /> Repeat</button>
                             <button className="btn-ghost" style={{ padding: '5px 10px', color: '#dc2626', fontSize: 11 }} onClick={() => voidSale(sale)}>Void</button>
                           </>
@@ -409,7 +481,7 @@ export default function SalesPage() {
                     </td>
                   </tr>
                 ))}
-                {filtered.length === 0 && <tr><td colSpan={isCashier ? 8 : 12} style={{ textAlign: 'center', padding: '48px 0', color: '#9b6070' }}>No sales found</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={isCashier ? 9 : 12} style={{ textAlign: 'center', padding: '48px 0', color: '#9b6070' }}>No sales found</td></tr>}
               </tbody>
             </table>
           </div>
@@ -440,7 +512,7 @@ export default function SalesPage() {
                 <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4 }}>Original Total: {fmtKES(refundSale.total_kes)}</div>
                 {refundSale.expand?.customer_id && <div style={{ fontSize: 12, color: '#7f1d1d', marginTop: 2 }}>Customer: {refundSale.expand.customer_id.name}</div>}
               </div>
-              
+
               <div style={{ marginBottom: 12 }}>
                 <label className="label">Refund Amount *</label>
                 <input className="input" type="number" placeholder="0" value={refundAmount} onChange={e => setRefundAmount(e.target.value)} max={refundSale.total_kes} />
