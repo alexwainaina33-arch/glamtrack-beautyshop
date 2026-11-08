@@ -1,3 +1,4 @@
+// DASH-FIX-2026-11-08: sales are read by their real created date (server-side, newest first) instead of the receipt number
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { generateInsight, buildShareCardData, loadShopBaseline, recordInsightShown, loadSalesAssistant } from '../lib/insightsEngine'
 import { hasRequiredPlan, PLAN_PRICES } from '../lib/planAccess'
@@ -11,12 +12,11 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 
-const parseDateFromReceipt = (receipt_no) => {
-  const m = receipt_no?.match(/-(\d{6})-/)
-  if (!m) return null
-  const c = m[1]
-  return new Date(2000 + parseInt(c.slice(0,2)), parseInt(c.slice(2,4))-1, parseInt(c.slice(4,6)))
-}
+// PocketBase stores dates like "2026-11-08 04:55:43.123Z". Turn that into a Date that every browser can read.
+const toDate = (s) => new Date(String(s || '').replace(' ', 'T'))
+
+// Format a Date for a PocketBase filter, e.g. created>="2026-11-07 21:00:00.000Z"
+const toPbDate = (d) => d.toISOString().replace('T', ' ')
 
 // Turn a Kenyan phone number into the format wa.me needs (254712345678).
 // 0712345678, +254712345678, 254712345678 and 712345678 all work.
@@ -1025,13 +1025,6 @@ export default function DashboardPage() {
     return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) }
   }
 
-  const filterByReceiptDate = (items, from, to) =>
-    items.filter(x => {
-      const d = parseDateFromReceipt(x.receipt_no)
-      if (!d) return false
-      return d >= startOfDay(from) && d <= endOfDay(to)
-    })
-
   const loadAll = async () => {
     setLoading(true)
     setLoadError(false)
@@ -1045,21 +1038,25 @@ export default function DashboardPage() {
         ? `shop_id="${shop.id}" && status="completed" && served_by="${currentUserId}"`
         : `shop_id="${shop.id}" && status="completed"`
 
+      // Sales are selected by their real created date (not the receipt number), so every sale is counted.
+      const rangeFilter = (a, b) => `created>="${toPbDate(a)}" && created<="${toPbDate(b)}"`
+      // Expenses are matched by calendar day in the shop's local time.
+      const fromDay = format(from, 'yyyy-MM-dd')
+      const toDay   = format(to, 'yyyy-MM-dd')
+
       // One automatic retry: the first request after a quiet spell can fail while the server wakes up.
       const [sales, prevSales, expenses, products, customers, recent] = await retryOnce(() => Promise.all([
-        pb.collection(C.SALES).getList(1, 500, { filter: salesFilter, '$autoCancel': false, '$cancelKey': 'dash-sales' })
-          .then(r => filterByReceiptDate(r.items, from, to)),
-        pb.collection(C.SALES).getList(1, 500, { filter: salesFilter, '$autoCancel': false, '$cancelKey': 'dash-prev' })
-          .then(r => filterByReceiptDate(r.items, prevFrom, prevTo)),
-        pb.collection(C.EXPENSES).getList(1, 500, { filter: `shop_id="${shop.id}"`, '$autoCancel': false, '$cancelKey': 'dash-exp' })
-          .then(r => r.items.filter(x => {
+        pb.collection(C.SALES).getFullList({ filter: `${salesFilter} && ${rangeFilter(from, to)}`, sort: '-created', '$autoCancel': false, '$cancelKey': 'dash-sales' }),
+        pb.collection(C.SALES).getFullList({ filter: `${salesFilter} && ${rangeFilter(prevFrom, prevTo)}`, sort: '-created', '$autoCancel': false, '$cancelKey': 'dash-prev' }),
+        pb.collection(C.EXPENSES).getFullList({ filter: `shop_id="${shop.id}"`, '$autoCancel': false, '$cancelKey': 'dash-exp' })
+          .then(items => items.filter(x => {
             const d = x.expense_date?.slice(0,10)
-            return d && d >= from.toISOString().slice(0,10) && d <= to.toISOString().slice(0,10)
+            return d && d >= fromDay && d <= toDay
           })),
         pb.collection(C.PRODUCTS).getList(1, 500, { filter: `shop_id="${shop.id}" && status="active" && track_inventory=true`, '$autoCancel': false, '$cancelKey': 'dash-prod' })
           .then(r => r.items),
         pb.collection(C.CUSTOMERS).getList(1, 1, { filter: `shop_id="${shop.id}"`, '$autoCancel': false, '$cancelKey': 'dash-custs' }),
-        pb.collection(C.SALES).getList(1, 8, { filter: `shop_id="${shop.id}" && status="completed"`, expand: 'customer_id', '$autoCancel': false, '$cancelKey': 'dash-recent' }),
+        pb.collection(C.SALES).getList(1, 8, { filter: `shop_id="${shop.id}" && status="completed"`, sort: '-created', expand: 'customer_id', '$autoCancel': false, '$cancelKey': 'dash-recent' }),
       ]))
 
       const revenue       = sales.reduce((s, x) => s + (x.total_kes || 0), 0)
@@ -1089,15 +1086,16 @@ export default function DashboardPage() {
         setBirthdayCustomers(upcoming)
       } catch { setBirthdayCustomers([]) }
 
-      // Dead Hours Map data
+      // Dead Hours Map data (most recent 500 sales)
       try {
         const allSalesRes = await pb.collection(C.SALES).getList(1, 500, {
           filter: `shop_id="${shop.id}" && status="completed"`,
+          sort: '-created',
           '$autoCancel': false, '$cancelKey': 'dash-hours'
         })
         const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }))
         allSalesRes.items.forEach(s => {
-          const hr = new Date(s.created).getHours()
+          const hr = toDate(s.created).getHours()
           if (buckets[hr]) buckets[hr].count++
         })
         setHourData(buckets)
@@ -1106,11 +1104,10 @@ export default function DashboardPage() {
       // Avg daily revenue (last 30 days)
       try {
         const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000)
-        const recentAll = await pb.collection(C.SALES).getList(1, 500, {
-          filter: `shop_id="${shop.id}" && status="completed"`,
+        const last30 = await pb.collection(C.SALES).getFullList({
+          filter: `shop_id="${shop.id}" && status="completed" && created>="${toPbDate(thirtyDaysAgo)}"`,
           '$autoCancel': false, '$cancelKey': 'dash-payback'
         })
-        const last30 = recentAll.items.filter(s => new Date(s.created) >= thirtyDaysAgo)
         const totalRev30 = last30.reduce((sum, s) => sum + (s.total_kes || 0), 0)
         setAvgDailyRevenue(totalRev30 / 30)
       } catch { setAvgDailyRevenue(0) }
@@ -1124,19 +1121,19 @@ export default function DashboardPage() {
         setHasLifetimeSales(lifetime.totalItems > 0)
       } catch { setHasLifetimeSales(false) }
 
-      // Chart
+      // Chart (built from each sale's real created time)
       if (period === 'today') {
         setSalesChart(Array.from({ length: 12 }, (_, i) => {
           const h = i * 2
           const label = `${String(h).padStart(2,'0')}:00`
-          const ds = sales.filter(s => { const d = parseDateFromReceipt(s.receipt_no); return d && d.getHours() >= h && d.getHours() < h+2 })
+          const ds = sales.filter(s => { const hr = toDate(s.created).getHours(); return hr >= h && hr < h+2 })
           return { label, revenue: ds.reduce((a,s) => a+s.total_kes, 0), count: ds.length }
         }))
       } else {
         setSalesChart(Array.from({ length: 7 }, (_, i) => {
           const d = subDays(new Date(), 6-i)
           const label = format(d, 'EEE')
-          const ds = sales.filter(s => { const rd = parseDateFromReceipt(s.receipt_no); return rd && rd.toDateString() === d.toDateString() })
+          const ds = sales.filter(s => toDate(s.created).toDateString() === d.toDateString())
           return { label, revenue: ds.reduce((a,s) => a+s.total_kes, 0), count: ds.length }
         }))
       }
