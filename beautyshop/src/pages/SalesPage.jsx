@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDateTime, fmtDate, r2 } from '../lib/utils'
@@ -7,10 +7,13 @@ import { format, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek } from 'd
 import ReceiptModal from '../components/ReceiptModal'
 import toast from 'react-hot-toast'
 
+const PAYMENTS = 'bs_payments'
+
 export default function SalesPage() {
   const { shop, role } = useAuth()
   const isCashier = role === 'cashier'
   const [sales, setSales] = useState([])
+  const [paidMap, setPaidMap] = useState({}) // { [sale_id]: amount received so far } for credit sales on this page
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
@@ -30,6 +33,26 @@ export default function SalesPage() {
   const [recentlyVoided, setRecentlyVoided] = useState([])
 
   useEffect(() => { if (shop) loadSales() }, [shop, dateFrom, dateTo, statusFilter, page])
+
+  // Amount still owed on a credit sale = total minus payments recorded for it
+  const balanceOf = (sale) => Math.max(0, r2((sale.total_kes || 0) - (paidMap[sale.id] || 0)))
+
+  const loadPaid = async (items) => {
+    const ids = items.filter(s => s.payment_status === 'pending').map(s => s.id)
+    if (!ids.length) { setPaidMap({}); return }
+    try {
+      const ps = await pb.collection(PAYMENTS).getFullList({
+        filter: `shop_id="${shop.id}" && (${ids.map(id => `sale_id="${id}"`).join(' || ')})`,
+        '$autoCancel': false, '$cancelKey': 'sales-paid-map'
+      })
+      const map = {}
+      ps.forEach(p => { map[p.sale_id] = r2((map[p.sale_id] || 0) + (Number(p.amount_kes) || 0)) })
+      setPaidMap(map)
+    } catch (err) {
+      setPaidMap({})
+      toast.error('Could not load part-payments, so balances may look higher than they are', { id: 'sales-paid-err' })
+    }
+  }
 
   const loadSales = async () => {
     setLoading(true)
@@ -53,6 +76,7 @@ export default function SalesPage() {
       })
       setSales(res.items)
       setTotal(res.totalItems)
+      await loadPaid(res.items)
     } finally { setLoading(false) }
   }
 
@@ -87,24 +111,41 @@ export default function SalesPage() {
   }
 
   const markPaid = async (sale) => {
-    if (!confirm(`Mark ${sale.receipt_no} as paid? This will record full payment received.`)) return
+    const due = balanceOf(sale)
+    if (!confirm(`Mark ${sale.receipt_no} as paid? This records ${fmtKES(due)} received in cash.`)) return
     try {
+      const customerId = sale.customer_id || sale.expand?.customer_id?.id || null
+      // Record the remaining balance as a payment (re-read first so nothing is counted twice)
+      if (customerId) {
+        const existing = await pb.collection(PAYMENTS).getFullList({ filter: `sale_id="${sale.id}"`, '$autoCancel': false, '$cancelKey': 'mark-paid-existing' })
+        const already = existing.reduce((s, p) => s + (Number(p.amount_kes) || 0), 0)
+        const remaining = r2((sale.total_kes || 0) - already)
+        if (remaining > 0.005) {
+          await pb.collection(PAYMENTS).create({
+            shop_id: shop.id, customer_id: customerId, sale_id: sale.id,
+            amount_kes: remaining, method: 'cash', paid_on: new Date().toISOString(),
+            created_by: pb.authStore.model?.id || null,
+          })
+        }
+      }
       await pb.collection(C.SALES).update(sale.id, { payment_status: 'paid', payment_method: 'cash', notes: (sale.notes || '') + ' | PAID ' + new Date().toLocaleDateString('en-KE') })
-      // Add to customer total spent
-      if (sale.expand?.customer_id) {
-        const c = sale.expand.customer_id
-        await pb.collection(C.CUSTOMERS).update(c.id, { total_spent_kes: (c.total_spent_kes || 0) + sale.total_kes })
+      // Add to customer total paid (fresh read so an older screen cannot overwrite a newer total)
+      if (customerId) {
+        const c = await pb.collection(C.CUSTOMERS).getOne(customerId)
+        await pb.collection(C.CUSTOMERS).update(c.id, { total_spent_kes: (c.total_spent_kes || 0) + (sale.total_kes || 0) })
       }
       toast.success('✅ Marked as paid!')
       loadSales()
-    } catch { toast.error('Failed') }
+    } catch (err) { toast.error('Failed: ' + (err?.message || 'Unknown error')) }
   }
 
   const sendWhatsAppReminder = (sale) => {
     const customer = sale.expand?.customer_id
     if (!customer?.phone) return toast.error('Customer has no phone number')
-    const msg = `Hello ${customer.name} 👋\n\nThis is a friendly reminder that you have an outstanding balance of *${fmtKES(sale.total_kes)}* at ${sale.shop_id ? 'our shop' : 'our shop'}.\n\nReceipt: ${sale.receipt_no}\n\nKindly settle at your earliest convenience. Thank you! 🙏`
-    window.open(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank')
+    const digits = customer.phone.replace(/[^0-9]/g, '')
+    const wa = digits.length === 10 && digits.startsWith('0') ? '254' + digits.slice(1) : digits
+    const msg = `Hello ${customer.name} 👋\n\nThis is a friendly reminder that you have an outstanding balance of *${fmtKES(balanceOf(sale))}* at ${shop?.name || 'our shop'}.\n\nReceipt: ${sale.receipt_no}\n\nKindly settle at your earliest convenience. Thank you! 🙏`
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer')
   }
 
   const procesRefund = async () => {
@@ -183,7 +224,7 @@ export default function SalesPage() {
 
   const totalRevenue = filtered.reduce((s, x) => s + (x.payment_status !== 'pending' ? (x.total_kes || 0) : 0), 0)
   const totalProfit = filtered.reduce((s, x) => s + (x.payment_status !== 'pending' ? (x.gross_profit_kes || 0) : 0), 0)
-  const totalOutstanding = filtered.reduce((s, x) => s + (x.payment_status === 'pending' ? (x.total_kes || 0) : 0), 0)
+  const totalOutstanding = filtered.reduce((s, x) => s + (x.payment_status === 'pending' ? balanceOf(x) : 0), 0)
   const avgSaleValue = filtered.length ? totalRevenue / Math.max(1, filtered.filter(s => s.status === 'completed' && s.payment_status !== 'pending').length) : 0
 
   const exportSalesCSV = () => {
@@ -272,7 +313,7 @@ export default function SalesPage() {
               <option value="refunded">Refunded</option>
             </select>
           </div>
-          <button className="btn-secondary" onClick={loadSales} style={{ alignSelf: 'flex-end' }}><RefreshCw size={14} /></button>
+          <button className="btn-secondary" onClick={loadSales} aria-label="Refresh" style={{ alignSelf: 'flex-end' }}><RefreshCw size={14} /></button>
         </div>
       </div>
 
@@ -285,7 +326,7 @@ export default function SalesPage() {
           { label: 'Total Revenue', value: fmtKES(totalRevenue), color: '#c8456a' },
           { label: 'Gross Profit', value: fmtKES(totalProfit), color: '#059669' },
           { label: 'Avg Sale Value', value: fmtKES(avgSaleValue), color: '#3b82f6' },
-          { label: '💳 Outstanding Credit', value: fmtKES(totalOutstanding), color: totalOutstanding > 0 ? '#dc2626' : '#9b6070', alert: totalOutstanding > 0 },
+          { label: '💳 Total Outstanding', value: fmtKES(totalOutstanding), color: totalOutstanding > 0 ? '#dc2626' : '#9b6070', alert: totalOutstanding > 0 },
         ]).map((s, i) => (
           <div key={i} className="card" style={{ textAlign: 'center', padding: '16px', border: s.alert ? '2px solid #fee2e2' : undefined, background: s.alert ? '#fff5f5' : undefined }}>
             <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'Playfair Display,serif', color: s.color }}>{s.isCount ? s.value : s.value}</div>
@@ -333,6 +374,9 @@ export default function SalesPage() {
                         {sale.payment_method === 'cash' ? '💵' : sale.payment_method === 'mpesa' ? '📱' : sale.payment_method === 'credit' ? '💳' : '💳'} {sale.payment_method}
                         {sale.payment_status === 'pending' && ' ⚠️'}
                       </span>
+                      {sale.payment_status === 'pending' && paidMap[sale.id] > 0 && (
+                        <div style={{ fontSize: 10, color: '#b45309', marginTop: 3 }}>Balance {fmtKES(balanceOf(sale))}</div>
+                      )}
                     </td>
                     {!isCashier && <td>
                       <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: sale.etims_status === 'success' ? '#f0fdf4' : sale.etims_status === 'failed' ? '#fee2e2' : '#fefce8', color: sale.etims_status === 'success' ? '#059669' : sale.etims_status === 'failed' ? '#dc2626' : '#d97706' }}>
@@ -346,11 +390,11 @@ export default function SalesPage() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <button className="btn-ghost" style={{ padding: '5px 10px' }} onClick={() => viewSale(sale)}><Eye size={14} /></button>
+                        <button className="btn-ghost" style={{ padding: '5px 10px' }} aria-label="View receipt" title="View receipt" onClick={() => viewSale(sale)}><Eye size={14} /></button>
                         {sale.payment_status === 'pending' && (
                           <>
                             <button onClick={() => markPaid(sale)} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0fdf4', color: '#059669', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>✅ Paid</button>
-                            <button onClick={() => sendWhatsAppReminder(sale)} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0fdf4', color: '#25D366', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>📲</button>
+                            <button onClick={() => sendWhatsAppReminder(sale)} aria-label="Send WhatsApp reminder" title="Send WhatsApp reminder" style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0fdf4', color: '#25D366', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>📲</button>
                           </>
                         )}
                         {!isCashier && sale.status === 'completed' && sale.payment_status !== 'pending' && (
@@ -388,7 +432,7 @@ export default function SalesPage() {
       {showRefundModal && refundSale && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowRefundModal(false)}>
           <div className="modal" style={{ maxWidth: 420 }}>
-            <div className="modal-header"><span className="modal-title">⏮️ Process Refund</span><button onClick={() => setShowRefundModal(false)} className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
+            <div className="modal-header"><span className="modal-title">⏮️ Process Refund</span><button onClick={() => setShowRefundModal(false)} aria-label="Close" className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
             <div className="modal-body">
               <div style={{ background: '#fff5f5', borderRadius: 12, padding: 12, marginBottom: 14 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#991b1b' }}>Receipt: {refundSale.receipt_no}</div>
