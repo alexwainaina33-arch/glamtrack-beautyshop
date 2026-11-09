@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, r2 } from '../lib/utils'
@@ -31,9 +31,9 @@ export default function AnalyticsPage() {
     setLoading(true)
     try {
       const [products, sales, saleItemsAll] = await Promise.all([
-        pb.collection(C.PRODUCTS).getList(1, 500, { filter: `shop_id="${shop.id}" && status="active"`, expand: 'category_id', '$autoCancel': false, '$cancelKey': 'analytics-products' }).then(r => r.items),
-        pb.collection(C.SALES).getList(1, 500, { filter: `shop_id="${shop.id}" && status="completed"`, expand: 'customer_id', sort: '-receipt_no', '$autoCancel': false, '$cancelKey': 'analytics-sales' }).then(r => r.items),
-        pb.collection(C.SALE_ITEMS).getList(1, 500, { filter: `sale_id.shop_id="${shop.id}"`, expand: 'sale_id', '$autoCancel': false, '$cancelKey': 'analytics-items' }).then(r => r.items),
+        pb.collection(C.PRODUCTS).getFullList({ filter: `shop_id="${shop.id}" && status="active"`, expand: 'category_id', '$autoCancel': false, '$cancelKey': 'analytics-products' }),
+        pb.collection(C.SALES).getFullList({ filter: `shop_id="${shop.id}" && status="completed"`, sort: '-receipt_no', '$autoCancel': false, '$cancelKey': 'analytics-sales' }),
+        pb.collection(C.SALE_ITEMS).getFullList({ filter: `sale_id.shop_id="${shop.id}" && sale_id.status="completed"`, expand: 'sale_id', '$autoCancel': false, '$cancelKey': 'analytics-items' }),
       ])
 
       const windowFrom = format(subDays(new Date(), windowDays), 'yyyy-MM-dd')
@@ -114,7 +114,7 @@ export default function AnalyticsPage() {
       })
 
       // Cohort retention — % of customers who returned within 30/60/90 days of their first purchase,
-      // based on the most recent 500 completed sales (analytics query cap)
+      // based on all completed sales linked to a customer
       const customerPurchases = {}
       sales.forEach(s => {
         if (!s.customer_id) return
@@ -241,7 +241,7 @@ export default function AnalyticsPage() {
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 4px' }}>🔁 Customer Cohort Retention</h3>
-        <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 16 }}>% of customers who came back after their first visit, based on the most recent 500 completed sales linked to a customer</div>
+        <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 16 }}>% of customers who came back after their first visit, based on all completed sales linked to a customer</div>
         <div className="stat-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
           {[
             { label: '30-Day Return Rate', value: data.cohort.d30, n: data.cohort.e30 },
