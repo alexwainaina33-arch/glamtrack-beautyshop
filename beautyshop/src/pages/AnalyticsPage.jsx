@@ -274,7 +274,7 @@ export default function AnalyticsPage() {
           <LineChart data={trendGrain === 'week' ? data.weeklyTrend : data.monthlyTrend}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0e4e8" vertical={false} />
             <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#9b6070' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: '#9b6070' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+            <YAxis tick={{ fontSize: 10, fill: '#9b6070' }} axisLine={false} tickLine={false} tickFormatter={v => (v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : `${Math.round(v)}`)} />
             <Tooltip formatter={(v) => fmtKES(v)} contentStyle={{ borderRadius: 10, fontFamily: 'Nunito,sans-serif', fontSize: 12 }} />
             <Line type="monotone" dataKey="revenue" stroke="#c8456a" strokeWidth={2} dot={{ r: 3 }} name="Revenue" />
             <Line type="monotone" dataKey="grossProfit" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} name="Gross Profit" />
@@ -420,7 +420,7 @@ export default function AnalyticsPage() {
         </div>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Product</th><th>{windowDays}d Units</th><th>7d Units</th><th>Daily Velocity</th><th>Days of Stock</th><th>{windowDays}d Revenue</th><th>{windowDays}d Profit</th><th>Status</th></tr></thead>
+            <thead><tr><th>Product</th><th>{windowDays}d Units</th>{windowDays !== 7 && <th>7d Units</th>}<th>Daily Velocity</th><th>Days of Stock</th><th>{windowDays}d Revenue</th><th>{windowDays}d Profit</th><th>Status</th></tr></thead>
             <tbody>
               {data.enriched.sort((a, b) => b.unitsSold30 - a.unitsSold30).map(p => {
                 const tag = p.isFastMover ? { label: '🚀 Fast', bg: '#f0fdf4', color: '#059669' }
@@ -431,7 +431,7 @@ export default function AnalyticsPage() {
                   <tr key={p.id}>
                     <td style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</td>
                     <td style={{ fontWeight: 700 }}>{p.unitsSold30}</td>
-                    <td style={{ color: p.unitsSold7 > 0 ? '#059669' : '#9b6070' }}>{p.unitsSold7}</td>
+                    {windowDays !== 7 && <td style={{ color: p.unitsSold7 > 0 ? '#059669' : '#9b6070' }}>{p.unitsSold7}</td>}
                     <td style={{ fontSize: 12 }}>{p.dailyVelocity.toFixed(1)}/day</td>
                     <td>
                       <span style={{ background: p.daysOfStock <= 7 ? '#fee2e2' : p.daysOfStock <= 14 ? '#fef3c7' : '#f0fdf4', color: p.daysOfStock <= 7 ? '#dc2626' : p.daysOfStock <= 14 ? '#d97706' : '#059669', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
