@@ -52,7 +52,8 @@ export default function ReconciliationPage() {
         return saleDate === date
       }))
       setExpenses(e.filter(x => x.expense_date?.startsWith(date)))
-      setPayments(p.filter(x => x.paid_on?.startsWith(date)))
+      const cashSaleIds = new Set(s.filter(x => x.payment_method === 'cash').map(x => x.id))
+      setPayments(p.filter(x => x.paid_on?.startsWith(date) && !cashSaleIds.has(x.sale_id)))
     } catch (err) {
       console.error(err)
       toast.error("Could not load this day's data")
