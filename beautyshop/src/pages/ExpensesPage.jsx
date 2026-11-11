@@ -4,7 +4,7 @@ import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDate } from '../lib/utils'
 import { Plus, X, Edit2, Trash2, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { format, startOfMonth, endOfMonth, startOfWeek, subMonths, subDays, differenceInCalendarDays, parseISO, isValid } from 'date-fns'
 
 const EMPTY = { description: '', category_id: '', amount_kes: '', expense_date: format(new Date(), 'yyyy-MM-dd'), payment_method: 'cash', reference: '', notes: '' }
 
@@ -24,6 +24,9 @@ export default function ExpensesPage() {
   const [newCatName, setNewCatName] = useState('')
   const [newCatIcon, setNewCatIcon] = useState('💼')
   const fileRef = useRef()
+  const [search, setSearch] = useState('')
+  const [catFilter, setCatFilter] = useState('')
+  const [prevTotal, setPrevTotal] = useState(null)
 
   useEffect(() => { if (shop && !authLoading) loadData() }, [shop, dateFrom, dateTo])
 
@@ -37,19 +40,31 @@ export default function ExpensesPage() {
       all = all.concat(r.items)
       if (r.items.length < perPage) break
     }
-    return all.filter(e => { const d = String(e.expense_date || '').slice(0, 10); return d >= dateFrom && d <= dateTo })
+    const day = e => String(e.expense_date || '').slice(0, 10)
+    const rows = all.filter(e => day(e) >= dateFrom && day(e) <= dateTo)
+    const a = parseISO(dateFrom)
+    const b = parseISO(dateTo)
+    let prevTotal = null
+    if (isValid(a) && isValid(b) && b >= a) {
+      const days = differenceInCalendarDays(b, a) + 1
+      const pTo = format(subDays(a, 1), 'yyyy-MM-dd')
+      const pFrom = format(subDays(a, days), 'yyyy-MM-dd')
+      prevTotal = all.filter(e => day(e) >= pFrom && day(e) <= pTo).reduce((s, e) => s + (Number(e.amount_kes) || 0), 0)
+    }
+    return { rows, prevTotal }
   }
 
   const loadData = async () => {
     const seq = ++loadSeq.current
     setLoading(true)
     try {
-      const [exps, cats] = await Promise.all([
+      const [loaded, cats] = await Promise.all([
         loadAllExpenses(),
         pb.collection(C.EXPENSE_CATS).getList(1, 200, { filter: `shop_id="${shop.id}"`, sort: 'name' }).then(r => r.items)
       ])
       if (seq !== loadSeq.current) return
-      setExpenses(exps)
+      setExpenses(loaded.rows)
+      setPrevTotal(loaded.prevTotal)
       setCategories(cats)
     } catch (err) {
       if (seq === loadSeq.current) toast.error('Could not load expenses. Check your connection and try again.')
@@ -136,6 +151,45 @@ export default function ExpensesPage() {
   })).filter(c => c.total > 0).sort((a, b) => b.total - a.total)
 
   const totalExpenses = expenses.reduce((s, e) => s + e.amount_kes, 0)
+
+  const byMethod = expenses.reduce((m, e) => { const k = e.payment_method || 'other'; m[k] = (m[k] || 0) + (Number(e.amount_kes) || 0); return m }, {})
+  const q = search.trim().toLowerCase()
+  const visible = expenses.filter(e =>
+    (!catFilter || (catFilter === 'none' ? !e.category_id : e.category_id === catFilter)) &&
+    (!q || `${e.description || ''} ${e.reference || ''} ${e.notes || ''}`.toLowerCase().includes(q)))
+  const changePct = prevTotal > 0 ? ((totalExpenses - prevTotal) / prevTotal) * 100 : null
+
+  const setPreset = (p) => {
+    const now = new Date()
+    const f = d => format(d, 'yyyy-MM-dd')
+    if (p === 'today') { setDateFrom(f(now)); setDateTo(f(now)) }
+    else if (p === 'week') { setDateFrom(f(startOfWeek(now, { weekStartsOn: 1 }))); setDateTo(f(now)) }
+    else if (p === 'month') { setDateFrom(f(startOfMonth(now))); setDateTo(f(endOfMonth(now))) }
+    else if (p === 'last') { const l = subMonths(now, 1); setDateFrom(f(startOfMonth(l))); setDateTo(f(endOfMonth(l))) }
+  }
+
+  const receiptUrl = (exp) => {
+    try { return pb.files?.getUrl ? pb.files.getUrl(exp, exp.receipt_file) : pb.getFileUrl(exp, exp.receipt_file) }
+    catch { return '#' }
+  }
+
+  const exportCsv = () => {
+    const esc = v => { let s = String(v ?? ''); if (/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"' }
+    const head = ['Date', 'Description', 'Category', 'Payment', 'Amount (KES)', 'Reference', 'Notes']
+    const lines = [head.map(esc).join(',')].concat(visible.map(e => [
+      String(e.expense_date || '').slice(0, 10), e.description, e.expand?.category_id?.name || 'Uncategorized',
+      e.payment_method, e.amount_kes, e.reference, e.notes
+    ].map(esc).join(',')))
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `expenses_${dateFrom}_to_${dateTo}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
   const uncategorized = expenses.filter(e => !e.category_id).reduce((s, e) => s + e.amount_kes, 0)
 
   const DEFAULT_CATS = [
@@ -179,6 +233,42 @@ export default function ExpensesPage() {
         </div>
       </div>
 
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          {[['today', 'Today'], ['week', 'This week'], ['month', 'This month'], ['last', 'Last month']].map(([k, l]) => (
+            <button key={k} type="button" className="btn-secondary" style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => setPreset(k)}>{l}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: '#3d1020', marginBottom: 8 }}>
+          {Object.entries(byMethod).map(([m, v]) => (
+            <span key={m}><strong style={{ textTransform: 'capitalize' }}>{m}</strong>: {fmtKES(v)}</span>
+          ))}
+        </div>
+        {byMethod.cash > 0 && (
+          <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 8 }}>
+            Cash expenses of {fmtKES(byMethod.cash)} reduce Expected Cash on the Cash Reconciliation page for the days they were paid.
+          </div>
+        )}
+        {prevTotal !== null && (
+          <div style={{ fontSize: 13, color: '#3d1020', marginBottom: 12 }}>
+            Previous period (same length): {fmtKES(prevTotal)}
+            {changePct !== null && <span style={{ fontWeight: 700, color: changePct > 0 ? '#dc2626' : '#059669' }}> ({changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%)</span>}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input className="input" style={{ flex: 1, minWidth: 180 }} placeholder="Search description, reference or notes" aria-label="Search expenses" value={search} onChange={e => setSearch(e.target.value)} />
+          <select className="input" style={{ width: 'auto' }} aria-label="Filter by category" value={catFilter} onChange={e => setCatFilter(e.target.value)}>
+            <option value="">All categories</option>
+            <option value="none">Uncategorized</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+          </select>
+          <button type="button" className="btn-secondary" onClick={exportCsv} disabled={visible.length === 0}>Export CSV</button>
+        </div>
+        {visible.length !== expenses.length && (
+          <div style={{ fontSize: 12, color: '#9b6070', marginTop: 8 }}>Showing {visible.length} of {expenses.length} entries</div>
+        )}
+      </div>
+
       <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
         {/* Expenses table */}
         <div className="card" style={{ padding: 0, minWidth: 0 }}>
@@ -188,7 +278,7 @@ export default function ExpensesPage() {
                 <tr><th>Date</th><th>Description</th><th>Category</th><th>Payment</th><th>Amount</th><th>Receipt</th><th></th></tr>
               </thead>
               <tbody>
-                {expenses.map(exp => (
+                {visible.map(exp => (
                   <tr key={exp.id}>
                     <td style={{ fontSize: 12, color: '#9b6070', whiteSpace: 'nowrap' }}>{fmtDate(exp.expense_date)}</td>
                     <td>
@@ -204,7 +294,7 @@ export default function ExpensesPage() {
                       <span style={{ fontSize: 12, background: '#f5edf0', padding: '2px 8px', borderRadius: 20 }}>{exp.payment_method}</span>
                     </td>
                     <td style={{ fontWeight: 700, color: '#dc2626', fontSize: 15 }}>{fmtKES(exp.amount_kes)}</td>
-                    <td>{exp.receipt_file ? <span style={{ fontSize: 11, color: '#3b82f6' }}>📎 Attached</span> : '—'}</td>
+                    <td>{exp.receipt_file ? <a href={receiptUrl(exp)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#3b82f6' }}>📎 Attached</a> : '—'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="btn-ghost" style={{ padding: '5px 10px' }} onClick={() => openEdit(exp)} aria-label={`Edit ${exp.description}`}><Edit2 size={13} /></button>
@@ -213,7 +303,7 @@ export default function ExpensesPage() {
                     </td>
                   </tr>
                 ))}
-                {expenses.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', padding: '48px 0', color: '#9b6070' }}>{loading ? 'Loading...' : 'No expenses recorded in this period'}</td></tr>}
+                {visible.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', padding: '48px 0', color: '#9b6070' }}>{loading ? 'Loading...' : expenses.length > 0 ? 'No expenses match your filters' : 'No expenses recorded in this period'}</td></tr>}
               </tbody>
             </table>
           </div>
