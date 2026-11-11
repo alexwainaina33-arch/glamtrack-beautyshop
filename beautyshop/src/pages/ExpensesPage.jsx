@@ -27,20 +27,52 @@ export default function ExpensesPage() {
 
   useEffect(() => { if (shop && !authLoading) loadData() }, [shop, dateFrom, dateTo])
 
+  const loadSeq = useRef(0)
+
+  const loadAllExpenses = async () => {
+    const perPage = 200
+    let all = []
+    for (let page = 1; page <= 50; page++) {
+      const r = await pb.collection(C.EXPENSES).getList(page, perPage, { filter: `shop_id="${shop.id}"`, sort: '-expense_date', expand: 'category_id,created_by' })
+      all = all.concat(r.items)
+      if (r.items.length < perPage) break
+    }
+    return all.filter(e => { const d = String(e.expense_date || '').slice(0, 10); return d >= dateFrom && d <= dateTo })
+  }
+
   const loadData = async () => {
+    const seq = ++loadSeq.current
     setLoading(true)
     try {
       const [exps, cats] = await Promise.all([
-        pb.collection(C.EXPENSES).getList(1, 500, { filter: `shop_id="${shop.id}"`, expand: 'category_id,created_by' }).then(r => r.items.filter(e => e.expense_date >= dateFrom && e.expense_date <= dateTo)),
+        loadAllExpenses(),
         pb.collection(C.EXPENSE_CATS).getList(1, 200, { filter: `shop_id="${shop.id}"`, sort: 'name' }).then(r => r.items)
       ])
+      if (seq !== loadSeq.current) return
       setExpenses(exps)
       setCategories(cats)
-    } finally { setLoading(false) }
+    } catch (err) {
+      if (seq === loadSeq.current) toast.error('Could not load expenses. Check your connection and try again.')
+    } finally {
+      if (seq === loadSeq.current) setLoading(false)
+    }
   }
 
   const openNew = () => { setEditing(null); setForm(EMPTY); setReceiptFile(null); setShowModal(true) }
-  const openEdit = (exp) => { setEditing(exp); setForm({ ...exp, expense_date: exp.expense_date?.split('T')[0] || format(new Date(), 'yyyy-MM-dd') }); setReceiptFile(null); setShowModal(true) }
+  const openEdit = (exp) => {
+    setEditing(exp)
+    setForm({
+      description: exp.description || '',
+      category_id: exp.category_id || '',
+      amount_kes: exp.amount_kes ?? '',
+      expense_date: String(exp.expense_date || '').slice(0, 10) || format(new Date(), 'yyyy-MM-dd'),
+      payment_method: exp.payment_method || 'cash',
+      reference: exp.reference || '',
+      notes: exp.notes || ''
+    })
+    setReceiptFile(null)
+    setShowModal(true)
+  }
 
   const handleSave = async (e) => {
     e.preventDefault()
@@ -48,9 +80,17 @@ export default function ExpensesPage() {
     setSaving(true)
     try {
       const data = new FormData()
-      Object.entries(form).forEach(([k, v]) => { if (v !== undefined && v !== '') data.append(k, v) })
-      data.append('shop_id', shop.id)
-      data.append('created_by', pb.authStore.model?.id)
+      const FIELDS = ['description', 'category_id', 'amount_kes', 'expense_date', 'payment_method', 'reference', 'notes']
+      FIELDS.forEach(k => {
+        const v = form[k]
+        if (v === undefined || v === null) return
+        if (v === '' && !editing) return
+        data.append(k, v)
+      })
+      if (!editing) {
+        data.append('shop_id', shop.id)
+        data.append('created_by', pb.authStore.model?.id)
+      }
       if (receiptFile) data.append('receipt_file', receiptFile)
 
       if (editing) {
@@ -81,6 +121,12 @@ export default function ExpensesPage() {
       loadData()
       setShowCatModal(false)
     } catch { toast.error('Failed') }
+  }
+
+  const handleDeleteCategory = async (cat) => {
+    if (!confirm(`Delete category "${cat.name}"?`)) return
+    try { await pb.collection(C.EXPENSE_CATS).delete(cat.id); toast.success('Category deleted'); loadData() }
+    catch { toast.error('Could not delete. The category may still be used by expenses.') }
   }
 
   // Group by category for summary
@@ -161,13 +207,13 @@ export default function ExpensesPage() {
                     <td>{exp.receipt_file ? <span style={{ fontSize: 11, color: '#3b82f6' }}>📎 Attached</span> : '—'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button className="btn-ghost" style={{ padding: '5px 10px' }} onClick={() => openEdit(exp)}><Edit2 size={13} /></button>
-                        <button className="btn-ghost" style={{ padding: '5px 10px', color: '#dc2626' }} onClick={() => handleDelete(exp.id)}><Trash2 size={13} /></button>
+                        <button className="btn-ghost" style={{ padding: '5px 10px' }} onClick={() => openEdit(exp)} aria-label={`Edit ${exp.description}`}><Edit2 size={13} /></button>
+                        <button className="btn-ghost" style={{ padding: '5px 10px', color: '#dc2626' }} onClick={() => handleDelete(exp.id)} aria-label={`Delete ${exp.description}`}><Trash2 size={13} /></button>
                       </div>
                     </td>
                   </tr>
                 ))}
-                {expenses.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', padding: '48px 0', color: '#9b6070' }}>No expenses recorded</td></tr>}
+                {expenses.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', padding: '48px 0', color: '#9b6070' }}>{loading ? 'Loading...' : 'No expenses recorded in this period'}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -303,7 +349,7 @@ export default function ExpensesPage() {
                 {categories.map(cat => (
                   <div key={cat.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#fff5f7', borderRadius: 8 }}>
                     <span>{cat.icon} {cat.name}</span>
-                    <button className="btn-ghost" style={{ padding: '4px 8px', color: '#dc2626' }} onClick={async () => { await pb.collection(C.EXPENSE_CATS).delete(cat.id); loadData() }}><Trash2 size={13} /></button>
+                    <button className="btn-ghost" style={{ padding: '4px 8px', color: '#dc2626' }} onClick={() => handleDeleteCategory(cat)} aria-label={`Delete category ${cat.name}`}><Trash2 size={13} /></button>
                   </div>
                 ))}
               </div>
