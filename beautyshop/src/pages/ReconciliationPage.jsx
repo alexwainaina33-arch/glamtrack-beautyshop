@@ -14,6 +14,15 @@ export default function ReconciliationPage() {
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [sales, setSales] = useState([])
   const [expenses, setExpenses] = useState([])
+  const [payments, setPayments] = useState([])
+  const [saving, setSaving] = useState(false)
+  const loadSeq = useRef(0)
+  // Split sales: cash part is stored in cash_tendered (unverified for older and offline-queued Split sales)
+  const splitSales = sales.filter(s => s.payment_method === 'mixed')
+  const splitTotal = splitSales.reduce((a, s) => a + (s.total_kes || 0), 0)
+  const splitCash = splitSales.reduce((a, s) => a + Math.min(Math.max(Number(s.cash_tendered) || 0, 0), s.total_kes || 0), 0)
+  const creditSalesTotal = sales.filter(s => s.payment_method === 'credit').reduce((a, s) => a + (s.total_kes || 0), 0)
+  const creditCashReceived = payments.reduce((a, p) => a + (Number(p.amount_kes) || 0), 0)
   const [counts, setCounts] = useState({})
   const [openingFloat, setOpeningFloat] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -24,12 +33,17 @@ export default function ReconciliationPage() {
   useEffect(() => { if (shop && !authLoading) loadData() }, [shop, authLoading, date])
 
   const loadData = async () => {
+    const seq = ++loadSeq.current
     setLoading(true)
+    setSaved(false)
     try {
-      const [s, e] = await Promise.all([
-        pb.collection(C.SALES).getList(1, 500, { filter: `shop_id="${shop.id}" && status="completed"` }).then(r => r.items),
-        pb.collection(C.EXPENSES).getList(1, 500, { filter: `shop_id="${shop.id}"` }).then(r => r.items)
+      const [s, e, p] = await Promise.all([
+        pb.collection(C.SALES).getFullList({ filter: `shop_id="${shop.id}" && status="completed" && receipt_no ~ "-${date.slice(2, 4)}${date.slice(5, 7)}${date.slice(8, 10)}-"`, '$autoCancel': false, '$cancelKey': 'recon-sales' }),
+        pb.collection(C.EXPENSES).getFullList({ filter: `shop_id="${shop.id}"`, '$autoCancel': false, '$cancelKey': 'recon-expenses' }),
+        // credit repayments recorded in bs_payments (literal collection name; no PAYMENTS key seen in C)
+        pb.collection('bs_payments').getFullList({ filter: `shop_id="${shop.id}" && method="cash"`, '$autoCancel': false, '$cancelKey': 'recon-payments' }).catch((err) => { console.warn('bs_payments load failed', err); return [] })
       ])
+      if (seq !== loadSeq.current) return
       setSales(s.filter(x => {
         const m = x.receipt_no?.match(/-(\d{6})-/)
         if (!m) return false
@@ -38,7 +52,11 @@ export default function ReconciliationPage() {
         return saleDate === date
       }))
       setExpenses(e.filter(x => x.expense_date?.startsWith(date)))
-    } finally { setLoading(false) }
+      setPayments(p.filter(x => x.paid_on?.startsWith(date)))
+    } catch (err) {
+      console.error(err)
+      toast.error("Could not load this day's data")
+    } finally { if (seq === loadSeq.current) setLoading(false) }
   }
 
   const totalCashSales    = sales.filter(s => s.payment_method === 'cash').reduce((a, s) => a + s.total_kes, 0)
@@ -47,7 +65,7 @@ export default function ReconciliationPage() {
   const totalRevenue      = sales.reduce((a, s) => a + s.total_kes, 0)
   const totalExpenses     = expenses.reduce((a, e) => a + e.amount_kes, 0)
   const cashExpenses      = expenses.filter(e => e.payment_method === 'cash').reduce((a, e) => a + e.amount_kes, 0)
-  const expectedCash      = Number(openingFloat) + totalCashSales - cashExpenses
+  const expectedCash      = Number(openingFloat) + totalCashSales + splitCash + creditCashReceived - cashExpenses
   const actualCash        = DENOMINATIONS.reduce((a, d) => a + d * (Number(counts[d]) || 0), 0)
   const variance          = actualCash - expectedCash
   const isBalanced        = Math.abs(variance) < 1
@@ -55,6 +73,8 @@ export default function ReconciliationPage() {
   const handleCount = (denom, val) => setCounts(c => ({ ...c, [denom]: val }))
 
   const handleSave = async () => {
+    if (saving || saved) return
+    setSaving(true)
     try {
       const denominations = DENOMINATIONS.reduce((acc, d) => { acc[d] = Number(counts[d]) || 0; return acc }, {})
       await pb.collection(C.ZREPORTS).create({
@@ -74,8 +94,10 @@ export default function ReconciliationPage() {
         closed_by: admin?.id || pb.authStore.model?.id,
       })
       setSaved(true)
+      setSaving(false)
       toast.success('Z-Report saved! Cash reconciliation complete')
     } catch (err) {
+      setSaving(false)
       if (err?.status === 400) {
         toast.error('A Z-Report for this date has already been closed. Each day can only be closed once.')
       } else {
@@ -107,8 +129,12 @@ export default function ReconciliationPage() {
                 { label: '💵 Cash Sales', value: totalCashSales, color: '#059669' },
                 { label: '📱 M-Pesa Sales', value: totalMpesaSales, color: '#3b82f6' },
                 { label: '💳 Card Sales', value: totalCardSales, color: '#8b5cf6' },
+                { label: 'Split sales (cash + M-Pesa)', value: splitTotal, color: '#0e7490' },
+                { label: 'Credit sales (not paid yet)', value: creditSalesTotal, color: '#9b6070' },
                 { label: '🧾 Total Revenue', value: totalRevenue, color: '#c8456a', bold: true, border: true },
                 { label: '💸 Cash Expenses', value: -cashExpenses, color: '#dc2626' },
+                { label: 'Cash part of Split sales', value: splitCash, color: '#0e7490' },
+                { label: 'Credit repayments received in cash', value: creditCashReceived, color: '#059669' },
                 { label: '📦 Opening Float', value: Number(openingFloat), color: '#d97706' },
               ].map((r, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderTop: r.border ? '2px solid #f0e4e8' : 'none', marginTop: r.border ? 4 : 0 }}>
@@ -148,7 +174,7 @@ export default function ReconciliationPage() {
                         <td style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 600 }}>{fmtKES(s.total_kes)}</td>
                       </tr>
                     ))}
-                    {sales.length === 0 && <tr><td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: '#9b6070' }}>No sales today</td></tr>}
+                    {sales.length === 0 && <tr><td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: '#9b6070' }}>No sales on this date</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -217,7 +243,7 @@ export default function ReconciliationPage() {
               ))}
             </div>
 
-            <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: 14, fontSize: 15 }} onClick={handleSave} disabled={saved}>
+            <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: 14, fontSize: 15 }} onClick={handleSave} disabled={saved || saving}>
               {saved ? '✅ Z-Report Saved' : '💾 Close Day & Save Z-Report'}
             </button>
           </div>
