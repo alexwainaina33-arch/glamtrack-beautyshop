@@ -175,6 +175,19 @@ export default function ExpensesPage() {
     } catch { toast.error('Failed') }
   }
 
+  const handleSaveBudget = async (cat, el) => {
+    const raw = String(el.value).trim()
+    const before = Number(cat.monthly_budget_kes) || 0
+    const n = raw === '' ? 0 : Number(raw)
+    if (!Number.isFinite(n) || n < 0) { toast.error('Budget must be a number, 0 or more'); el.value = before || ''; return }
+    if (n === before) return
+    try {
+      const rec = await pb.collection(C.EXPENSE_CATS).update(cat.id, { monthly_budget_kes: n })
+      setCategories(cs => cs.map(c => c.id === cat.id ? { ...c, monthly_budget_kes: rec.monthly_budget_kes } : c))
+      toast.success(n > 0 ? 'Budget saved' : 'Budget removed')
+    } catch { toast.error('Could not save budget. Try again.'); el.value = before || '' }
+  }
+
   const handleDeleteCategory = async (cat) => {
     if (!confirm(`Delete category "${cat.name}"?`)) return
     try { await pb.collection(C.EXPENSE_CATS).delete(cat.id); toast.success('Category deleted'); loadData() }
@@ -274,6 +287,16 @@ export default function ExpensesPage() {
     setTimeout(() => { w.print() }, 300)
   }
   const uncategorized = expenses.filter(e => !e.category_id).reduce((s, e) => s + e.amount_kes, 0)
+
+  const budgetsActive = isValid(parseISO(dateFrom)) && isValid(parseISO(dateTo)) && dateFrom <= dateTo && String(dateFrom).slice(0, 7) === String(dateTo).slice(0, 7)
+  const fullMonth = budgetsActive && dateFrom === format(startOfMonth(parseISO(dateFrom)), 'yyyy-MM-dd') && dateTo === format(endOfMonth(parseISO(dateFrom)), 'yyyy-MM-dd')
+  const anyBudget = categories.some(c => Number(c.monthly_budget_kes) > 0)
+  const budgetInfo = (cat) => {
+    const budget = Number(cat.monthly_budget_kes) || 0
+    if (!budgetsActive || budget <= 0) return null
+    const pct = (cat.total / budget) * 100
+    return { budget, pct, color: pct > 100 ? '#dc2626' : pct >= 80 ? '#d97706' : '#059669', bar: pct > 100 ? '#dc2626' : pct >= 80 ? '#d97706' : 'linear-gradient(90deg,#c8456a,#8b2550)' }
+  }
 
   const DEFAULT_CATS = [
     { icon: '👤', name: 'Salaries & Wages' }, { icon: '💡', name: 'Electricity' },
@@ -421,6 +444,12 @@ export default function ExpensesPage() {
         {/* By category */}
         <div className="card">
           <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 16px' }}>By Category</h3>
+          {anyBudget && !budgetsActive && (
+            <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 12 }}>Budgets show when both dates are in the same month.</div>
+          )}
+          {anyBudget && budgetsActive && !fullMonth && (
+            <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 12 }}>This range is part of a month. Each budget is for the whole month.</div>
+          )}
           {catSummary.map(cat => (
             <div key={cat.id} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
@@ -428,10 +457,15 @@ export default function ExpensesPage() {
                 <span style={{ fontWeight: 700, color: '#dc2626' }}>{fmtKES(cat.total)}</span>
               </div>
               <div style={{ background: '#f5edf0', borderRadius: 4, height: 6 }}>
-                <div style={{ background: 'linear-gradient(90deg,#c8456a,#8b2550)', height: 6, borderRadius: 4, width: `${Math.min(100, (cat.total / totalExpenses) * 100)}%` }} />
+                <div style={{ background: budgetInfo(cat) ? budgetInfo(cat).bar : 'linear-gradient(90deg,#c8456a,#8b2550)', height: 6, borderRadius: 4, width: `${budgetInfo(cat) ? Math.min(100, budgetInfo(cat).pct) : Math.min(100, (cat.total / totalExpenses) * 100)}%` }} />
               </div>
               <div style={{ fontSize: 11, color: '#9b6070', textAlign: 'right' }}>
-                {((cat.total / totalExpenses) * 100).toFixed(1)}%
+                {((cat.total / totalExpenses) * 100).toFixed(1)}% of spending
+                {budgetInfo(cat) && (
+                  <div style={{ fontWeight: 700, color: budgetInfo(cat).color, marginTop: 2 }}>
+                    {budgetInfo(cat).pct > 100 ? `Over budget by ${fmtKES(cat.total - budgetInfo(cat).budget)}` : `${fmtKES(cat.total)} of ${fmtKES(budgetInfo(cat).budget)} budget (${Math.round(budgetInfo(cat).pct)}%)`}
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -548,7 +582,10 @@ export default function ExpensesPage() {
                 {categories.map(cat => (
                   <div key={cat.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#fff5f7', borderRadius: 8 }}>
                     <span>{cat.icon} {cat.name}</span>
-                    <button className="btn-ghost" style={{ padding: '4px 8px', color: '#dc2626' }} onClick={() => handleDeleteCategory(cat)} aria-label={`Delete category ${cat.name}`}><Trash2 size={13} /></button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input className="input" type="number" min="0" step="1" aria-label={`Monthly budget for ${cat.name}`} placeholder="KES / month" defaultValue={Number(cat.monthly_budget_kes) > 0 ? cat.monthly_budget_kes : ''} onBlur={e => handleSaveBudget(cat, e.target)} onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }} style={{ width: 110, padding: '4px 8px', fontSize: 12 }} />
+                      <button className="btn-ghost" style={{ padding: '4px 8px', color: '#dc2626' }} onClick={() => handleDeleteCategory(cat)} aria-label={`Delete category ${cat.name}`}><Trash2 size={13} /></button>
+                    </div>
                   </div>
                 ))}
               </div>
