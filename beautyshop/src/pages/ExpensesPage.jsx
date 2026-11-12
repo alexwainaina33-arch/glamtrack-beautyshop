@@ -27,6 +27,7 @@ export default function ExpensesPage() {
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('')
   const [prevTotal, setPrevTotal] = useState(null)
+  const [activePreset, setActivePreset] = useState('month')
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(max-width: 640px)').matches : false)
 
   useEffect(() => { if (shop && !authLoading) loadData() }, [shop, dateFrom, dateTo])
@@ -54,12 +55,12 @@ export default function ExpensesPage() {
     const day = e => String(e.expense_date || '').slice(0, 10)
     const a = parseISO(dateFrom)
     const b = parseISO(dateTo)
-    const needFrom = (isValid(a) && isValid(b) && b >= a) ? format(subDays(a, differenceInCalendarDays(b, a) + 1), 'yyyy-MM-dd') : null
+    
     for (let page = 1; page <= 50; page++) {
       const r = await pb.collection(C.EXPENSES).getList(page, perPage, { filter: `shop_id="${shop.id}"`, sort: '-expense_date', expand: 'category_id,created_by' })
       all = all.concat(r.items)
-      const lastDay = day(r.items[r.items.length - 1] || {})
-      if (r.items.length < perPage || (lastDay && needFrom && lastDay < needFrom)) break
+      
+      if (r.items.length < perPage) break
     }
     
     const rows = all.filter(e => day(e) >= dateFrom && day(e) <= dateTo)
@@ -198,6 +199,7 @@ export default function ExpensesPage() {
   const emptyMsg = loading ? 'Loading...' : expenses.length > 0 ? 'No expenses match your filters' : 'No expenses recorded in this period'
 
   const setPreset = (p) => {
+    setActivePreset(p)
     const now = new Date()
     const f = d => format(d, 'yyyy-MM-dd')
     if (p === 'today') { setDateFrom(f(now)); setDateTo(f(now)) }
@@ -227,6 +229,49 @@ export default function ExpensesPage() {
     a.click()
     a.remove()
     URL.revokeObjectURL(url)
+  }
+  const exportRows = () => visible.map(e => ({
+    date: String(e.expense_date || '').slice(0, 10),
+    description: e.description || '',
+    category: e.expand?.category_id?.name || 'Uncategorized',
+    payment: e.payment_method || '',
+    amount: Number(e.amount_kes) || 0,
+    reference: e.reference || '',
+    notes: e.notes || ''
+  }))
+  const htmlEsc = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const safeText = v => { const s = String(v ?? ''); return /^[=+\-@]/.test(s) ? "'" + s : s }
+
+  const exportExcel = () => {
+    const rows = exportRows()
+    if (!rows.length) return
+    const th = ['Date', 'Description', 'Category', 'Payment', 'Amount (KES)', 'Reference', 'Notes'].map(h => '<th>' + htmlEsc(h) + '</th>').join('')
+    const tr = rows.map(r => '<tr><td>' + htmlEsc(r.date) + '</td><td>' + htmlEsc(safeText(r.description)) + '</td><td>' + htmlEsc(safeText(r.category)) + '</td><td>' + htmlEsc(r.payment) + '</td><td>' + r.amount + '</td><td>' + htmlEsc(safeText(r.reference)) + '</td><td>' + htmlEsc(safeText(r.notes)) + '</td></tr>').join('')
+    const total = '<tr><td></td><td><b>Total</b></td><td></td><td></td><td><b>' + visibleTotal + '</b></td><td></td><td></td></tr>'
+    const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table border="1"><thead><tr>' + th + '</tr></thead><tbody>' + tr + total + '</tbody></table></body></html>'
+    const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `expenses_${dateFrom}_to_${dateTo}.xls`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportPdf = () => {
+    const rows = exportRows()
+    if (!rows.length) return
+    const w = window.open('', '_blank')
+    if (!w) { toast.error('Allow pop-ups for this site to export PDF, then try again'); return }
+    const tr = rows.map(r => '<tr><td>' + htmlEsc(r.date) + '</td><td>' + htmlEsc(r.description) + '</td><td>' + htmlEsc(r.category) + '</td><td>' + htmlEsc(r.payment) + '</td><td class="num">' + htmlEsc(fmtKES(r.amount)) + '</td><td>' + htmlEsc(r.reference) + '</td></tr>').join('')
+    const filterNote = visible.length !== expenses.length ? '<p>Filtered: ' + visible.length + ' of ' + expenses.length + ' entries</p>' : ''
+    const css = 'body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 4px}p{margin:0 0 10px;font-size:12px;color:#555}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ccc;padding:6px;text-align:left}th{background:#f3e6ea}td.num{text-align:right}tfoot td{font-weight:bold}'
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Expenses</title><style>' + css + '</style></head><body><h1>' + htmlEsc(shop?.name || '') + ' - Expenses</h1><p>Period: ' + htmlEsc(dateFrom) + ' to ' + htmlEsc(dateTo) + '</p>' + filterNote + '<table><thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Payment</th><th>Amount</th><th>Reference</th></tr></thead><tbody>' + tr + '</tbody><tfoot><tr><td colspan="4">Total</td><td class="num">' + htmlEsc(fmtKES(visibleTotal)) + '</td><td></td></tr></tfoot></table></body></html>')
+    w.document.close()
+    w.focus()
+    setTimeout(() => { w.print() }, 300)
   }
   const uncategorized = expenses.filter(e => !e.category_id).reduce((s, e) => s + e.amount_kes, 0)
 
@@ -259,11 +304,11 @@ export default function ExpensesPage() {
         <div className="expenses-filter-grid" style={{ display: 'flex', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
           <div>
             <label className="label">From</label>
-            <input className="input" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+            <input className="input" type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setActivePreset('') }} />
           </div>
           <div>
             <label className="label">To</label>
-            <input className="input" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+            <input className="input" type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setActivePreset('') }} />
           </div>
           <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 24, fontWeight: 700, color: '#dc2626', marginLeft: 'auto', alignSelf: 'center' }}>
             Total: {fmtKES(totalExpenses)}
@@ -274,7 +319,7 @@ export default function ExpensesPage() {
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           {[['today', 'Today'], ['week', 'This week'], ['month', 'This month'], ['last', 'Last month']].map(([k, l]) => (
-            <button key={k} type="button" className="btn-secondary" style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => setPreset(k)}>{l}</button>
+            <button key={k} type="button" className="btn-secondary" aria-pressed={activePreset === k} style={{ padding: '5px 12px', fontSize: 12, ...(activePreset === k ? { background: 'linear-gradient(135deg,#c8456a,#8b2550)', color: '#fff', borderColor: 'transparent' } : {}) }} onClick={() => setPreset(k)}>{l}</button>
           ))}
         </div>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: '#3d1020', marginBottom: 8 }}>
@@ -301,6 +346,8 @@ export default function ExpensesPage() {
             {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
           </select>
           <button type="button" className="btn-secondary" onClick={exportCsv} disabled={visible.length === 0}>Export CSV</button>
+          <button type="button" className="btn-secondary" onClick={exportExcel} disabled={visible.length === 0}>Export Excel</button>
+          <button type="button" className="btn-secondary" onClick={exportPdf} disabled={visible.length === 0}>Export PDF</button>
         </div>
         {visible.length !== expenses.length && (
           <div style={{ fontSize: 12, color: '#9b6070', marginTop: 8 }}>Showing {visible.length} of {expenses.length} entries - filtered total {fmtKES(visibleTotal)}</div>
