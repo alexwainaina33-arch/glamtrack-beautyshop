@@ -53,6 +53,8 @@ export default function ReportsPage() {
   const [tab, setTab] = useState(0)
   const canSeeLenderPack = hasRequiredPlan(shop, 'growth')
   const printRef = useRef()
+  const plSeq = useRef(0)
+  const erSeq = useRef(0)
 
   // ── Per-tab date state ─────────────────────────────────────────────────
   const [plFrom,   setPlFrom]   = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
@@ -104,6 +106,18 @@ export default function ReportsPage() {
   useEffect(() => { if (shop && tab === 6 && !lenderData) loadLenderData() }, [shop, tab])
 
   // ── exportCSV helper ───────────────────────────────────────────────────
+  const loadAllExpenses = async () => {
+    const perPage = 200
+    let all = []
+    for (let page = 1; page <= 50; page++) {
+      const r = await pb.collection(C.EXPENSES).getList(page, perPage, { filter: `shop_id="${shop.id}"`, sort: '-expense_date', expand: 'category_id', '$autoCancel': false })
+      all = all.concat(r.items)
+      if (r.items.length < perPage) break
+    }
+    return all
+  }
+  const inRange = (e, f, t) => { const d = String(e.expense_date || '').slice(0, 10); return !!d && d >= f && d <= t }
+
   const loadPayMap = async () => {
     try {
       const rows = await pb.collection('bs_payments').getFullList({ filter: `shop_id="${shop.id}"`, '$autoCancel': false })
@@ -117,8 +131,9 @@ export default function ReportsPage() {
   const exportCSV = (rows, filename) => {
     if (!rows?.length) return toast.error('No data to export')
     const headers = Object.keys(rows[0])
-    const csv = [headers.join(','), ...rows.map(r => headers.map(h => `"${r[h] ?? ''}"`).join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
+    const esc = v => { let s = String(v ?? ''); if (typeof v === 'string' && /^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"' }
+    const csv = [headers.map(esc).join(','), ...rows.map(r => headers.map(h => esc(r[h])).join(','))].join('\r\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url; a.download = filename; a.click()
     URL.revokeObjectURL(url)
@@ -130,11 +145,12 @@ export default function ReportsPage() {
   // TAB 0 — P&L
   // ══════════════════════════════════════════════════════════════════════
   const loadPL = async () => {
+    const seq = ++plSeq.current
     setPlLoad(true)
     try {
-      let allCompleted = []; const payMap = await loadPayMap(); const [salesAll, expenses, expCats] = await Promise.all([
+      let allCompleted = []; const payMap = await loadPayMap(); const allExpP = loadAllExpenses(); const [salesAll, expenses, expCats] = await Promise.all([
         pb.collection(C.SALES).getFullList({ filter: `shop_id="${shop.id}" && status="completed"`, '$autoCancel': false, '$cancelKey': 'pl-sales' }).then(all => { allCompleted = all; return { items: all } }).then(r => r.items.filter(x => { const d = rDate(x); return d && d >= plFrom && d <= plTo })),
-        pb.collection(C.EXPENSES).getList(1, 500, { filter: `shop_id="${shop.id}"`, expand: 'category_id', '$autoCancel': false, '$cancelKey': 'pl-exp' }).then(r => r.items.filter(e => { const d = e.expense_date?.slice(0,10); return d && d >= plFrom && d <= plTo })),
+        allExpP.then(all => all.filter(e => inRange(e, plFrom, plTo))),
         pb.collection(C.EXPENSE_CATS).getList(1, 200, { filter: `shop_id="${shop.id}"`, '$autoCancel': false, '$cancelKey': 'pl-expcats' }).then(r => r.items),
       ])
       const revenue      = salesAll.reduce((s,x) => s+(x.total_kes||0), 0)
@@ -171,13 +187,14 @@ export default function ReportsPage() {
         const mF = format(startOfMonth(month),'yyyy-MM-dd')
         const mT = format(endOfMonth(month),'yyyy-MM-dd')
         const mS = allCompleted.filter(x=>{const d=rDate(x);return d&&d>=mF&&d<=mT})
-        const mE = await pb.collection(C.EXPENSES).getList(1,500,{ filter:`shop_id="${shop.id}"`, '$autoCancel':false, '$cancelKey':`pl-texp-${mKey}` }).then(r=>r.items.filter(e=>{const d=e.expense_date?.slice(0,10);return d&&d>=mF&&d<=mT}))
+        const mE = (await allExpP).filter(e => inRange(e, mF, mT))
         const rev=mS.reduce((s,x)=>s+x.total_kes,0)
         const cost=mS.reduce((s,x)=>s+(x.total_cost_kes||0),0)
         const exp=mE.reduce((s,x)=>s+x.amount_kes,0)
         return { label:format(month,'MMM yy'), revenue:rev, grossProfit:rev-cost, netProfit:rev-cost-exp, expenses:exp }
       }))
 
+      if (seq !== plSeq.current) return
       setPlData({
         revenue, costOfSales, grossProfit, grossMargin,
         totalExpenses, netProfit, netMargin,
@@ -188,8 +205,8 @@ export default function ReportsPage() {
         avgCustomerValue: Object.keys(customerSales).length ? Object.values(customerSales).reduce((s,c)=>s+c.total,0)/Object.keys(customerSales).length : 0,
         creditOutstanding: salesAll.filter(s=>s.payment_status==='pending').reduce((s,x)=>s+owed(x,payMap),0),
       })
-    } catch(err) { console.error(err); toast.error('Failed to load P&L') }
-    finally { setPlLoad(false) }
+    } catch(err) { console.error(err); if (seq === plSeq.current) toast.error('Failed to load P&L') }
+    finally { if (seq === plSeq.current) setPlLoad(false) }
   }
 
   const sharePLWhatsApp = () => {
@@ -270,7 +287,7 @@ export default function ReportsPage() {
       ...(d.balancingFigure?[`Balancing figure (estimate)`,`*${fmtKES(d.balancingFigure)}*`]:[]),
       `Total Equity`,`*${fmtKES(d.totalEquity)}*`,``,
       `Balance Check`,`*${d.isBalanced ? '✅ Balanced' : `⚠️ Variance: ${fmtKES(Math.abs(d.variance))}`}*`,``,
-      `_Generated from verified immutable records · SalesTrack_`,
+      `_Generated from SalesTrack business records · SalesTrack_`,
       `_${shop?.name||''} · Powered by SalesTrack_`,
     ].join('\n')
     window.open(`https://wa.me/?text=${encodeURIComponent(lines)}`, '_blank')
@@ -395,18 +412,20 @@ export default function ReportsPage() {
   // TAB 4 — EXPENSE REPORT
   // ══════════════════════════════════════════════════════════════════════
   const loadER = async () => {
+    const seq = ++erSeq.current
     setErLoad(true)
     try {
       const [expenses, expCats] = await Promise.all([
-        pb.collection(C.EXPENSES).getList(1,500,{ filter:`shop_id="${shop.id}"`, expand:'category_id', '$autoCancel':false, '$cancelKey':'er-exp' }).then(r=>r.items.filter(e=>{const d=e.expense_date?.slice(0,10);return d&&d>=erFrom&&d<=erTo})),
+        loadAllExpenses().then(all => all.filter(e => inRange(e, erFrom, erTo))),
         pb.collection(C.EXPENSE_CATS).getList(1,200,{ filter:`shop_id="${shop.id}"`, '$cancelKey':'er-cats' }).then(r=>r.items),
       ])
       const expByCat=expCats.map(cat=>({name:`${cat.icon||''} ${cat.name}`,total:expenses.filter(e=>e.category_id===cat.id).reduce((s,e)=>s+e.amount_kes,0)})).filter(c=>c.total>0)
       const uncatExp=expenses.filter(e=>!e.category_id).reduce((s,e)=>s+e.amount_kes,0)
       if(uncatExp>0) expByCat.push({name:'Other',total:uncatExp})
+      if (seq !== erSeq.current) return
       setErData({ expensesRaw:expenses, expByCat, totalExpenses:expenses.reduce((s,e)=>s+(e.amount_kes||0),0) })
-    } catch(err){console.error(err);toast.error('Failed to load Expense Report')}
-    finally{setErLoad(false)}
+    } catch(err){console.error(err);if(seq===erSeq.current)toast.error('Failed to load Expense Report')}
+    finally{if(seq===erSeq.current)setErLoad(false)}
   }
 
   // ══════════════════════════════════════════════════════════════════════
@@ -415,7 +434,7 @@ export default function ReportsPage() {
   const loadSV = async () => {
     setSvLoad(true)
     try {
-      const products = await pb.collection(C.PRODUCTS).getList(1,500,{ filter:`shop_id="${shop.id}" && status="active"`, '$cancelKey':'sv-prods' }).then(r=>r.items)
+      const products = await pb.collection(C.PRODUCTS).getFullList({ filter:`shop_id="${shop.id}" && status="active"`, '$autoCancel':false })
       const stockVal = products.map(p=>({...p, costValue:(p.stock_qty||0)*(p.cost_price_kes||0), retailValue:(p.stock_qty||0)*(p.price_kes||0)})).sort((a,b)=>b.retailValue-a.retailValue)
       setSvData({ stockVal, totalStockCost:stockVal.reduce((s,p)=>s+p.costValue,0), totalStockRetail:stockVal.reduce((s,p)=>s+p.retailValue,0) })
     } catch(err){console.error(err);toast.error('Failed to load Stock Valuation')}
@@ -432,7 +451,7 @@ export default function ReportsPage() {
         filter: `shop_id="${shop.id}" && status="completed"`,
         '$autoCancel': false, '$cancelKey': 'lender-lifetime',
       })
-      const lenderPay = await loadPayMap(); const shopCreated = shop.created ? new Date(shop.created) : new Date()
+      const lenderPay = await loadPayMap(); const lenderExp = loadAllExpenses(); const shopCreated = shop.created ? new Date(shop.created) : new Date()
       const monthsActive = Math.max(1, Math.round((new Date() - shopCreated) / (1000*60*60*24*30.44)))
       const lifetimeRevenue = lifetimeSales.reduce((s,x) => s+(x.total_kes||0), 0)
       const avgMonthlyRevenue = lifetimeRevenue / monthsActive
@@ -455,7 +474,7 @@ export default function ReportsPage() {
         const mFrom=format(startOfMonth(month),'yyyy-MM-dd')
         const mTo=format(endOfMonth(month),'yyyy-MM-dd')
         const mSales=lifetimeSales.filter(x=>{const d=rDate(x);return d&&d>=mFrom&&d<=mTo})
-        const mExp=await pb.collection(C.EXPENSES).getList(1,500,{ filter:`shop_id="${shop.id}"`, '$autoCancel':false, '$cancelKey':`lender-exp-${mKey}` }).then(r=>r.items.filter(e=>{const d=e.expense_date?.slice(0,10);return d&&d>=mFrom&&d<=mTo}))
+        const mExp=(await lenderExp).filter(e=>inRange(e,mFrom,mTo))
         const revenue=mSales.reduce((s,x)=>s+(x.total_kes||0),0)
         const cogs=mSales.reduce((s,x)=>s+(x.total_cost_kes||0),0)
         const grossProfit=revenue-cogs
@@ -511,8 +530,8 @@ export default function ReportsPage() {
       `Revenue Consistency`,`*${d.profitableMonths}/6 months profitable (${d.consistencyScore}%)*`,
       ...(d.growthRate!==null?[``,`Revenue Growth (6 months)`,`*${d.growthRate>0?'+':''}${d.growthRate}%*`]:[]),
       ...(calc?[``,`Debt Service Coverage Ratio`,`*${calc.dscr.toFixed(2)}x* ${calc.dscr>=1.25?'✅ Bankable':calc.dscr>=1.0?'⚠️ Borderline':'❌ High Risk'}`]:[]),
-      ``,`_All figures verified from immutable transaction records._`,
-      `_Records cannot be edited or deleted by any user._`,
+      ``,`_Figures are generated from SalesTrack records. Please confirm key figures against M-Pesa or bank statements._`,
+      `_Entries are timestamped. Authorised shop users can correct records._`,
       `_Report ID: ${d.reportId}_`,`_${shop?.name} · Powered by SalesTrack_`,
     ].join('\n')
     window.open(`https://wa.me/?text=${encodeURIComponent(lines)}`,'_blank')
@@ -1195,7 +1214,7 @@ export default function ReportsPage() {
           <div className="page-header no-print" style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:8, marginBottom:20 }}>
             <div>
               <div style={{ fontFamily:'Playfair Display,serif', fontSize:22, color:'#3d1020', fontWeight:700 }}>🏦 Lender Pack</div>
-              <div style={{ fontSize:13, color:'#9b6070', marginTop:2 }}>Bank-grade credit document · {shop?.name} · Generated from verified immutable records</div>
+              <div style={{ fontSize:13, color:'#9b6070', marginTop:2 }}>Bank-grade credit document · {shop?.name} · Generated from your SalesTrack records</div>
             </div>
             <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
               <button onClick={shareLenderWhatsApp} style={{ padding:'9px 16px', borderRadius:10, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>📲 Share Summary</button>
@@ -1359,10 +1378,10 @@ export default function ReportsPage() {
                   <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
                     <div style={{ fontSize:24, flexShrink:0 }}>🔒</div>
                     <div>
-                      <div style={{ fontWeight:800, fontSize:14, color:'#fff', marginBottom:6 }}>Data Integrity Verification</div>
-                      <div style={{ fontSize:12, color:'rgba(255,255,255,0.65)', lineHeight:1.7 }}>All figures in this report are derived exclusively from immutable transaction records maintained by SalesTrack. No transaction, sale, or financial record in this system can be edited or deleted by any user — including the shop owner, managers, or SalesTrack administrators. Every sale is timestamped, shop-isolated, and permanently stored with a full audit trail. This data meets the standards required for credit assessment under CBK Prudential Guidelines for SME lending.</div>
+                      <div style={{ fontWeight:800, fontSize:14, color:'#fff', marginBottom:6 }}>Data Source and Reliability</div>
+                      <div style={{ fontSize:12, color:'rgba(255,255,255,0.65)', lineHeight:1.7 }}>Figures in this report are generated from the business's SalesTrack sales, payment and expense records as at the time shown. Entries are timestamped and each shop's data is kept separate from other shops. Authorised shop users can correct records, so lenders should confirm key figures against M-Pesa or bank statements.</div>
                       <div style={{ marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                        {[{label:'Report ID',value:d.reportId},{label:'Generated',value:d.generatedAt},{label:'Business',value:shop?.name},{label:'Data Source',value:'SalesTrack POS — Immutable Ledger'}].map((r,i) => (
+                        {[{label:'Report ID',value:d.reportId},{label:'Generated',value:d.generatedAt},{label:'Business',value:shop?.name},{label:'Data Source',value:'SalesTrack POS — Sales and Payment Records'}].map((r,i) => (
                           <div key={i} style={{ fontSize:11 }}><span style={{ color:'rgba(255,255,255,0.4)' }}>{r.label}: </span><span style={{ color:'rgba(255,255,255,0.8)', fontWeight:600 }}>{r.value}</span></div>
                         ))}
                       </div>
