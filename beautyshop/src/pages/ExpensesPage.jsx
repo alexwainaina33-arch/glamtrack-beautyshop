@@ -27,23 +27,44 @@ export default function ExpensesPage() {
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('')
   const [prevTotal, setPrevTotal] = useState(null)
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(max-width: 640px)').matches : false)
 
   useEffect(() => { if (shop && !authLoading) loadData() }, [shop, dateFrom, dateTo])
+
+  useEffect(() => {
+    if (!window.matchMedia) return
+    const mq = window.matchMedia('(max-width: 640px)')
+    const on = () => setIsMobile(mq.matches)
+    on()
+    if (mq.addEventListener) mq.addEventListener('change', on); else mq.addListener(on)
+    return () => { if (mq.removeEventListener) mq.removeEventListener('change', on); else mq.removeListener(on) }
+  }, [])
+
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') { setShowModal(false); setShowCatModal(false) } }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const loadSeq = useRef(0)
 
   const loadAllExpenses = async () => {
     const perPage = 200
     let all = []
+    const day = e => String(e.expense_date || '').slice(0, 10)
+    const a = parseISO(dateFrom)
+    const b = parseISO(dateTo)
+    const needFrom = (isValid(a) && isValid(b) && b >= a) ? format(subDays(a, differenceInCalendarDays(b, a) + 1), 'yyyy-MM-dd') : null
     for (let page = 1; page <= 50; page++) {
       const r = await pb.collection(C.EXPENSES).getList(page, perPage, { filter: `shop_id="${shop.id}"`, sort: '-expense_date', expand: 'category_id,created_by' })
       all = all.concat(r.items)
-      if (r.items.length < perPage) break
+      const lastDay = day(r.items[r.items.length - 1] || {})
+      if (r.items.length < perPage || (lastDay && needFrom && lastDay < needFrom)) break
     }
-    const day = e => String(e.expense_date || '').slice(0, 10)
+    
     const rows = all.filter(e => day(e) >= dateFrom && day(e) <= dateTo)
-    const a = parseISO(dateFrom)
-    const b = parseISO(dateTo)
+    
+    
     let prevTotal = null
     if (isValid(a) && isValid(b) && b >= a) {
       const days = differenceInCalendarDays(b, a) + 1
@@ -74,6 +95,21 @@ export default function ExpensesPage() {
   }
 
   const openNew = () => { setEditing(null); setForm(EMPTY); setReceiptFile(null); setShowModal(true) }
+  const openRepeat = (exp) => {
+    if (isLocked) return toast.error('Account locked - renew your subscription to record new expenses', { duration: 6000 })
+    setEditing(null)
+    setForm({
+      description: exp.description || '',
+      category_id: exp.category_id || '',
+      amount_kes: exp.amount_kes ?? '',
+      expense_date: format(new Date(), 'yyyy-MM-dd'),
+      payment_method: exp.payment_method || 'cash',
+      reference: '',
+      notes: ''
+    })
+    setReceiptFile(null)
+    setShowModal(true)
+  }
   const openEdit = (exp) => {
     setEditing(exp)
     setForm({
@@ -128,9 +164,9 @@ export default function ExpensesPage() {
   }
 
   const handleAddCategory = async () => {
-    if (!newCatName) return
+    if (!newCatName.trim()) return
     try {
-      await pb.collection(C.EXPENSE_CATS).create({ shop_id: shop.id, name: newCatName, icon: newCatIcon })
+      await pb.collection(C.EXPENSE_CATS).create({ shop_id: shop.id, name: newCatName.trim(), icon: newCatIcon })
       setNewCatName('')
       toast.success('Category added')
       loadData()
@@ -158,6 +194,8 @@ export default function ExpensesPage() {
     (!catFilter || (catFilter === 'none' ? !e.category_id : e.category_id === catFilter)) &&
     (!q || `${e.description || ''} ${e.reference || ''} ${e.notes || ''}`.toLowerCase().includes(q)))
   const changePct = prevTotal > 0 ? ((totalExpenses - prevTotal) / prevTotal) * 100 : null
+  const visibleTotal = visible.reduce((s, e) => s + (Number(e.amount_kes) || 0), 0)
+  const emptyMsg = loading ? 'Loading...' : expenses.length > 0 ? 'No expenses match your filters' : 'No expenses recorded in this period'
 
   const setPreset = (p) => {
     const now = new Date()
@@ -265,14 +303,37 @@ export default function ExpensesPage() {
           <button type="button" className="btn-secondary" onClick={exportCsv} disabled={visible.length === 0}>Export CSV</button>
         </div>
         {visible.length !== expenses.length && (
-          <div style={{ fontSize: 12, color: '#9b6070', marginTop: 8 }}>Showing {visible.length} of {expenses.length} entries</div>
+          <div style={{ fontSize: 12, color: '#9b6070', marginTop: 8 }}>Showing {visible.length} of {expenses.length} entries - filtered total {fmtKES(visibleTotal)}</div>
         )}
       </div>
 
       <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
         {/* Expenses table */}
         <div className="card" style={{ padding: 0, minWidth: 0 }}>
-          <div className="table-wrap">
+          {isMobile && (
+            <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {visible.map(exp => (
+                <div key={exp.id} style={{ border: '1px solid #f0e4e8', borderRadius: 12, padding: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ fontWeight: 600, minWidth: 0, overflowWrap: 'anywhere' }}>{exp.description}</div>
+                    <div style={{ fontWeight: 700, color: '#dc2626', whiteSpace: 'nowrap' }}>{fmtKES(exp.amount_kes)}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#9b6070', marginTop: 4 }}>
+                    {fmtDate(exp.expense_date)} | {exp.expand?.category_id ? `${exp.expand.category_id.icon} ${exp.expand.category_id.name}` : 'Uncategorized'} | {exp.payment_method}
+                  </div>
+                  {exp.reference && <div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Ref: {exp.reference}</div>}
+                  {exp.receipt_file && <a href={receiptUrl(exp)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#3b82f6', display: 'inline-block', marginTop: 4 }}>Receipt attached</a>}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => openRepeat(exp)}>Repeat</button>
+                    <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => openEdit(exp)}>Edit</button>
+                    <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12, color: '#dc2626' }} onClick={() => handleDelete(exp.id)}>Delete</button>
+                  </div>
+                </div>
+              ))}
+              {visible.length === 0 && <div style={{ textAlign: 'center', padding: '32px 0', color: '#9b6070' }}>{emptyMsg}</div>}
+            </div>
+          )}
+          <div className="table-wrap" style={{ display: isMobile ? 'none' : undefined }}>
             <table style={{ minWidth: 640 }}>
               <thead>
                 <tr><th>Date</th><th>Description</th><th>Category</th><th>Payment</th><th>Amount</th><th>Receipt</th><th></th></tr>
@@ -297,6 +358,7 @@ export default function ExpensesPage() {
                     <td>{exp.receipt_file ? <a href={receiptUrl(exp)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#3b82f6' }}>📎 Attached</a> : '—'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn-ghost" style={{ padding: '5px 10px', fontSize: 12 }} onClick={() => openRepeat(exp)} aria-label={`Repeat ${exp.description}`} title="Record this expense again for today">Repeat</button>
                         <button className="btn-ghost" style={{ padding: '5px 10px' }} onClick={() => openEdit(exp)} aria-label={`Edit ${exp.description}`}><Edit2 size={13} /></button>
                         <button className="btn-ghost" style={{ padding: '5px 10px', color: '#dc2626' }} onClick={() => handleDelete(exp.id)} aria-label={`Delete ${exp.description}`}><Trash2 size={13} /></button>
                       </div>
@@ -340,7 +402,7 @@ export default function ExpensesPage() {
           <div className="modal" style={{ maxWidth: 520 }}>
             <div className="modal-header">
               <span className="modal-title">{editing ? 'Edit Expense' : 'Record Expense'}</span>
-              <button onClick={() => setShowModal(false)} className="btn-ghost" style={{ padding: 8 }}><X size={18} /></button>
+              <button onClick={() => setShowModal(false)} aria-label="Close" className="btn-ghost" style={{ padding: 8 }}><X size={18} /></button>
             </div>
             <div className="modal-body">
               <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -384,10 +446,10 @@ export default function ExpensesPage() {
                     <Upload size={18} style={{ margin: '0 auto 4px', display: 'block', color: '#c8456a' }} />
                     {receiptFile
                       ? <span style={{ color: '#059669', fontWeight: 700 }}>✅ {receiptFile.name}</span>
-                      : <><div>📷 Snap receipt photo or upload PDF</div><div style={{ fontSize: 11, marginTop: 3, color: '#c8b0b8' }}>On mobile — opens camera directly</div></>
+                      : <><div>📷 Snap receipt photo or upload PDF</div><div style={{ fontSize: 11, marginTop: 3, color: '#c8b0b8' }}>On mobile — choose camera, gallery or PDF</div></>
                     }
                   </div>
-                  <input ref={fileRef} type="file" accept="image/*,application/pdf" capture="environment" style={{ display: 'none' }} onChange={e => setReceiptFile(e.target.files[0])} />
+                  <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => setReceiptFile(e.target.files[0])} />
                 </div>
                 <div>
                   <label className="label">Notes</label>
@@ -411,7 +473,7 @@ export default function ExpensesPage() {
           <div className="modal" style={{ maxWidth: 500 }}>
             <div className="modal-header">
               <span className="modal-title">Expense Categories</span>
-              <button onClick={() => setShowCatModal(false)} className="btn-ghost" style={{ padding: 8 }}><X size={18} /></button>
+              <button onClick={() => setShowCatModal(false)} aria-label="Close" className="btn-ghost" style={{ padding: 8 }}><X size={18} /></button>
             </div>
             <div className="modal-body">
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
@@ -426,7 +488,7 @@ export default function ExpensesPage() {
                     {DEFAULT_CATS.map(cat => (
                       <button key={cat.name} className="btn-secondary" style={{ padding: '5px 12px', fontSize: 12 }}
                         onClick={async () => {
-                          await pb.collection(C.EXPENSE_CATS).create({ shop_id: shop.id, name: cat.name, icon: cat.icon })
+                          try { await pb.collection(C.EXPENSE_CATS).create({ shop_id: shop.id, name: cat.name, icon: cat.icon }) } catch { toast.error('Could not add category. Try again.'); return }
                           loadData()
                         }}>
                         {cat.icon} {cat.name}
