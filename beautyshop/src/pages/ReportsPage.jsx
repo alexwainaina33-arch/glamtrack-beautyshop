@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDate, r2 } from '../lib/utils'
-import { buildTrialBalance, buildCashFlow } from '../lib/financials'
+import { buildTrialBalance, buildCashStatement } from '../lib/financials'
 import { hasRequiredPlan } from '../lib/planAccess'
 import PlanGuard from '../components/PlanGuard'
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, eachMonthOfInterval } from 'date-fns'
@@ -10,7 +10,7 @@ import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tool
 import { Download, Printer, TrendingUp, TrendingDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const TABS = ['Profit or Loss', 'Financial Position', 'Cash Receipts & Payments', 'Sales Report', 'Expense Report', 'Stock Valuation', '🏦 Lender Pack']
+const TABS = ['Profit or Loss', 'Financial Position', 'Statement of Cash Flows', 'Sales Report', 'Expense Report', 'Stock Valuation', '🏦 Lender Pack']
 
 // ── Shared period picker component ─────────────────────────────────────────
 function PeriodPicker({ dateFrom, dateTo, setDateFrom, setDateTo, style, initial = 'month' }) {
@@ -236,7 +236,7 @@ export default function ReportsPage() {
 
       setBsData({
         // Assets
-        cashReceived: tb.cash, cashReceipts: tb.cashReceipts, cashByChannel: tb.cashByChannel, undatedCount: tb.undatedCount, undatedTotal: tb.undatedTotal,
+        cashReceived: tb.cash, cashReceipts: tb.cashReceipts, stockPaid: tb.stockPaidToDate, cashByChannel: tb.cashByChannel, undatedCount: tb.undatedCount, undatedTotal: tb.undatedTotal,
         accountsReceivable: tb.accountsReceivable,
         stockAtCost: tb.stockAtCost,
         stockAtRetail: tb.stockAtRetail,
@@ -300,7 +300,7 @@ export default function ReportsPage() {
   const loadCF = async () => {
     setCfLoad(true)
     try {
-      const cf = await buildCashFlow(shop, cfFrom, cfTo)
+      const cf = await buildCashStatement(shop, cfFrom, cfTo)
 
       // Month-by-month breakdown (still computed here — buildCashFlow gives
       // range totals + transaction-level detail, monthly bucketing is a
@@ -309,7 +309,7 @@ export default function ReportsPage() {
         start: new Date(cfFrom + 'T12:00:00'),
         end:   new Date(cfTo   + 'T12:00:00'),
       })
-      let runningBalance = 0
+      let runningBalance = cf.openingCash
       const monthlyFlow = months.map(month => {
         const mF = format(startOfMonth(month),'yyyy-MM-dd')
         const mT = format(endOfMonth(month),'yyyy-MM-dd')
@@ -325,6 +325,7 @@ export default function ReportsPage() {
       cf.inflowRows.forEach(r => { inflowByMethod[r.method] = r.total })
 
       setCfData({
+        openingCash: cf.openingCash, closingCash: cf.closingCash, stockPurchases: cf.stockPurchases, expensesPaid: cf.expensesPaid, undatedCount: cf.undatedCount, undatedTotal: cf.undatedTotal,
         totalInflows: cf.totalInflows,
         totalOutflows: cf.totalOutflows,
         netCashFlow: cf.netCashFlow,
@@ -345,12 +346,12 @@ export default function ReportsPage() {
     if (!cfData) return
     const d = cfData
     const lines = [
-      `💸 *Cash receipts and payments (operating)*`,`*${shop?.name||''}*`,
+      `💸 *Statement of Cash Flows*`,`*${shop?.name||''}*`,
       `Period: ${fmtDate(new Date(cfFrom))} – ${fmtDate(new Date(cfTo))}`,``,
-      `Total Cash Inflows`,`*${fmtKES(d.totalInflows)}*`,``,
-      `Total Cash Outflows`,`*(${fmtKES(d.totalOutflows)})*`,``,
-      `Net Cash Flow`,`*${fmtKES(d.netCashFlow)}*`,``,
-      ...d.monthlyFlow.map(m => [`${m.label}`,`*In: ${fmtKES(m.inflows)} | Out: (${fmtKES(m.outflows)}) | Net: ${fmtKES(m.net)}*`]).flat(),
+      `Receipts from customers`,`*${fmtKES(d.totalInflows)}*`,``,
+      `Payments (expenses and stock)`,`*(${fmtKES(d.totalOutflows)})*`,``,
+      `Net cash from operating activities`,`*${fmtKES(d.netCashFlow)}*`,``,
+      `Opening cash and cash equivalents`,`*${fmtKES(d.openingCash)}*`,``,`Closing cash and cash equivalents`,`*${fmtKES(d.closingCash)}*`,``, ...d.monthlyFlow.map(m => [`${m.label}`,`*In: ${fmtKES(m.inflows)} | Out: (${fmtKES(m.outflows)}) | Net: ${fmtKES(m.net)}*`]).flat(),
       ``,`_${shop?.name||''} · Powered by SalesTrack_`,
     ].join('\n')
     window.open(`https://wa.me/?text=${encodeURIComponent(lines)}`, '_blank')
@@ -700,7 +701,7 @@ export default function ReportsPage() {
           </div>
           {bsLoad ? <Spinner/> : bsData ? (
             <div>
-              {bsData.cashReceived < 0 && <div style={{ background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:10, padding:'8px 12px', marginBottom:14, fontSize:12, color:'#991b1b' }}>Cash and cash equivalents is negative: recorded expenses are more than the money received from sales and repayments. Check that all sales are recorded, or record opening capital in Settings &gt; Business.</div>}
+              {bsData.cashReceived < 0 && <div style={{ background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:10, padding:'8px 12px', marginBottom:14, fontSize:12, color:'#991b1b' }}>Cash and cash equivalents is negative: recorded expenses and cash-funded stock purchases are more than the money received from sales and repayments. Check that all sales are recorded, or record opening capital in Settings &gt; Business.</div>}
               {bsData.undatedCount > 0 && <div style={{ background:'#fef3c7', border:'1px solid #fde68a', borderRadius:10, padding:'8px 12px', marginBottom:14, fontSize:12, color:'#92400e' }}>{bsData.undatedCount} completed sale(s) worth {fmtKES(bsData.undatedTotal)} have no date in the receipt number and are left out of this statement.</div>}
               {/* Summary hero */}
               <div className="stat-grid-4" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:20 }}>
@@ -728,7 +729,7 @@ export default function ReportsPage() {
                       <button className="btn-secondary" style={{ fontSize:12 }} onClick={() => exportCSV([
                         {Section:'ASSETS',Item:'Cash and cash equivalents',Amount_KES:bsData.cashReceived},
                         {Section:'ASSETS',Item:'of which: cash received to date',Amount_KES:bsData.cashReceipts},
-                        {Section:'ASSETS',Item:'of which: less all expenses paid to date',Amount_KES:-bsData.totalExpensesPaid},
+                        {Section:'ASSETS',Item:'of which: less all expenses paid to date',Amount_KES:-bsData.totalExpensesPaid},{Section:'ASSETS',Item:'of which: less cash-funded stock purchases to date',Amount_KES:-bsData.stockPaid},
                         {Section:'ASSETS',Item:'Channel: Cash on hand',Amount_KES:bsData.cashByChannel.cash},
                         {Section:'ASSETS',Item:'Channel: Mobile money (M-Pesa)',Amount_KES:bsData.cashByChannel.mobile},
                         {Section:'ASSETS',Item:'Channel: Bank and card settlements',Amount_KES:bsData.cashByChannel.bank},
@@ -755,7 +756,7 @@ export default function ReportsPage() {
                   <PLSection title="ASSETS" color="#059669">
                     <PLRow label="Cash and cash equivalents" value={bsData.cashReceived} indent bold/>
                     {[['cash','Cash on hand'],['mobile','Mobile money (M-Pesa)'],['bank','Bank and card settlements'],['split','Split sales (cash and M-Pesa not separated)'],['other','Other']].filter(([k]) => k !== 'other' || Math.abs(bsData.cashByChannel[k]) >= 0.01).map(([k,l]) => <PLRow key={k} label={'- ' + l} value={bsData.cashByChannel[k]} indent color="#6b4050"/>)}
-                    <div style={{ fontSize:11, color:'#9b6070', lineHeight:1.5, margin:'2px 0 8px 12px' }}>Cash received to date {fmtKES(bsData.cashReceipts)} less all expenses paid {fmtKES(bsData.totalExpensesPaid)}. Expenses are assumed paid on the expense date; expenses the owner paid personally are a capital contribution and cannot be told apart here. The channel lines show where money was received or paid, not where it is held now, because no bank deposits or transfers are recorded: rely on the total. This differs from Cash Reconciliation by design, which counts one day at the till.</div>
+                    <div style={{ fontSize:11, color:'#9b6070', lineHeight:1.5, margin:'2px 0 8px 12px' }}>Cash received to date {fmtKES(bsData.cashReceipts)} less all expenses paid {fmtKES(bsData.totalExpensesPaid)} and cash-funded stock purchases {fmtKES(bsData.stockPaid)}. Expenses are assumed paid on the expense date; expenses the owner paid personally are a capital contribution and cannot be told apart here. The channel lines show where money was received or paid, not where it is held now, because no bank deposits or transfers are recorded: rely on the total. This differs from Cash Reconciliation by design, which counts one day at the till.</div>
                     <PLRow label="Trade receivables" value={bsData.accountsReceivable} indent color="#d97706"/>
                     <PLRow label="Inventories (at cost)" value={bsData.stockAtCost} indent/>
                     <PLRow label="TOTAL ASSETS" value={bsData.totalAssets} bold big border color="#059669"/>
@@ -872,9 +873,9 @@ export default function ReportsPage() {
               {/* KPI cards */}
               <div className="stat-grid-3" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:20 }}>
                 {[
-                  {label:'Total Cash Inflows',value:fmtKES(cfData.totalInflows),color:'#059669',icon:'💰',sub:`${cfData.cashSalesCount} cash/mpesa sales`},
-                  {label:'Total Cash Outflows',value:fmtKES(cfData.totalOutflows),color:'#dc2626',icon:'💸',sub:'All operating expenses'},
-                  {label:'Net Cash Flow',value:fmtKES(cfData.netCashFlow),color:cfData.netCashFlow>=0?'#059669':'#dc2626',icon:cfData.netCashFlow>=0?'✅':'⚠️',sub:cfData.netCashFlow>=0?'Positive cash position':'Negative cash position'},
+                  {label:'Receipts from customers',value:fmtKES(cfData.totalInflows),color:'#059669',icon:'💰',sub:`${cfData.cashSalesCount} cash/mpesa sales`},
+                  {label:'Payments (expenses and stock)',value:fmtKES(cfData.totalOutflows),color:'#dc2626',icon:'💸',sub:'Expenses and cash stock purchases'},
+                  {label:'Net cash from operating activities',value:fmtKES(cfData.netCashFlow),color:cfData.netCashFlow>=0?'#059669':'#dc2626',icon:cfData.netCashFlow>=0?'✅':'⚠️',sub:cfData.netCashFlow>=0?'Positive cash position':'Negative cash position'},
                 ].map((kpi,i) => (
                   <div key={i} className="stat-card">
                     <div style={{ fontSize:28 }}>{kpi.icon}</div>
@@ -883,6 +884,26 @@ export default function ReportsPage() {
                     <div style={{ fontSize:10, color:'#b09090', marginTop:2 }}>{kpi.sub}</div>
                   </div>
                 ))}
+              </div>
+
+              <div className="card" style={{ marginBottom:20 }}>
+                <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:'0 0 4px' }}>Statement of Cash Flows</h2>
+                <div style={{ fontSize:12, color:'#9b6070', marginBottom:12 }}>For the period {fmtDate(new Date(cfFrom))} - {fmtDate(new Date(cfTo))} (direct method)</div>
+                <PLSection title="CASH FLOWS FROM OPERATING ACTIVITIES" color="#059669">
+                  <PLRow label="Receipts from customers" value={cfData.totalInflows} indent/>
+                  <PLRow label="Cash paid for inventories" value={cfData.stockPurchases} negative indent/>
+                  <PLRow label="Payments for operating expenses" value={cfData.expensesPaid} negative indent/>
+                  <PLRow label="Net cash from operating activities" value={cfData.netCashFlow} bold border color={cfData.netCashFlow>=0?'#059669':'#dc2626'}/>
+                </PLSection>
+                <div style={{ height:10 }}/>
+                <PLSection title="CASH AND CASH EQUIVALENTS" color="#3b82f6">
+                  <PLRow label="At start of period" value={cfData.openingCash} indent/>
+                  <PLRow label="Net increase/(decrease) in cash" value={cfData.netCashFlow} indent/>
+                  <PLRow label="At end of period" value={cfData.closingCash} bold big border color={cfData.closingCash>=0?'#059669':'#dc2626'}/>
+                </PLSection>
+                <div style={{ fontSize:11, color:'#9b6070', lineHeight:1.5, marginTop:8 }}>Closing cash equals Cash and cash equivalents on the Statement of Financial Position at the end date. Credit sales count when the customer pays. Stock purchases count on the day they were entered in Inventory and only when tagged as paid from cash. Owner contributions, drawings, loans and asset purchases are not recorded in SalesTrack, so no investing or financing activities are shown.</div>
+                {(cfData.inflowByMethod.mixed || 0) > 0 && <div style={{ fontSize:11, color:'#92400e', background:'#fef3c7', borderRadius:8, padding:'6px 10px', marginTop:8 }}>Some Split sales have no valid cash part recorded, so {fmtKES(cfData.inflowByMethod.mixed)} is shown as Split (cash and M-Pesa not separated).</div>}
+                {cfData.undatedCount > 0 && <div style={{ fontSize:11, color:'#92400e', background:'#fef3c7', borderRadius:8, padding:'6px 10px', marginTop:8 }}>{cfData.undatedCount} completed sale(s) worth {fmtKES(cfData.undatedTotal)} have no date in the receipt number and are left out.</div>}
               </div>
 
               {cfData.creditSalesTotal > 0 && (
@@ -964,7 +985,7 @@ export default function ReportsPage() {
                     {Object.entries(cfData.inflowByMethod).map(([method,total],i) => (
                       <div key={i} style={{ marginBottom:10 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:3 }}>
-                          <span style={{ fontWeight:600 }}>{method==='cash'?'💵 Cash':method==='mpesa'?'📱 M-Pesa':method==='mixed'?'Split':method==='visa_mc'?'💳 Card':method}</span>
+                          <span style={{ fontWeight:600 }}>{method==='cash'?'💵 Cash':method==='mpesa'?'📱 M-Pesa':method==='mixed'?'Split (cash and M-Pesa not separated)':method==='bank'?'Bank and card':method==='visa_mc'?'💳 Card':method}</span>
                           <span style={{ color:'#059669', fontWeight:700 }}>{fmtKES(total)}</span>
                         </div>
                         <div style={{ background:'#f5edf0', borderRadius:4, height:5 }}>

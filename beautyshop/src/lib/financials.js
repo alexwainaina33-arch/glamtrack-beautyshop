@@ -18,6 +18,35 @@ async function loadPayments(shop) {
 }
 function payDate(p) { return String(p.paid_on || p.created || '').slice(0, 10) }
 
+// Stock bought with shop cash (stock_in or opening_stock tagged funding_source="cash").
+// Movements have no date field of their own, so the date is the day it was entered (Nairobi time).
+async function loadCashStock(shop) {
+  const rows = await pb.collection(C.INV_MOVEMENTS).getFullList({
+    filter: `shop_id="${shop.id}" && funding_source="cash" && (type="stock_in" || type="opening_stock")`,
+    '$autoCancel': false,
+  })
+  return rows.map(m => ({ date: moveDate(m), amount: Math.abs(m.qty || 0) * (m.cost_per_unit || 0), type: m.type, ref: m.reference || '' }))
+}
+function moveDate(m) {
+  const t = new Date(String(m.created || '').replace(' ', 'T'))
+  if (isNaN(t.getTime())) return ''
+  return new Date(t.getTime() + 3 * 3600000).toISOString().slice(0, 10)
+}
+// Splits one sale into the channel(s) the money was received in.
+// A Split (mixed) sale is separated only when a valid cash part was saved; otherwise it stays unseparated.
+function splitSale(s) {
+  const t = s.total_kes || 0
+  const o = { cash: 0, mobile: 0, bank: 0, split: 0, other: 0 }
+  const m = s.payment_method
+  if (m === 'mixed') {
+    const c = Number(s.cash_tendered) || 0
+    if (c > 0 && c <= t + 0.005) { o.cash = c; o.mobile = t - c } else { o.split = t }
+  } else {
+    o[m === 'cash' ? 'cash' : m === 'mpesa' ? 'mobile' : m === 'visa_mc' ? 'bank' : 'other'] = t
+  }
+  return o
+}
+
 function receiptDate(sale) {
   const m = sale?.receipt_no?.match(/-(\d{6})-/)
   if (!m) return null
@@ -39,6 +68,7 @@ export async function buildTrialBalance(shop, asOfDate) {
   if (!shop?.id) throw new Error('buildTrialBalance: shop is required')
 
   const allPayments = await loadPayments(shop)
+  const stockCashMoves = await loadCashStock(shop)
   const [allSales, allExpenses, products, openDeposits, payableMovements] = await Promise.all([
     pb.collection(C.SALES).getFullList({
       filter: `shop_id="${shop.id}" && status="completed"`,
@@ -89,15 +119,17 @@ export async function buildTrialBalance(shop, asOfDate) {
   // Channel split: where money was RECEIVED or PAID, not where it sits now
   const chanOf = (m) => m === 'cash' ? 'cash' : m === 'mpesa' ? 'mobile' : (m === 'visa_mc' || m === 'bank' || m === 'card') ? 'bank' : m === 'mixed' ? 'split' : 'other'
   const chan = { cash: 0, mobile: 0, bank: 0, split: 0, other: 0 }
-  directSales.forEach(s => { chan[chanOf(s.payment_method)] += (s.total_kes || 0) })
+  directSales.forEach(s => { const sp = splitSale(s); chan.cash += sp.cash; chan.mobile += sp.mobile; chan.bank += sp.bank; chan.split += sp.split; chan.other += sp.other })
   const saleIdsToDate = new Set(salesToDate.map(s => s.id))
   let payUncapped = 0
   allPayments.forEach(p => { const d = payDate(p); if (saleIdsToDate.has(p.sale_id) && d && d <= asOfDate) { const a = p.amount_kes || 0; chan[chanOf(p.method)] += a; payUncapped += a } })
   chan.other += payCapped - payUncapped
   const expensesPaidToDate = expensesToDate.reduce((s, e) => s + (e.amount_kes || 0), 0)
   expensesToDate.forEach(e => { const m = e.payment_method; const k = m === 'cash' ? 'cash' : m === 'mpesa' ? 'mobile' : (m === 'bank' || m === 'card') ? 'bank' : 'other'; chan[k] -= (e.amount_kes || 0) })
-  // Cash and cash equivalents = all receipts to date minus ALL expenses to date
-  const cash = cashReceipts - expensesPaidToDate
+  // Cash and cash equivalents = all receipts to date minus ALL expenses and cash-funded stock purchases to date
+  const stockPaidToDate = stockCashMoves.filter(m => m.date && m.date <= asOfDate).reduce((s, m) => s + m.amount, 0)
+  chan.cash -= stockPaidToDate
+  const cash = cashReceipts - expensesPaidToDate - stockPaidToDate
   const cashByChannel = {}
   Object.keys(chan).forEach(k => { cashByChannel[k] = Math.round(chan[k] * 100) / 100 })
 
@@ -152,7 +184,7 @@ export async function buildTrialBalance(shop, asOfDate) {
   return {
     asOfDate,
     // Assets
-    cash, cashReceipts, cashByChannel, accountsReceivable, stockAtCost, stockAtRetail, totalAssets,
+    cash, cashReceipts, cashByChannel, stockPaidToDate, accountsReceivable, stockAtCost, stockAtRetail, totalAssets,
     undatedCount, undatedTotal,
     // Liabilities
     depositLiability, accountsPayable, totalLiabilities,
@@ -249,5 +281,135 @@ export async function buildCashFlow(shop, dateFrom, dateTo) {
       category: e.expand?.category_id?.name || 'Uncategorized',
       amount: e.amount_kes, payment_method: e.payment_method || '',
     })),
+  }
+}
+
+/**
+ * Statement of Cash Flows (direct method) for a date RANGE.
+ * Uses the SAME receipts rules as buildTrialBalance (paid or blank status, payments capped at the
+ * sale total, expenses on expense date, cash-funded stock purchases), so the closing cash equals
+ * the Financial Position cash as at dateTo.
+ */
+export async function buildCashStatement(shop, dateFrom, dateTo) {
+  if (!shop?.id) throw new Error('buildCashStatement: shop is required')
+  const allPayments = await loadPayments(shop)
+  const stockMoves = await loadCashStock(shop)
+  const [allSales, allExpenses, expCats] = await Promise.all([
+    pb.collection(C.SALES).getFullList({
+      filter: `shop_id="${shop.id}" && status="completed"`,
+      '$autoCancel': false, '$cancelKey': 'cs-sales',
+    }),
+    pb.collection(C.EXPENSES).getFullList({
+      filter: `shop_id="${shop.id}"`,
+      expand: 'category_id',
+      '$autoCancel': false, '$cancelKey': 'cs-expenses',
+    }),
+    pb.collection(C.EXPENSE_CATS).getFullList({
+      filter: `shop_id="${shop.id}"`,
+      '$autoCancel': false, '$cancelKey': 'cs-cats',
+    }),
+  ])
+
+  const r2c = (n) => Math.round(n * 100) / 100
+  const sumOf = (arr, f) => arr.reduce((s, x) => s + f(x), 0)
+  const expDate = (e) => String(e.expense_date || '').slice(0, 10)
+  const payKey = (m) => m === 'cash' ? 'cash' : m === 'mpesa' ? 'mpesa' : (m === 'visa_mc' || m === 'bank' || m === 'card') ? 'bank' : m === 'mixed' ? 'mixed' : 'other'
+  const inWin = (d) => !!d && d >= dateFrom && d <= dateTo
+  const isBefore = (d) => !!d && d < dateFrom
+
+  // ---- Receipt events (one per money-in line, dated) ----
+  const events = []
+  const paySaleIds = new Set(allPayments.map(p => p.sale_id))
+  const saleById = {}
+  allSales.forEach(s => { saleById[s.id] = s })
+  const undated = allSales.filter(s => !receiptDate(s))
+  const parts = [['cash', 'cash'], ['mobile', 'mpesa'], ['bank', 'bank'], ['split', 'mixed'], ['other', 'other']]
+  allSales.forEach(s => {
+    const d = receiptDate(s)
+    if (!d || paySaleIds.has(s.id)) return
+    if (!['cash', 'mpesa', 'visa_mc', 'mixed'].includes(s.payment_method)) return
+    if (!(s.payment_status === 'paid' || !s.payment_status)) return
+    const sp = splitSale(s)
+    parts.forEach(([k, m]) => {
+      if (sp[k] > 0.004) events.push({ date: d, method: m, amount: sp[k], receipt_no: s.receipt_no, customer: s.customer_id || 'Walk-in' })
+    })
+  })
+  const bySale = {}
+  allPayments.forEach(p => {
+    const s = saleById[p.sale_id]
+    if (!s || !receiptDate(s) || !payDate(p)) return
+    ;(bySale[p.sale_id] = bySale[p.sale_id] || []).push(p)
+  })
+  Object.keys(bySale).forEach(id => {
+    const s = saleById[id]
+    const sd = receiptDate(s)
+    const total = s.total_kes || 0
+    const rows = bySale[id].slice().sort((a, b) => payDate(a).localeCompare(payDate(b)))
+    let cum = 0
+    rows.forEach(p => {
+      const prior = Math.min(total, cum)
+      cum += (p.amount_kes || 0)
+      const amt = Math.min(total, cum) - prior
+      const pd = payDate(p)
+      if (amt > 0.004) events.push({ date: pd > sd ? pd : sd, method: payKey(p.method), amount: amt, receipt_no: s.receipt_no, customer: s.customer_id || 'Walk-in' })
+    })
+  })
+
+  // ---- Opening cash = everything received minus paid BEFORE the period ----
+  const openingCash = r2c(
+    sumOf(events.filter(e => isBefore(e.date)), e => e.amount)
+    - sumOf(allExpenses.filter(e => isBefore(expDate(e))), e => e.amount_kes || 0)
+    - sumOf(stockMoves.filter(m => isBefore(m.date)), m => m.amount)
+  )
+
+  // ---- Period movements ----
+  const rcpt = events.filter(e => inWin(e.date))
+  const exps = allExpenses.filter(e => inWin(expDate(e)))
+  const stk = stockMoves.filter(m => inWin(m.date))
+  const totalInflows = r2c(sumOf(rcpt, e => e.amount))
+  const expensesPaid = r2c(sumOf(exps, e => e.amount_kes || 0))
+  const stockPurchases = r2c(sumOf(stk, m => m.amount))
+  const totalOutflows = r2c(expensesPaid + stockPurchases)
+  const netCashFlow = r2c(totalInflows - totalOutflows)
+  const closingCash = r2c(openingCash + netCashFlow)
+
+  const byMethod = {}
+  rcpt.forEach(e => {
+    const r = byMethod[e.method] || (byMethod[e.method] = { method: e.method, total: 0, count: 0 })
+    r.total += e.amount; r.count += 1
+  })
+  const inflowRows = Object.values(byMethod).map(r => ({ ...r, total: r2c(r.total) })).sort((a, b) => b.total - a.total)
+
+  const outflowByCat = expCats.map(cat => {
+    const ce = exps.filter(e => e.category_id === cat.id)
+    return { name: `${cat.icon || ''} ${cat.name}`.trim(), total: sumOf(ce, e => e.amount_kes || 0), count: ce.length }
+  }).filter(c => c.total > 0)
+  const uncat = exps.filter(e => !e.category_id)
+  const uncatTotal = sumOf(uncat, e => e.amount_kes || 0)
+  if (uncatTotal > 0) outflowByCat.push({ name: 'Other / Uncategorized', total: uncatTotal, count: uncat.length })
+  if (stockPurchases > 0) outflowByCat.push({ name: 'Inventories paid in cash', total: stockPurchases, count: stk.length })
+  outflowByCat.sort((a, b) => b.total - a.total)
+
+  const paidBySale = {}
+  allPayments.forEach(p => { paidBySale[p.sale_id] = (paidBySale[p.sale_id] || 0) + (p.amount_kes || 0) })
+  const creditSalesTotal = allSales
+    .filter(s => inWin(receiptDate(s)) && (s.payment_method === 'credit' || s.payment_status === 'pending'))
+    .reduce((a, x) => a + Math.max(0, (x.total_kes || 0) - (paidBySale[x.id] || 0)), 0)
+
+  return {
+    dateFrom, dateTo,
+    openingCash, closingCash,
+    totalInflows, totalOutflows, netCashFlow,
+    expensesPaid, stockPurchases,
+    inflowRows, outflowByCat,
+    cashSalesCount: rcpt.length,
+    creditSalesTotal,
+    undatedCount: undated.length,
+    undatedTotal: sumOf(undated, s => s.total_kes || 0),
+    inflowTransactions: rcpt.map(e => ({ date: e.date, receipt_no: e.receipt_no, method: e.method, amount: e.amount, customer: e.customer })),
+    outflowTransactions: [
+      ...exps.map(e => ({ date: expDate(e), description: e.description, category: e.expand?.category_id?.name || 'Uncategorized', amount: e.amount_kes, payment_method: e.payment_method || '' })),
+      ...stk.map(m => ({ date: m.date, description: 'Stock purchase (' + m.type + ')' + (m.ref ? ' ' + m.ref : ''), category: 'Inventories paid in cash', amount: m.amount, payment_method: 'cash' })),
+    ],
   }
 }
