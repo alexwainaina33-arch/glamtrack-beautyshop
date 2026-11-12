@@ -29,7 +29,7 @@ function receiptDate(sale) {
  * Builds a complete, internally-consistent Trial Balance as-at a given date.
  * Every figure (Assets, Liabilities, Equity, Revenue, COGS, Expenses) is
  * computed from the SAME date boundary (from inception → asOfDate), so
- * Assets = Liabilities + Equity by construction, not by coincidence.
+ * Assets = Liabilities + Equity is CHECKED (see variance), not guaranteed: stock bought with no recorded funding shows as variance.
  *
  * @param {object} shop - the shop record (needs .id, .opening_capital_kes)
  * @param {string} asOfDate - 'yyyy-MM-dd', inclusive upper bound
@@ -48,16 +48,16 @@ export async function buildTrialBalance(shop, asOfDate) {
       filter: `shop_id="${shop.id}"`,
       '$autoCancel': false, '$cancelKey': 'tb-expenses',
     }),
-    pb.collection(C.PRODUCTS).getList(1, 500, {
+    pb.collection(C.PRODUCTS).getFullList({
       filter: `shop_id="${shop.id}" && status="active"`,
       '$autoCancel': false, '$cancelKey': 'tb-products',
-    }).then(r => r.items),
+    }),
     // Deposits collected on bookings not yet completed/cancelled = a real liability
     // (you owe the customer either the service or a refund)
-    pb.collection(C.APPOINTMENTS).getList(1, 500, {
+    pb.collection(C.APPOINTMENTS).getFullList({
       filter: `shop_id="${shop.id}" && deposit_paid > 0 && status != "completed" && status != "cancelled"`,
       '$autoCancel': false, '$cancelKey': 'tb-deposits',
-    }).then(r => r.items).catch(() => []), // never let a missing field crash the trial balance
+    }).catch(() => []), // never let a missing field crash the trial balance
     // Stock purchases tagged "on credit" = money owed to suppliers, a real liability.
     // Only stock_in/opening_stock with funding_source="payable" count — older rows with
     // no funding_source are pre-existing data and are intentionally excluded, not assumed zero-risk.
@@ -69,6 +69,9 @@ export async function buildTrialBalance(shop, asOfDate) {
 
   // ── Scope everything to the SAME date window: inception → asOfDate ─────
   const salesToDate = allSales.filter(s => { const d = receiptDate(s); return d && d <= asOfDate })
+  const undatedSales = allSales.filter(s => !receiptDate(s))
+  const undatedCount = undatedSales.length
+  const undatedTotal = undatedSales.reduce((s, x) => s + (x.total_kes || 0), 0)
   const expensesToDate = allExpenses.filter(e => { const d = e.expense_date?.slice(0, 10); return d && d <= asOfDate })
 
   // ── ASSETS ───────────────────────────────────────────────────────────
@@ -80,8 +83,23 @@ export async function buildTrialBalance(shop, asOfDate) {
   const paidToDate = {}
   allPayments.forEach(p => { const d = payDate(p); if (d && d <= asOfDate) paidToDate[p.sale_id] = (paidToDate[p.sale_id] || 0) + (p.amount_kes || 0) })
   const paidOn = (x) => Math.min(x.total_kes || 0, paidToDate[x.id] || 0)
-  const cash = cashSales.filter(s => !paySaleIds.has(s.id)).reduce((s, x) => s + (x.total_kes || 0), 0)
-    + salesToDate.filter(s => paySaleIds.has(s.id)).reduce((s, x) => s + paidOn(x), 0)
+  const directSales = cashSales.filter(s => !paySaleIds.has(s.id))
+  const payCapped = salesToDate.filter(s => paySaleIds.has(s.id)).reduce((s, x) => s + paidOn(x), 0)
+  const cashReceipts = directSales.reduce((s, x) => s + (x.total_kes || 0), 0) + payCapped
+  // Channel split: where money was RECEIVED or PAID, not where it sits now
+  const chanOf = (m) => m === 'cash' ? 'cash' : m === 'mpesa' ? 'mobile' : (m === 'visa_mc' || m === 'bank' || m === 'card') ? 'bank' : m === 'mixed' ? 'split' : 'other'
+  const chan = { cash: 0, mobile: 0, bank: 0, split: 0, other: 0 }
+  directSales.forEach(s => { chan[chanOf(s.payment_method)] += (s.total_kes || 0) })
+  const saleIdsToDate = new Set(salesToDate.map(s => s.id))
+  let payUncapped = 0
+  allPayments.forEach(p => { const d = payDate(p); if (saleIdsToDate.has(p.sale_id) && d && d <= asOfDate) { const a = p.amount_kes || 0; chan[chanOf(p.method)] += a; payUncapped += a } })
+  chan.other += payCapped - payUncapped
+  const expensesPaidToDate = expensesToDate.reduce((s, e) => s + (e.amount_kes || 0), 0)
+  expensesToDate.forEach(e => { const m = e.payment_method; const k = m === 'cash' ? 'cash' : m === 'mpesa' ? 'mobile' : (m === 'bank' || m === 'card') ? 'bank' : 'other'; chan[k] -= (e.amount_kes || 0) })
+  // Cash and cash equivalents = all receipts to date minus ALL expenses to date
+  const cash = cashReceipts - expensesPaidToDate
+  const cashByChannel = {}
+  Object.keys(chan).forEach(k => { cashByChannel[k] = Math.round(chan[k] * 100) / 100 })
 
   const arSales = salesToDate.filter(s =>
     s.payment_status === 'pending' || s.payment_status === 'partial' || s.payment_method === 'credit'
@@ -134,7 +152,8 @@ export async function buildTrialBalance(shop, asOfDate) {
   return {
     asOfDate,
     // Assets
-    cash, accountsReceivable, stockAtCost, stockAtRetail, totalAssets,
+    cash, cashReceipts, cashByChannel, accountsReceivable, stockAtCost, stockAtRetail, totalAssets,
+    undatedCount, undatedTotal,
     // Liabilities
     depositLiability, accountsPayable, totalLiabilities,
     // Equity

@@ -10,7 +10,7 @@ import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tool
 import { Download, Printer, TrendingUp, TrendingDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const TABS = ['P&L Statement', 'Balance Sheet', 'Cash Flow', 'Sales Report', 'Expense Report', 'Stock Valuation', '🏦 Lender Pack']
+const TABS = ['Profit or Loss', 'Financial Position', 'Cash Receipts & Payments', 'Sales Report', 'Expense Report', 'Stock Valuation', '🏦 Lender Pack']
 
 // ── Shared period picker component ─────────────────────────────────────────
 function PeriodPicker({ dateFrom, dateTo, setDateFrom, setDateTo, style, initial = 'month' }) {
@@ -199,7 +199,7 @@ export default function ReportsPage() {
         revenue, costOfSales, grossProfit, grossMargin,
         totalExpenses, netProfit, netMargin,
         expByCat, payBreakdown, monthlyTrend,
-        salesCount: salesAll.length,
+        salesCount: salesAll.length, undatedCount: allCompleted.filter(x => !rDate(x)).length,
         returningCount: Object.keys(customerSales).length,
         walkInCount: salesAll.filter(s=>!s.customer_id).length,
         avgCustomerValue: Object.keys(customerSales).length ? Object.values(customerSales).reduce((s,c)=>s+c.total,0)/Object.keys(customerSales).length : 0,
@@ -212,13 +212,13 @@ export default function ReportsPage() {
   const sharePLWhatsApp = () => {
     if (!plData) return
     const lines = [
-      `📊 *Profit & Loss Statement*`,`*${shop?.name||''}*`,
+      `📊 *Statement of Profit or Loss*`,`*${shop?.name||''}*`,
       `Period: ${fmtDate(new Date(plFrom))} – ${fmtDate(new Date(plTo))}`,``,
       `Revenue`,`*${fmtKES(plData.revenue)}*`,``,
-      `Cost of Sales`,`*(${fmtKES(plData.costOfSales)})*`,``,
+      `Cost of sales`,`*(${fmtKES(plData.costOfSales)})*`,``,
       `Gross Profit`,`*${fmtKES(plData.grossProfit)} (${plData.grossMargin.toFixed(1)}% margin)*`,``,
       `Operating Expenses`,`*(${fmtKES(plData.totalExpenses)})*`,``,
-      `Net Profit`,`*${fmtKES(plData.netProfit)} (${plData.netMargin.toFixed(1)}% margin)*`,``,
+      `Profit/(loss) for the period`,`*${fmtKES(plData.netProfit)} (${plData.netMargin.toFixed(1)}% margin)*`,``,
       `Transactions: ${plData.salesCount}`,``,
       `_Generated from SalesTrack business records · SalesTrack_`,
       `_${shop?.name||''} · Powered by SalesTrack_`,
@@ -236,7 +236,7 @@ export default function ReportsPage() {
 
       setBsData({
         // Assets
-        cashReceived: tb.cash,
+        cashReceived: tb.cash, cashReceipts: tb.cashReceipts, cashByChannel: tb.cashByChannel, undatedCount: tb.undatedCount, undatedTotal: tb.undatedTotal,
         accountsReceivable: tb.accountsReceivable,
         stockAtCost: tb.stockAtCost,
         stockAtRetail: tb.stockAtRetail,
@@ -250,7 +250,7 @@ export default function ReportsPage() {
         openingCapital: tb.openingCapital,
         retainedEarnings: tb.retainedEarnings,
         balancingFigure: tb.isBalanced ? 0 : tb.variance,
-        totalEquity: tb.totalEquity + (tb.isBalanced ? 0 : tb.variance),
+        totalEquity: tb.totalEquity,
         lifetimeRevenue: tb.revenue,
         lifetimeCOGS: tb.cogs,
         lifetimeGP: tb.grossProfit,
@@ -270,22 +270,23 @@ export default function ReportsPage() {
     if (!bsData) return
     const d = bsData
     const lines = [
-      `📋 *Balance Sheet*`,`*${shop?.name||''}*`,
+      `📋 *Statement of Financial Position*`,`*${shop?.name||''}*`,
       `As at: ${fmtDate(new Date(d.asOf))}`,``,
       `ASSETS`,``,
-      `Cash & M-Pesa Received`,`*${fmtKES(d.cashReceived)}*`,
-      `Accounts Receivable`,`*${fmtKES(d.accountsReceivable)}*`,
-      `Stock at Cost`,`*${fmtKES(d.stockAtCost)}*`,
+      `Cash and cash equivalents`,`*${fmtKES(d.cashReceived)}*`,
+      `Trade receivables`,`*${fmtKES(d.accountsReceivable)}*`,
+      `Inventories`,`*${fmtKES(d.stockAtCost)}*`,
       `Total Assets`,`*${fmtKES(d.totalAssets)}*`,``,
       `LIABILITIES`,``,
-      `Customer Deposits Owed`,`*${fmtKES(d.depositLiability)}*`,
-      `Owed to Suppliers (Credit)`,`*${fmtKES(d.accountsPayable)}*`,
+      `Customer deposits (contract liabilities)`,`*${fmtKES(d.depositLiability)}*`,
+      `Trade payables`,`*${fmtKES(d.accountsPayable)}*`,
       `Total Liabilities`,`*${fmtKES(d.totalLiabilities)}*`,``,
       `EQUITY`,``,
-      `Opening Capital`,`*${fmtKES(d.openingCapital)}*`,
+      `Owner's capital`,`*${fmtKES(d.openingCapital)}*`,
       `Retained Earnings`,`*${fmtKES(d.retainedEarnings)}*`,
-      ...(d.balancingFigure?[`Balancing figure (estimate)`,`*${fmtKES(d.balancingFigure)}*`]:[]),
-      `Total Equity`,`*${fmtKES(d.totalEquity)}*`,``,
+      
+      `Total Equity`,`*${fmtKES(d.totalEquity)}*`,
+      ...(d.balancingFigure?[``,`Unreconciled difference (stock without recorded funding)`,`*${fmtKES(d.balancingFigure)}*`]:[]),``,
       `Balance Check`,`*${d.isBalanced ? '✅ Balanced' : `⚠️ Variance: ${fmtKES(Math.abs(d.variance))}`}*`,``,
       `_Generated from SalesTrack business records · SalesTrack_`,
       `_${shop?.name||''} · Powered by SalesTrack_`,
@@ -344,7 +345,7 @@ export default function ReportsPage() {
     if (!cfData) return
     const d = cfData
     const lines = [
-      `💸 *Cash Flow Statement*`,`*${shop?.name||''}*`,
+      `💸 *Cash receipts and payments (operating)*`,`*${shop?.name||''}*`,
       `Period: ${fmtDate(new Date(cfFrom))} – ${fmtDate(new Date(cfTo))}`,``,
       `Total Cash Inflows`,`*${fmtKES(d.totalInflows)}*`,``,
       `Total Cash Outflows`,`*(${fmtKES(d.totalOutflows)})*`,``,
@@ -572,27 +573,28 @@ export default function ReportsPage() {
             <div className="mobile-stack" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
               <div className="card">
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, flexWrap:'wrap', gap:10 }}>
-                  <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:22, color:'#3d1020', margin:0 }}>Profit & Loss Statement</h2>
+                  <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:22, color:'#3d1020', margin:0 }}>Statement of Profit or Loss</h2>
                   <div style={{ display:'flex', gap:8 }}>
                     <button onClick={sharePLWhatsApp} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:12, cursor:'pointer' }}>📲 Share</button>
                     <button className="btn-secondary" style={{ fontSize:12 }} onClick={() => exportCSV([
                       {Item:'Revenue',Amount_KES:plData.revenue},
-                      {Item:'Cost of Sales',Amount_KES:-plData.costOfSales},
+                      {Item:'Cost of sales',Amount_KES:-plData.costOfSales},
                       {Item:'Gross Profit',Amount_KES:plData.grossProfit},
                       {Item:'Total Expenses',Amount_KES:-plData.totalExpenses},
-                      {Item:'Net Profit',Amount_KES:plData.netProfit},
+                      {Item:'Profit/(loss) for the period',Amount_KES:plData.netProfit},
                     ],'pl-statement.csv')}><Download size={14}/> Export</button>
                   </div>
                 </div>
                 <div style={{ fontSize:12, color:'#9b6070', textTransform:'uppercase', letterSpacing:'0.08em', fontWeight:700, marginBottom:12 }}>
                   Period: {fmtDate(new Date(plFrom))} – {fmtDate(new Date(plTo))}
                 </div>
+                {plData.undatedCount > 0 && <div style={{ fontSize:11, color:'#92400e', background:'#fef3c7', borderRadius:8, padding:'6px 10px', marginBottom:8 }}>{plData.undatedCount} completed sale(s) have no date in the receipt number, so they are not included in any period.</div>}
                 <PLSection title="REVENUE" color="#059669">
-                  <PLRow label="Gross Sales" value={plData.revenue} bold/>
+                  <PLRow label="Revenue" value={plData.revenue} bold/>
                   <PLRow label="No. of Transactions" value={plData.salesCount} isCurrency={false} color="#3b82f6"/>
                 </PLSection>
                 <PLSection title="COST OF SALES" color="#dc2626">
-                  <PLRow label="Cost of Goods Sold" value={plData.costOfSales} negative/>
+                  <PLRow label="Cost of sales" value={plData.costOfSales} negative/>
                 </PLSection>
                 <PLRow label="GROSS PROFIT" value={plData.grossProfit} bold big border sub={`Margin: ${plData.grossMargin.toFixed(1)}%`} color={plData.grossProfit>=0?'#059669':'#dc2626'}/>
                 <PLSection title="OPERATING EXPENSES" color="#dc2626" style={{ marginTop:12 }}>
@@ -601,7 +603,7 @@ export default function ReportsPage() {
                   {plData.totalExpenses===0 && <div style={{ fontSize:11, color:'#92400e', background:'#fef3c7', borderRadius:8, padding:'6px 10px', marginTop:6 }}>No expenses recorded for this period, so Net Profit equals Gross Profit. Record rent, wages and other costs under Expenses to see your true profit.</div>}
                 </PLSection>
                 <div style={{ height:8 }}/>
-                <PLRow label="NET PROFIT / (LOSS)" value={plData.netProfit} bold big border sub={`Net Margin: ${plData.netMargin.toFixed(1)}%`} color={plData.netProfit>=0?'#059669':'#dc2626'}/>
+                <PLRow label="PROFIT / (LOSS) FOR THE PERIOD" value={plData.netProfit} bold big border sub={`Net Margin: ${plData.netMargin.toFixed(1)}%`} color={plData.netProfit>=0?'#059669':'#dc2626'}/>
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
                 <div className="stat-grid-4" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -698,11 +700,12 @@ export default function ReportsPage() {
           </div>
           {bsLoad ? <Spinner/> : bsData ? (
             <div>
+              {bsData.undatedCount > 0 && <div style={{ background:'#fef3c7', border:'1px solid #fde68a', borderRadius:10, padding:'8px 12px', marginBottom:14, fontSize:12, color:'#92400e' }}>{bsData.undatedCount} completed sale(s) worth {fmtKES(bsData.undatedTotal)} have no date in the receipt number and are left out of this statement.</div>}
               {/* Summary hero */}
               <div className="stat-grid-4" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:20 }}>
                 {[
                   {label:'Total Assets',value:fmtKES(bsData.totalAssets),color:'#059669',icon:'🏦'},
-                  {label:'Opening Capital',value:fmtKES(bsData.openingCapital),color:'#3b82f6',icon:'💼'},
+                  {label:"Owner's capital",value:fmtKES(bsData.openingCapital),color:'#3b82f6',icon:'💼'},
                   {label:'Retained Earnings',value:fmtKES(bsData.retainedEarnings),color:bsData.retainedEarnings>=0?'#059669':'#dc2626',icon:'📈'},
                   {label:'Total Equity',value:fmtKES(bsData.totalEquity),color:bsData.totalEquity>=0?'#059669':'#dc2626',icon:'⚖️'},
                 ].map((kpi,i) => (
@@ -718,21 +721,29 @@ export default function ReportsPage() {
                 {/* Left: formal balance sheet */}
                 <div className="card">
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, flexWrap:'wrap', gap:10 }}>
-                    <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:22, color:'#3d1020', margin:0 }}>Balance Sheet</h2>
+                    <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:22, color:'#3d1020', margin:0 }}>Statement of Financial Position</h2>
                     <div style={{ display:'flex', gap:8 }}>
                       <button onClick={shareBSWhatsApp} style={{ padding:'7px 14px', borderRadius:8, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:12, cursor:'pointer' }}>📲 Share</button>
                       <button className="btn-secondary" style={{ fontSize:12 }} onClick={() => exportCSV([
-                        {Section:'ASSETS',Item:'Cash & M-Pesa Received',Amount_KES:bsData.cashReceived},
-                        {Section:'ASSETS',Item:'Accounts Receivable (unpaid sales)',Amount_KES:bsData.accountsReceivable},
-                        {Section:'ASSETS',Item:'Stock at Cost',Amount_KES:bsData.stockAtCost},
+                        {Section:'ASSETS',Item:'Cash and cash equivalents',Amount_KES:bsData.cashReceived},
+                        {Section:'ASSETS',Item:'of which: cash received to date',Amount_KES:bsData.cashReceipts},
+                        {Section:'ASSETS',Item:'of which: less all expenses paid to date',Amount_KES:-bsData.totalExpensesPaid},
+                        {Section:'ASSETS',Item:'Channel: Cash on hand',Amount_KES:bsData.cashByChannel.cash},
+                        {Section:'ASSETS',Item:'Channel: Mobile money (M-Pesa)',Amount_KES:bsData.cashByChannel.mobile},
+                        {Section:'ASSETS',Item:'Channel: Bank and card settlements',Amount_KES:bsData.cashByChannel.bank},
+                        {Section:'ASSETS',Item:'Channel: Split sales (cash and M-Pesa not separated)',Amount_KES:bsData.cashByChannel.split},
+                        {Section:'ASSETS',Item:'Channel: Other',Amount_KES:bsData.cashByChannel.other},
+                        {Section:'ASSETS',Item:'Trade receivables (unpaid sales)',Amount_KES:bsData.accountsReceivable},
+                        {Section:'ASSETS',Item:'Inventories (at cost)',Amount_KES:bsData.stockAtCost},
                         {Section:'ASSETS',Item:'TOTAL ASSETS',Amount_KES:bsData.totalAssets},
-                        {Section:'LIABILITIES',Item:'Customer Deposits Owed',Amount_KES:bsData.depositLiability},
-                        {Section:'LIABILITIES',Item:'Owed to Suppliers (Credit)',Amount_KES:bsData.accountsPayable},
+                        {Section:'LIABILITIES',Item:'Customer deposits (contract liabilities)',Amount_KES:bsData.depositLiability},
+                        {Section:'LIABILITIES',Item:'Trade payables',Amount_KES:bsData.accountsPayable},
                         {Section:'LIABILITIES',Item:'TOTAL LIABILITIES',Amount_KES:bsData.totalLiabilities},
-                        {Section:'EQUITY',Item:'Opening Capital',Amount_KES:bsData.openingCapital},
+                        {Section:'EQUITY',Item:"Owner's capital",Amount_KES:bsData.openingCapital},
                         {Section:'EQUITY',Item:'Retained Earnings (cumulative net profit)',Amount_KES:bsData.retainedEarnings},
-                        {Section:'EQUITY',Item:'Balancing figure (estimate)',Amount_KES:bsData.balancingFigure},
+                        
                         {Section:'EQUITY',Item:'TOTAL EQUITY',Amount_KES:bsData.totalEquity},
+                        {Section:'RECONCILIATION',Item:'Unreconciled difference (stock without recorded funding)',Amount_KES:bsData.balancingFigure},
                         {Section:'CHECK',Item:'Balanced?',Amount_KES:bsData.isBalanced?'YES':`NO - variance ${bsData.variance.toFixed(2)}`},
                       ],'balance-sheet.csv')}><Download size={14}/> Export</button>
                     </div>
@@ -741,9 +752,11 @@ export default function ReportsPage() {
 
                   {/* ASSETS */}
                   <PLSection title="ASSETS" color="#059669">
-                    <PLRow label="Cash & M-Pesa Received" value={bsData.cashReceived} indent/>
-                    <PLRow label="Accounts Receivable" value={bsData.accountsReceivable} indent color="#d97706"/>
-                    <PLRow label="Stock Inventory (at cost)" value={bsData.stockAtCost} indent/>
+                    <PLRow label="Cash and cash equivalents" value={bsData.cashReceived} indent bold/>
+                    {[['cash','Cash on hand'],['mobile','Mobile money (M-Pesa)'],['bank','Bank and card settlements'],['split','Split sales (cash and M-Pesa not separated)'],['other','Other']].filter(([k]) => k !== 'other' || Math.abs(bsData.cashByChannel[k]) >= 0.01).map(([k,l]) => <PLRow key={k} label={'- ' + l} value={bsData.cashByChannel[k]} indent color="#6b4050"/>)}
+                    <div style={{ fontSize:11, color:'#9b6070', lineHeight:1.5, margin:'2px 0 8px 12px' }}>Cash received to date {fmtKES(bsData.cashReceipts)} less all expenses paid {fmtKES(bsData.totalExpensesPaid)}. Expenses are assumed paid on the expense date; expenses the owner paid personally are a capital contribution and cannot be told apart here. The channel lines show where money was received or paid, not where it is held now, because no bank deposits or transfers are recorded: rely on the total. This differs from Cash Reconciliation by design, which counts one day at the till.</div>
+                    <PLRow label="Trade receivables" value={bsData.accountsReceivable} indent color="#d97706"/>
+                    <PLRow label="Inventories (at cost)" value={bsData.stockAtCost} indent/>
                     <PLRow label="TOTAL ASSETS" value={bsData.totalAssets} bold big border color="#059669"/>
                   </PLSection>
 
@@ -751,8 +764,8 @@ export default function ReportsPage() {
 
                   {/* LIABILITIES */}
                   <PLSection title="LIABILITIES" color="#dc2626">
-                    <PLRow label="Customer Deposits Owed" value={bsData.depositLiability} indent color="#dc2626" sub={bsData.openDepositsCount ? `${bsData.openDepositsCount} unfulfilled booking${bsData.openDepositsCount===1?'':'s'}` : 'No open deposits'}/>
-                    <PLRow label="Owed to Suppliers (Credit)" value={bsData.accountsPayable} indent color="#dc2626" sub="Stock taken on credit, not yet paid"/>
+                    <PLRow label="Customer deposits (contract liabilities)" value={bsData.depositLiability} indent color="#dc2626" sub={bsData.openDepositsCount ? `${bsData.openDepositsCount} unfulfilled booking${bsData.openDepositsCount===1?'':'s'}` : 'No open deposits'}/>
+                    <PLRow label="Trade payables" value={bsData.accountsPayable} indent color="#dc2626" sub="Stock taken on credit, not yet paid"/>
                     <PLRow label="TOTAL LIABILITIES" value={bsData.totalLiabilities} bold border color="#dc2626"/>
                   </PLSection>
 
@@ -760,10 +773,11 @@ export default function ReportsPage() {
 
                   {/* EQUITY */}
                   <PLSection title="EQUITY" color="#3b82f6">
-                    <PLRow label="Opening Capital" value={bsData.openingCapital} indent color="#3b82f6"/>
+                    <PLRow label="Owner's capital" value={bsData.openingCapital} indent color="#3b82f6"/>
                     <PLRow label="Retained Earnings" value={bsData.retainedEarnings} indent color={bsData.retainedEarnings>=0?'#059669':'#dc2626'}/>
-                    {bsData.balancingFigure !== 0 && <PLRow label={bsData.balancingFigure>0?'Owner funding of stock and other (estimate)':'Unrecorded withdrawals or losses (estimate)'} value={Math.abs(bsData.balancingFigure)} negative={bsData.balancingFigure<0} indent color="#d97706" sub="Balancing figure. Enter your Opening Capital in Settings > Business to replace this estimate."/>}
+                    
                     <PLRow label="TOTAL EQUITY" value={bsData.totalEquity} bold big border color={bsData.totalEquity>=0?'#059669':'#dc2626'}/>
+                    {bsData.balancingFigure !== 0 && <div style={{ marginTop:10, padding:'10px 12px', background:'#fef3c7', border:'1px solid #fde68a', borderRadius:10 }}><PLRow label={bsData.balancingFigure>0?'Unreconciled difference (stock without recorded funding)':'Unreconciled difference (possible withdrawals or losses)'} value={Math.abs(bsData.balancingFigure)} negative={bsData.balancingFigure<0} bold color="#d97706" sub={bsData.balancingFigure>0?'Assets exceed liabilities plus equity. This is not owner equity. Enter Opening Capital in Settings > Business to reduce it.':'Liabilities plus equity exceed assets.'}/></div>}
                   </PLSection>
 
                   <div style={{ height:16 }}/>
@@ -786,7 +800,7 @@ export default function ReportsPage() {
                   {/* Retained earnings breakdown */}
                   <PLSection title="RETAINED EARNINGS BREAKDOWN" color="#8b5cf6">
                     <PLRow label="Lifetime Revenue" value={bsData.lifetimeRevenue} indent/>
-                    <PLRow label="Lifetime COGS" value={bsData.lifetimeCOGS} negative indent/>
+                    <PLRow label="Lifetime cost of sales" value={bsData.lifetimeCOGS} negative indent/>
                     <PLRow label="Lifetime Gross Profit" value={bsData.lifetimeGP} indent bold/>
                     <PLRow label="Total Expenses Paid" value={bsData.totalExpensesPaid} negative indent/>
                     <PLRow label="Retained Earnings" value={bsData.retainedEarnings} bold border color={bsData.retainedEarnings>=0?'#059669':'#dc2626'}/>
@@ -825,7 +839,7 @@ export default function ReportsPage() {
 
                   {bsData.accountsReceivable > 0 && (
                     <div className="card" style={{ border:'1.5px solid #fde68a', background:'#fffbeb' }}>
-                      <h3 style={{ fontFamily:'Playfair Display,serif', fontSize:16, color:'#92400e', margin:'0 0 10px' }}>⚠️ Accounts Receivable</h3>
+                      <h3 style={{ fontFamily:'Playfair Display,serif', fontSize:16, color:'#92400e', margin:'0 0 10px' }}>⚠️ Trade receivables</h3>
                       <div style={{ fontFamily:'Playfair Display,serif', fontSize:28, fontWeight:700, color:'#d97706', marginBottom:6 }}>{fmtKES(bsData.accountsReceivable)}</div>
                       <div style={{ fontSize:12, color:'#92400e' }}>Outstanding from credit sales — this money is owed to your business and counted as an asset.</div>
                     </div>
@@ -880,7 +894,7 @@ export default function ReportsPage() {
                 {/* Running balance chart */}
                 <div className="card">
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:8 }}>
-                    <h3 style={{ fontFamily:'Playfair Display,serif', fontSize:16, color:'#3d1020', margin:0 }}>Monthly Cash Flow</h3>
+                    <h3 style={{ fontFamily:'Playfair Display,serif', fontSize:16, color:'#3d1020', margin:0 }}>Monthly cash receipts and payments</h3>
                     <div style={{ display:'flex', gap:8 }}>
                       <button onClick={shareCFWhatsApp} style={{ padding:'6px 12px', borderRadius:8, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:12, cursor:'pointer' }}>📲 Share</button>
                       <button className="btn-secondary" style={{ fontSize:12 }} onClick={() => {
@@ -1272,7 +1286,7 @@ export default function ReportsPage() {
                       <div style={{ fontSize:12, color:'#9b6070' }}>Month-by-month revenue, costs and profit — the core lending assessment table</div>
                     </div>
                     <button className="btn-secondary no-print" style={{ fontSize:12 }} onClick={() => {
-                      const rows=[...d.monthlyPL.map(m=>({Month:m.label,Revenue_KES:m.revenue,COGS_KES:m.cogs,Gross_Profit_KES:m.grossProfit,Expenses_KES:m.expenses,Net_Profit_KES:m.netProfit,Net_Margin_Pct:m.netMargin,Transactions:m.txCount})),{Month:'TOTAL / AVERAGE',Revenue_KES:d.totalRevenue6m,COGS_KES:d.monthlyPL.reduce((s,m)=>s+m.cogs,0),Gross_Profit_KES:d.monthlyPL.reduce((s,m)=>s+m.grossProfit,0),Expenses_KES:d.monthlyPL.reduce((s,m)=>s+m.expenses,0),Net_Profit_KES:d.totalNetProfit6m,Net_Margin_Pct:d.totalRevenue6m?((d.totalNetProfit6m/d.totalRevenue6m)*100).toFixed(1):'0.0',Transactions:d.monthlyPL.reduce((s,m)=>s+m.txCount,0)}]
+                      const rows=[...d.monthlyPL.map(m=>({Month:m.label,Revenue_KES:m.revenue,Cost_of_Sales_KES:m.cogs,Gross_Profit_KES:m.grossProfit,Expenses_KES:m.expenses,Net_Profit_KES:m.netProfit,Net_Margin_Pct:m.netMargin,Transactions:m.txCount})),{Month:'TOTAL / AVERAGE',Revenue_KES:d.totalRevenue6m,Cost_of_Sales_KES:d.monthlyPL.reduce((s,m)=>s+m.cogs,0),Gross_Profit_KES:d.monthlyPL.reduce((s,m)=>s+m.grossProfit,0),Expenses_KES:d.monthlyPL.reduce((s,m)=>s+m.expenses,0),Net_Profit_KES:d.totalNetProfit6m,Net_Margin_Pct:d.totalRevenue6m?((d.totalNetProfit6m/d.totalRevenue6m)*100).toFixed(1):'0.0',Transactions:d.monthlyPL.reduce((s,m)=>s+m.txCount,0)}]
                       const headers=Object.keys(rows[0])
                       const csv=[headers.join(','),...rows.map(r=>headers.map(h=>`"${r[h]??''}"`).join(','))].join('\n')
                       const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${shop?.name?.replace(/\s+/g,'-')}-6month-pl.csv`;a.click();URL.revokeObjectURL(url)
@@ -1280,7 +1294,7 @@ export default function ReportsPage() {
                   </div>
                   <div className="table-wrap">
                     <table>
-                      <thead><tr><th>Month</th><th style={{ textAlign:'right' }}>Revenue</th><th style={{ textAlign:'right' }}>COGS</th><th style={{ textAlign:'right' }}>Gross Profit</th><th style={{ textAlign:'right' }}>Expenses</th><th style={{ textAlign:'right' }}>Net Profit</th><th style={{ textAlign:'right' }}>Margin</th><th style={{ textAlign:'right' }}>Txns</th></tr></thead>
+                      <thead><tr><th>Month</th><th style={{ textAlign:'right' }}>Revenue</th><th style={{ textAlign:'right' }}>Cost of sales</th><th style={{ textAlign:'right' }}>Gross Profit</th><th style={{ textAlign:'right' }}>Expenses</th><th style={{ textAlign:'right' }}>Net Profit</th><th style={{ textAlign:'right' }}>Margin</th><th style={{ textAlign:'right' }}>Txns</th></tr></thead>
                       <tbody>
                         {d.monthlyPL.map((m,i) => (
                           <tr key={i} style={{ background:m.netProfit<0?'#fff5f5':'transparent' }}>
@@ -1353,7 +1367,7 @@ export default function ReportsPage() {
                   )}
                 </div>
                 <div className="lender-section card" style={{ marginBottom:20 }}>
-                  <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:18, color:'#3d1020', margin:'0 0 4px' }}>Accounts Receivable Aging</h2>
+                  <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:18, color:'#3d1020', margin:'0 0 4px' }}>Trade receivables ageing</h2>
                   <div style={{ fontSize:12, color:'#9b6070', marginBottom:16 }}>Unpaid credit sales grouped by age.</div>
                   {d.totalAR===0 ? (
                     <div style={{ background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:10, padding:'16px', textAlign:'center' }}>
@@ -1377,7 +1391,7 @@ export default function ReportsPage() {
                       ))}
                     </div>
                   )}
-                  {d.totalAR>0&&(<div style={{ marginTop:12, display:'flex', justifyContent:'space-between', padding:'10px 14px', background:'#fdf5f7', borderRadius:10, fontSize:13 }}><span style={{ fontWeight:600, color:'#3d1020' }}>Total Outstanding AR</span><span style={{ fontWeight:800, color:'#c8456a', fontFamily:'Playfair Display,serif', fontSize:16 }}>{fmtKES(d.totalAR)}</span></div>)}
+                  {d.totalAR>0&&(<div style={{ marginTop:12, display:'flex', justifyContent:'space-between', padding:'10px 14px', background:'#fdf5f7', borderRadius:10, fontSize:13 }}><span style={{ fontWeight:600, color:'#3d1020' }}>Total outstanding trade receivables</span><span style={{ fontWeight:800, color:'#c8456a', fontFamily:'Playfair Display,serif', fontSize:16 }}>{fmtKES(d.totalAR)}</span></div>)}
                 </div>
                 <div className="lender-section" style={{ background:'#1a1a1f', borderRadius:14, padding:'20px 24px', marginBottom:20 }}>
                   <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
@@ -1427,6 +1441,7 @@ function PLSection({ title, color, children }) {
 
 function PLRow({ label, value, bold, big, negative, indent, border, sub, color, isCurrency=true }) {
   const display = isCurrency ? fmtKES(Math.abs(value)) : value
+  const isNeg = isCurrency && (negative ? value > 0 : value < 0)
   const displayColor = color||(negative?'#dc2626':'#1a1a1f')
   return (
     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', padding:`${big?10:5}px 0`, borderTop:border?'1.5px solid #f0e4e8':'none', marginTop:border?4:0 }}>
@@ -1435,7 +1450,7 @@ function PLRow({ label, value, bold, big, negative, indent, border, sub, color, 
         {sub&&<div style={{ fontSize:11, color:'#9b6070' }}>{sub}</div>}
       </div>
       <span style={{ fontSize:big?16:13, fontWeight:bold?700:500, color:displayColor, fontFamily:big?'Playfair Display,serif':'Nunito,sans-serif' }}>
-        {negative&&isCurrency&&value>0?'(':''}{display}{negative&&isCurrency&&value>0?')':''}
+        {isNeg?'(':''}{display}{isNeg?')':''}
       </span>
     </div>
   )
