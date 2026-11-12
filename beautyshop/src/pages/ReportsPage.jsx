@@ -131,7 +131,7 @@ export default function ReportsPage() {
   const exportCSV = (rows, filename) => {
     if (!rows?.length) return toast.error('No data to export')
     const headers = Object.keys(rows[0])
-    const esc = v => { let s = String(v ?? ''); if (typeof v === 'string' && /^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"' }
+    const esc = v => { let s = String(typeof v === 'number' ? Math.round(v * 100) / 100 : (v ?? '')); if (typeof v === 'string' && /^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"' }
     const csv = [headers.map(esc).join(','), ...rows.map(r => headers.map(h => esc(r[h])).join(','))].join('\r\n')
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -700,14 +700,15 @@ export default function ReportsPage() {
           </div>
           {bsLoad ? <Spinner/> : bsData ? (
             <div>
+              {bsData.cashReceived < 0 && <div style={{ background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:10, padding:'8px 12px', marginBottom:14, fontSize:12, color:'#991b1b' }}>Cash and cash equivalents is negative: recorded expenses are more than the money received from sales and repayments. Check that all sales are recorded, or record opening capital in Settings &gt; Business.</div>}
               {bsData.undatedCount > 0 && <div style={{ background:'#fef3c7', border:'1px solid #fde68a', borderRadius:10, padding:'8px 12px', marginBottom:14, fontSize:12, color:'#92400e' }}>{bsData.undatedCount} completed sale(s) worth {fmtKES(bsData.undatedTotal)} have no date in the receipt number and are left out of this statement.</div>}
               {/* Summary hero */}
               <div className="stat-grid-4" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:20 }}>
                 {[
                   {label:'Total Assets',value:fmtKES(bsData.totalAssets),color:'#059669',icon:'🏦'},
                   {label:"Owner's capital",value:fmtKES(bsData.openingCapital),color:'#3b82f6',icon:'💼'},
-                  {label:'Retained Earnings',value:fmtKES(bsData.retainedEarnings),color:bsData.retainedEarnings>=0?'#059669':'#dc2626',icon:'📈'},
-                  {label:'Total Equity',value:fmtKES(bsData.totalEquity),color:bsData.totalEquity>=0?'#059669':'#dc2626',icon:'⚖️'},
+                  {label:'Retained Earnings',value:(bsData.retainedEarnings<0?'(':'')+fmtKES(Math.abs(bsData.retainedEarnings))+(bsData.retainedEarnings<0?')':''),color:bsData.retainedEarnings>=0?'#059669':'#dc2626',icon:'📈'},
+                  {label:'Total Equity',value:(bsData.totalEquity<0?'(':'')+fmtKES(Math.abs(bsData.totalEquity))+(bsData.totalEquity<0?')':''),color:bsData.totalEquity>=0?'#059669':'#dc2626',icon:'⚖️'},
                 ].map((kpi,i) => (
                   <div key={i} className="stat-card">
                     <div style={{ fontSize:28 }}>{kpi.icon}</div>
@@ -777,13 +778,13 @@ export default function ReportsPage() {
                     <PLRow label="Retained Earnings" value={bsData.retainedEarnings} indent color={bsData.retainedEarnings>=0?'#059669':'#dc2626'}/>
                     
                     <PLRow label="TOTAL EQUITY" value={bsData.totalEquity} bold big border color={bsData.totalEquity>=0?'#059669':'#dc2626'}/>
-                    {bsData.balancingFigure !== 0 && <div style={{ marginTop:10, padding:'10px 12px', background:'#fef3c7', border:'1px solid #fde68a', borderRadius:10 }}><PLRow label={bsData.balancingFigure>0?'Unreconciled difference (stock without recorded funding)':'Unreconciled difference (possible withdrawals or losses)'} value={Math.abs(bsData.balancingFigure)} negative={bsData.balancingFigure<0} bold color="#d97706" sub={bsData.balancingFigure>0?'Assets exceed liabilities plus equity. This is not owner equity. Enter Opening Capital in Settings > Business to reduce it.':'Liabilities plus equity exceed assets.'}/></div>}
+                    {bsData.balancingFigure !== 0 && <div style={{ marginTop:10, padding:'10px 12px', background:'#fef3c7', border:'1px solid #fde68a', borderRadius:10 }}><PLRow label={bsData.balancingFigure>0?'Unreconciled difference (stock without recorded funding)':'Unreconciled difference (possible withdrawals or losses)'} value={Math.abs(bsData.balancingFigure)} negative={bsData.balancingFigure<0} bold color="#d97706" sub={bsData.balancingFigure>0?'Assets exceed liabilities plus equity. This is not owner equity. Enter Opening Capital in Settings > Business to reduce it. Stock is valued at today levels, so past dates may show a small gap. For audited accounts, consult your accountant.':'Liabilities plus equity exceed assets.'}/></div>}
                   </PLSection>
 
                   <div style={{ height:16 }}/>
 
                   {/* Variance / balance check */}
-                  <div style={{ background: bsData.isBalanced ? '#f0fdf4' : '#fefce8', border:`1px solid ${bsData.isBalanced?'#bbf7d0':'#fde68a'}`, borderRadius:10, padding:'12px 14px' }}>
+                  <div style={{ display: bsData.isBalanced ? 'block' : 'none', background: bsData.isBalanced ? '#f0fdf4' : '#fefce8', border:`1px solid ${bsData.isBalanced?'#bbf7d0':'#fde68a'}`, borderRadius:10, padding:'12px 14px' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <span style={{ fontWeight:700, fontSize:13, color:'#1a1a1f' }}>Assets = Liabilities + Equity</span>
                       <span style={{ fontFamily:'Playfair Display,serif', fontWeight:700, fontSize:16, color:bsData.isBalanced?'#059669':'#d97706' }}>
