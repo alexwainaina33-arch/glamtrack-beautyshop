@@ -220,7 +220,7 @@ export default function ReportsPage() {
       `Operating Expenses`,`*(${fmtKES(plData.totalExpenses)})*`,``,
       `Net Profit`,`*${fmtKES(plData.netProfit)} (${plData.netMargin.toFixed(1)}% margin)*`,``,
       `Transactions: ${plData.salesCount}`,``,
-      `_Verified business records · SalesTrack_`,
+      `_Generated from SalesTrack business records · SalesTrack_`,
       `_${shop?.name||''} · Powered by SalesTrack_`,
     ].join('\n')
     window.open(`https://wa.me/?text=${encodeURIComponent(lines)}`, '_blank')
@@ -363,7 +363,7 @@ export default function ReportsPage() {
     try {
       const payMap = await loadPayMap(); const [salesAll, saleItems] = await Promise.all([
         pb.collection(C.SALES).getFullList({ filter:`shop_id="${shop.id}" && status="completed"`, '$autoCancel':false, '$cancelKey':'sr-sales' }).then(r=>r.filter(x=>{const d=rDate(x);return d&&d>=srFrom&&d<=srTo})),
-        pb.collection(C.SALE_ITEMS).getFullList({ filter:`sale_id.shop_id="${shop.id}"`, expand:'product_id', '$autoCancel':false, '$cancelKey':'sr-items' }),
+        Promise.resolve([]),
       ])
       const salesByDay = {}; const saleIds = new Set(salesAll.map(s => s.id))
       salesAll.forEach(s => {
@@ -374,8 +374,10 @@ export default function ReportsPage() {
         salesByDay[day]=(salesByDay[day]||0)+s.total_kes
       })
       const salesChart=Object.entries(salesByDay).map(([label,revenue])=>({label,revenue})).slice(-30)
+      const idList = salesAll.map(s => s.id); const idChunks = []; for (let i = 0; i < idList.length; i += 40) idChunks.push(idList.slice(i, i + 40))
+      const itemsAll = (await Promise.all(idChunks.map((ch, ci) => pb.collection(C.SALE_ITEMS).getFullList({ filter: ch.map(id => `sale_id="${id}"`).join(' || '), expand: 'product_id', '$autoCancel': false, '$cancelKey': 'sr-items-' + ci })))).flat()
       const prodSales={}
-      saleItems.filter(it=>saleIds.has(it.sale_id)).forEach(item=>{
+      itemsAll.forEach(item=>{
         const name=item.product_name||item.expand?.product_id?.name||item.product_id
         if(!prodSales[name]) prodSales[name]={revenue:0,qty:0,profit:0}
         prodSales[name].revenue+=item.total_kes
@@ -484,15 +486,18 @@ export default function ReportsPage() {
       }))
       const totalRevenue6m=monthlyPL.reduce((s,m)=>s+m.revenue,0)
       const totalNetProfit6m=monthlyPL.reduce((s,m)=>s+m.netProfit,0)
-      const avgMonthlyNet=totalNetProfit6m/6
-      const profitableMonths=monthlyPL.filter(m=>m.netProfit>0).length
-      const consistencyScore=Math.round((profitableMonths/6)*100)
+      const firstActiveIdx = monthlyPL.findIndex(m=>m.revenue>0)
+      const spanPL = firstActiveIdx < 0 ? monthlyPL.slice(-1) : monthlyPL.slice(firstActiveIdx)
+      const spanMonths = spanPL.length
+      const avgMonthlyNet = spanPL.reduce((s,m)=>s+m.netProfit,0)/spanMonths
+      const profitableMonths=spanPL.filter(m=>m.netProfit>0).length
+      const consistencyScore=Math.round((profitableMonths/spanMonths)*100)
       const firstMonthRev=monthlyPL[0]?.revenue||0
       const lastMonthRev=monthlyPL[5]?.revenue||0
       const growthRate=firstMonthRev>0?(((lastMonthRev-firstMonthRev)/firstMonthRev)*100).toFixed(0):null
       setLenderData({
         lifetimeRevenue, lifetimeTx:lifetimeSales.length,
-        monthsActive, avgMonthlyRevenue, avgMonthlyNet,
+        monthsActive, avgMonthlyRevenue, avgMonthlyNet, spanMonths,
         monthlyPL, totalRevenue6m, totalNetProfit6m,
         activeMonths:monthlyPL.filter(m=>m.revenue>0).length,
         profitableMonths, consistencyScore, growthRate,
@@ -527,7 +532,7 @@ export default function ReportsPage() {
       `6-Month Total Revenue`,`*${fmtKES(d.totalRevenue6m)}*`,``,
       `Average Monthly Revenue`,`*${fmtKES(d.avgMonthlyRevenue)}*`,``,
       `Average Monthly Net Profit`,`*${fmtKES(d.avgMonthlyNet)}*`,``,
-      `Revenue Consistency`,`*${d.profitableMonths}/6 months profitable (${d.consistencyScore}%)*`,
+      `Revenue Consistency`,`*${d.profitableMonths}/${d.spanMonths} months profitable (${d.consistencyScore}%)*`,
       ...(d.growthRate!==null?[``,`Revenue Growth (6 months)`,`*${d.growthRate>0?'+':''}${d.growthRate}%*`]:[]),
       ...(calc?[``,`Debt Service Coverage Ratio`,`*${calc.dscr.toFixed(2)}x* ${calc.dscr>=1.25?'✅ Bankable':calc.dscr>=1.0?'⚠️ Borderline':'❌ High Risk'}`]:[]),
       ``,`_Figures are generated from SalesTrack records. Please confirm key figures against M-Pesa or bank statements._`,
@@ -1083,7 +1088,7 @@ export default function ReportsPage() {
               <div className="card" style={{ padding:0 }}>
                 <div style={{ padding:'14px 20px', borderBottom:'1px solid #f5edf0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <h3 style={{ fontFamily:'Playfair Display,serif', fontSize:16, color:'#3d1020', margin:0 }}>All Expenses</h3>
-                  <button className="btn-secondary" style={{ fontSize:12 }} onClick={() => exportCSV(erData.expensesRaw.map(e=>({Date:e.expense_date?.split('T')[0],Description:e.description,Category:e.expand?.category_id?.name||'',Amount_KES:e.amount_kes,Payment:e.payment_method,Ref:e.reference||''})),'expenses.csv')}><Download size={14}/> CSV</button>
+                  <button className="btn-secondary" style={{ fontSize:12 }} onClick={() => exportCSV(erData.expensesRaw.map(e=>({Date:String(e.expense_date||'').slice(0,10),Description:e.description,Category:e.expand?.category_id?.name||'',Amount_KES:e.amount_kes,Payment:e.payment_method,Ref:e.reference||''})),'expenses.csv')}><Download size={14}/> CSV</button>
                 </div>
                 <div className="table-wrap" style={{ maxHeight:400, overflowY:'auto' }}>
                   <table>
@@ -1224,7 +1229,7 @@ export default function ReportsPage() {
           </div>
           {lenderLoading ? (
             <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:300 }}>
-              <div style={{ textAlign:'center' }}><div className="spinner" style={{ margin:'0 auto 12px' }}/><div style={{ fontSize:13, color:'#9b6070' }}>Loading verified financial data…</div></div>
+              <div style={{ textAlign:'center' }}><div className="spinner" style={{ margin:'0 auto 12px' }}/><div style={{ fontSize:13, color:'#9b6070' }}>Loading financial data…</div></div>
             </div>
           ) : lenderData ? (() => {
             const calc=calcDSCR(), d=lenderData
@@ -1250,7 +1255,7 @@ export default function ReportsPage() {
                       {label:'Months Active',value:`${d.monthsActive}`,sub:'on SalesTrack'},
                       {label:'Lifetime Revenue',value:fmtKES(d.lifetimeRevenue),sub:`${d.lifetimeTx} transactions`},
                       {label:'Avg Monthly Revenue',value:fmtKES(d.avgMonthlyRevenue),sub:'all-time average'},
-                      {label:'Avg Monthly Net Profit',value:fmtKES(d.avgMonthlyNet),sub:'last 6 months'},
+                      {label:'Avg Monthly Net Profit',value:fmtKES(d.avgMonthlyNet),sub:`over ${d.spanMonths} month${d.spanMonths===1?'':'s'} of sales`},
                     ].map((kpi,i) => (
                       <div key={i} style={{ background:'rgba(255,255,255,0.1)', borderRadius:12, padding:'14px 16px', textAlign:'center' }}>
                         <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700, color:'#fff' }}>{kpi.value}</div>
@@ -1311,7 +1316,7 @@ export default function ReportsPage() {
                     </div>
                     <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
                       {d.growthRate!==null&&(<div style={{ textAlign:'center', background:parseFloat(d.growthRate)>=0?'#f0fdf4':'#fff5f5', borderRadius:10, padding:'8px 14px' }}><div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700, color:parseFloat(d.growthRate)>=0?'#059669':'#dc2626' }}>{parseFloat(d.growthRate)>=0?'↑':'↓'} {Math.abs(parseFloat(d.growthRate))}%</div><div style={{ fontSize:11, color:'#9b6070' }}>Revenue growth</div></div>)}
-                      <div style={{ textAlign:'center', background:d.consistencyScore>=67?'#f0fdf4':d.consistencyScore>=34?'#fefce8':'#fff5f5', borderRadius:10, padding:'8px 14px' }}><div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700, color:d.consistencyScore>=67?'#059669':d.consistencyScore>=34?'#d97706':'#dc2626' }}>{d.profitableMonths}/6</div><div style={{ fontSize:11, color:'#9b6070' }}>Profitable months</div></div>
+                      <div style={{ textAlign:'center', background:d.consistencyScore>=67?'#f0fdf4':d.consistencyScore>=34?'#fefce8':'#fff5f5', borderRadius:10, padding:'8px 14px' }}><div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700, color:d.consistencyScore>=67?'#059669':d.consistencyScore>=34?'#d97706':'#dc2626' }}>{d.profitableMonths}/{d.spanMonths}</div><div style={{ fontSize:11, color:'#9b6070' }}>Profitable months</div></div>
                     </div>
                   </div>
                   <ResponsiveContainer width="100%" height={200}>
