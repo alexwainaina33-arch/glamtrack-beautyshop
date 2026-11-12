@@ -4,7 +4,7 @@ import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDate } from '../lib/utils'
 import { Plus, X, Edit2, Trash2, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { format, startOfMonth, endOfMonth, startOfWeek, subMonths, subDays, differenceInCalendarDays, parseISO, isValid } from 'date-fns'
+import { format, startOfMonth, endOfMonth, startOfWeek, subMonths, subDays, differenceInCalendarDays, parseISO, isValid, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns'
 
 const EMPTY = { description: '', category_id: '', amount_kes: '', expense_date: format(new Date(), 'yyyy-MM-dd'), payment_method: 'cash', reference: '', notes: '' }
 
@@ -26,6 +26,11 @@ export default function ExpensesPage() {
   const fileRef = useRef()
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('')
+  const [methodFilter, setMethodFilter] = useState('')
+  const [minAmt, setMinAmt] = useState('')
+  const [maxAmt, setMaxAmt] = useState('')
+  const [receiptFilter, setReceiptFilter] = useState('')
+  const [sortBy, setSortBy] = useState('date_desc')
   const [prevTotal, setPrevTotal] = useState(null)
   const [activePreset, setActivePreset] = useState('month')
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(max-width: 640px)').matches : false)
@@ -48,6 +53,7 @@ export default function ExpensesPage() {
   }, [])
 
   const loadSeq = useRef(0)
+  const catBusyRef = useRef(false)
 
   const loadAllExpenses = async () => {
     const perPage = 200
@@ -165,14 +171,15 @@ export default function ExpensesPage() {
   }
 
   const handleAddCategory = async () => {
-    if (!newCatName.trim()) return
+    if (!newCatName.trim() || catBusyRef.current) return
+    catBusyRef.current = true
     try {
       await pb.collection(C.EXPENSE_CATS).create({ shop_id: shop.id, name: newCatName.trim(), icon: newCatIcon })
       setNewCatName('')
       toast.success('Category added')
       loadData()
       setShowCatModal(false)
-    } catch { toast.error('Failed') }
+    } catch (err) { toast.error(err?.message ? 'Could not add category: ' + err.message : 'Could not add category') } finally { catBusyRef.current = false }
   }
 
   const handleSaveBudget = async (cat, el) => {
@@ -195,19 +202,40 @@ export default function ExpensesPage() {
   }
 
   // Group by category for summary
-  const catSummary = categories.map(cat => ({
+  const catSummaryOf = (list) => categories.map(cat => ({
     ...cat,
-    total: expenses.filter(e => e.category_id === cat.id).reduce((s, e) => s + e.amount_kes, 0)
+    total: list.filter(e => e.category_id === cat.id).reduce((s, e) => s + (Number(e.amount_kes) || 0), 0)
   })).filter(c => c.total > 0).sort((a, b) => b.total - a.total)
 
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount_kes, 0)
+  const periodTotal = expenses.reduce((s, e) => s + (Number(e.amount_kes) || 0), 0)
 
-  const byMethod = expenses.reduce((m, e) => { const k = e.payment_method || 'other'; m[k] = (m[k] || 0) + (Number(e.amount_kes) || 0); return m }, {})
+  const byMethodOf = (list) => list.reduce((m, e) => { const k = e.payment_method || 'other'; m[k] = (m[k] || 0) + (Number(e.amount_kes) || 0); return m }, {})
   const q = search.trim().toLowerCase()
-  const visible = expenses.filter(e =>
+  const minN = minAmt !== '' && Number.isFinite(Number(minAmt)) ? Number(minAmt) : null
+  const maxN = maxAmt !== '' && Number.isFinite(Number(maxAmt)) ? Number(maxAmt) : null
+  const filteredRows = expenses.filter(e =>
     (!catFilter || (catFilter === 'none' ? !e.category_id : e.category_id === catFilter)) &&
-    (!q || `${e.description || ''} ${e.reference || ''} ${e.notes || ''}`.toLowerCase().includes(q)))
-  const changePct = prevTotal > 0 ? ((totalExpenses - prevTotal) / prevTotal) * 100 : null
+    (!q || `${e.description || ''} ${e.reference || ''} ${e.notes || ''}`.toLowerCase().includes(q)) &&
+    (!methodFilter || (e.payment_method || 'other') === methodFilter) &&
+    (minN === null || (Number(e.amount_kes) || 0) >= minN) &&
+    (maxN === null || (Number(e.amount_kes) || 0) <= maxN) &&
+    (!receiptFilter || (receiptFilter === 'with' ? !!e.receipt_file : !e.receipt_file)))
+  const sortRows = (rows) => {
+    const r = rows.slice()
+    const d = e => String(e.expense_date || '').slice(0, 10)
+    const a = e => Number(e.amount_kes) || 0
+    if (sortBy === 'date_asc') r.sort((x, y) => d(x).localeCompare(d(y)))
+    else if (sortBy === 'amount_desc') r.sort((x, y) => a(y) - a(x))
+    else if (sortBy === 'amount_asc') r.sort((x, y) => a(x) - a(y))
+    else if (sortBy === 'category') r.sort((x, y) => String(x.expand?.category_id?.name || 'zzz').localeCompare(String(y.expand?.category_id?.name || 'zzz')))
+    return r
+  }
+  const visible = sortRows(filteredRows)
+  const totalExpenses = visible.reduce((s, e) => s + (Number(e.amount_kes) || 0), 0)
+  const catSummary = catSummaryOf(visible)
+  const byMethod = byMethodOf(visible)
+  const filtersOn = !!(q || catFilter || methodFilter || minN !== null || maxN !== null || receiptFilter)
+  const changePct = prevTotal > 0 ? ((periodTotal - prevTotal) / prevTotal) * 100 : null
   const visibleTotal = visible.reduce((s, e) => s + (Number(e.amount_kes) || 0), 0)
   const emptyMsg = loading ? 'Loading...' : expenses.length > 0 ? 'No expenses match your filters' : 'No expenses recorded in this period'
 
@@ -219,6 +247,10 @@ export default function ExpensesPage() {
     else if (p === 'week') { setDateFrom(f(startOfWeek(now, { weekStartsOn: 1 }))); setDateTo(f(now)) }
     else if (p === 'month') { setDateFrom(f(startOfMonth(now))); setDateTo(f(endOfMonth(now))) }
     else if (p === 'last') { const l = subMonths(now, 1); setDateFrom(f(startOfMonth(l))); setDateTo(f(endOfMonth(l))) }
+    else if (p === '7d') { setDateFrom(f(subDays(now, 6))); setDateTo(f(now)) }
+    else if (p === '30d') { setDateFrom(f(subDays(now, 29))); setDateTo(f(now)) }
+    else if (p === 'quarter') { setDateFrom(f(startOfQuarter(now))); setDateTo(f(endOfQuarter(now))) }
+    else if (p === 'year') { setDateFrom(f(startOfYear(now))); setDateTo(f(endOfYear(now))) }
   }
 
   const receiptUrl = (exp) => {
@@ -233,6 +265,12 @@ export default function ExpensesPage() {
       String(e.expense_date || '').slice(0, 10), e.description, e.expand?.category_id?.name || 'Uncategorized',
       e.payment_method, e.amount_kes, e.reference, e.notes
     ].map(esc).join(',')))
+    const bRows = budgetExportRows()
+    const num = v => '"' + v + '"'
+    if (bRows.length) {
+      lines.push('', esc('Budget vs Actual (all expenses in period)'), ['Category', 'Budget (KES)', 'Actual (KES)', 'Remaining (KES)', 'Used %'].map(esc).join(','))
+      bRows.forEach(b => lines.push([esc(b.name), num(b.budget), num(b.actual), num(b.diff), num(b.pct)].join(',')))
+    }
     const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -261,7 +299,9 @@ export default function ExpensesPage() {
     const th = ['Date', 'Description', 'Category', 'Payment', 'Amount (KES)', 'Reference', 'Notes'].map(h => '<th>' + htmlEsc(h) + '</th>').join('')
     const tr = rows.map(r => '<tr><td>' + htmlEsc(r.date) + '</td><td>' + htmlEsc(safeText(r.description)) + '</td><td>' + htmlEsc(safeText(r.category)) + '</td><td>' + htmlEsc(r.payment) + '</td><td>' + r.amount + '</td><td>' + htmlEsc(safeText(r.reference)) + '</td><td>' + htmlEsc(safeText(r.notes)) + '</td></tr>').join('')
     const total = '<tr><td></td><td><b>Total</b></td><td></td><td></td><td><b>' + visibleTotal + '</b></td><td></td><td></td></tr>'
-    const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table border="1"><thead><tr>' + th + '</tr></thead><tbody>' + tr + total + '</tbody></table></body></html>'
+    const bRows = budgetExportRows()
+    const bHtml = bRows.length ? '<br><table border="1"><thead><tr><th>Category</th><th>Budget (KES)</th><th>Actual (KES)</th><th>Remaining (KES)</th><th>Used %</th></tr></thead><tbody>' + bRows.map(b => '<tr><td>' + htmlEsc(safeText(b.name)) + '</td><td>' + b.budget + '</td><td>' + b.actual + '</td><td>' + b.diff + '</td><td>' + b.pct + '</td></tr>').join('') + '</tbody></table>' : ''
+    const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table border="1"><thead><tr>' + th + '</tr></thead><tbody>' + tr + total + '</tbody></table>' + bHtml + '</body></html>'
     const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -280,22 +320,40 @@ export default function ExpensesPage() {
     if (!w) { toast.error('Allow pop-ups for this site to export PDF, then try again'); return }
     const tr = rows.map(r => '<tr><td>' + htmlEsc(r.date) + '</td><td>' + htmlEsc(r.description) + '</td><td>' + htmlEsc(r.category) + '</td><td>' + htmlEsc(r.payment) + '</td><td class="num">' + htmlEsc(fmtKES(r.amount)) + '</td><td>' + htmlEsc(r.reference) + '</td></tr>').join('')
     const filterNote = visible.length !== expenses.length ? '<p>Filtered: ' + visible.length + ' of ' + expenses.length + ' entries</p>' : ''
+    const bRows = budgetExportRows()
+    const bPdf = bRows.length ? '<h2 style="font-size:14px;margin:18px 0 6px">Budget vs Actual (all expenses in period)</h2><table><thead><tr><th>Category</th><th>Budget</th><th>Actual</th><th>Remaining</th><th>Used</th></tr></thead><tbody>' + bRows.map(b => '<tr><td>' + htmlEsc(b.name) + '</td><td class="num">' + htmlEsc(fmtKES(b.budget)) + '</td><td class="num">' + htmlEsc(fmtKES(b.actual)) + '</td><td class="num">' + htmlEsc(fmtKES(b.diff)) + '</td><td class="num">' + b.pct + '%</td></tr>').join('') + '</tbody></table>' : ''
     const css = 'body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 4px}p{margin:0 0 10px;font-size:12px;color:#555}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ccc;padding:6px;text-align:left}th{background:#f3e6ea}td.num{text-align:right}tfoot td{font-weight:bold}'
-    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Expenses</title><style>' + css + '</style></head><body><h1>' + htmlEsc(shop?.name || '') + ' - Expenses</h1><p>Period: ' + htmlEsc(dateFrom) + ' to ' + htmlEsc(dateTo) + '</p>' + filterNote + '<table><thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Payment</th><th>Amount</th><th>Reference</th></tr></thead><tbody>' + tr + '</tbody><tfoot><tr><td colspan="4">Total</td><td class="num">' + htmlEsc(fmtKES(visibleTotal)) + '</td><td></td></tr></tfoot></table></body></html>')
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Expenses</title><style>' + css + '</style></head><body><h1>' + htmlEsc(shop?.name || '') + ' - Expenses</h1><p>Period: ' + htmlEsc(dateFrom) + ' to ' + htmlEsc(dateTo) + '</p>' + filterNote + '<table><thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Payment</th><th>Amount</th><th>Reference</th></tr></thead><tbody>' + tr + '</tbody><tfoot><tr><td colspan="4">Total</td><td class="num">' + htmlEsc(fmtKES(visibleTotal)) + '</td><td></td></tr></tfoot></table>' + bPdf + '</body></html>')
     w.document.close()
     w.focus()
     setTimeout(() => { w.print() }, 300)
   }
-  const uncategorized = expenses.filter(e => !e.category_id).reduce((s, e) => s + e.amount_kes, 0)
+  const uncategorized = visible.filter(e => !e.category_id).reduce((s, e) => s + e.amount_kes, 0)
 
   const budgetsActive = isValid(parseISO(dateFrom)) && isValid(parseISO(dateTo)) && dateFrom <= dateTo && String(dateFrom).slice(0, 7) === String(dateTo).slice(0, 7)
   const fullMonth = budgetsActive && dateFrom === format(startOfMonth(parseISO(dateFrom)), 'yyyy-MM-dd') && dateTo === format(endOfMonth(parseISO(dateFrom)), 'yyyy-MM-dd')
+  const wholeMonths = isValid(parseISO(dateFrom)) && isValid(parseISO(dateTo)) && dateFrom <= dateTo && dateFrom === format(startOfMonth(parseISO(dateFrom)), 'yyyy-MM-dd') && dateTo === format(endOfMonth(parseISO(dateTo)), 'yyyy-MM-dd')
+  const budgetMonths = wholeMonths ? (parseISO(dateTo).getFullYear() - parseISO(dateFrom).getFullYear()) * 12 + parseISO(dateTo).getMonth() - parseISO(dateFrom).getMonth() + 1 : 0
+  const budgetsShown = budgetsActive || wholeMonths
   const anyBudget = categories.some(c => Number(c.monthly_budget_kes) > 0)
   const budgetInfo = (cat) => {
-    const budget = Number(cat.monthly_budget_kes) || 0
-    if (!budgetsActive || budget <= 0) return null
+    const budget = (Number(cat.monthly_budget_kes) || 0) * (budgetMonths > 1 ? budgetMonths : 1)
+    if (!budgetsShown || budget <= 0 || filtersOn) return null
     const pct = (cat.total / budget) * 100
-    return { budget, pct, color: pct > 100 ? '#dc2626' : pct >= 80 ? '#d97706' : '#059669', bar: pct > 100 ? '#dc2626' : pct >= 80 ? '#d97706' : 'linear-gradient(90deg,#c8456a,#8b2550)' }
+    const now = new Date()
+    const inThisMonth = fullMonth && dateFrom.slice(0, 7) === format(now, 'yyyy-MM')
+    const projected = inThisMonth && now.getDate() >= 5 ? (cat.total / now.getDate()) * endOfMonth(now).getDate() : null
+    return { budget, pct, projected, color: pct > 100 ? '#dc2626' : pct >= 80 ? '#d97706' : '#059669', bar: pct > 100 ? '#dc2626' : pct >= 80 ? '#d97706' : 'linear-gradient(90deg,#c8456a,#8b2550)' }
+  }
+
+  const budgetExportRows = () => {
+    if (!wholeMonths) return []
+    const m = budgetMonths > 0 ? budgetMonths : 1
+    return categories.filter(c => Number(c.monthly_budget_kes) > 0).map(c => {
+      const budget = Number(c.monthly_budget_kes) * m
+      const actual = expenses.filter(e => e.category_id === c.id).reduce((s, e) => s + (Number(e.amount_kes) || 0), 0)
+      return { name: c.name, budget, actual, diff: budget - actual, pct: Math.round((actual / budget) * 100) }
+    })
   }
 
   const DEFAULT_CATS = [
@@ -312,7 +370,7 @@ export default function ExpensesPage() {
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div className="page-title">Expenses 💸</div>
-          <div className="page-subtitle">{expenses.length} entries · {fmtKES(totalExpenses)} total</div>
+          <div className="page-subtitle">{visible.length} {visible.length === 1 ? 'entry' : 'entries'} · {fmtKES(totalExpenses)} total{filtersOn ? ' (filtered)' : ''}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="btn-secondary" onClick={() => setShowCatModal(true)}>⚙️ Categories</button>
@@ -326,12 +384,12 @@ export default function ExpensesPage() {
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="expenses-filter-grid" style={{ display: 'flex', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
           <div>
-            <label className="label">From</label>
-            <input className="input" type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setActivePreset('') }} />
+            <label className="label" htmlFor="exp-from">From</label>
+            <input id="exp-from" className="input" type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setActivePreset('') }} />
           </div>
           <div>
-            <label className="label">To</label>
-            <input className="input" type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setActivePreset('') }} />
+            <label className="label" htmlFor="exp-to">To</label>
+            <input id="exp-to" className="input" type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setActivePreset('') }} />
           </div>
           <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 24, fontWeight: 700, color: '#dc2626', marginLeft: 'auto', alignSelf: 'center' }}>
             Total: {fmtKES(totalExpenses)}
@@ -341,7 +399,7 @@ export default function ExpensesPage() {
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-          {[['today', 'Today'], ['week', 'This week'], ['month', 'This month'], ['last', 'Last month']].map(([k, l]) => (
+          {[['today', 'Today'], ['week', 'This week'], ['month', 'This month'], ['last', 'Last month'], ['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['quarter', 'This quarter'], ['year', 'This year']].map(([k, l]) => (
             <button key={k} type="button" className="btn-secondary" aria-pressed={activePreset === k} style={{ padding: '5px 12px', fontSize: 12, ...(activePreset === k ? { background: 'linear-gradient(135deg,#c8456a,#8b2550)', color: '#fff', borderColor: 'transparent' } : {}) }} onClick={() => setPreset(k)}>{l}</button>
           ))}
         </div>
@@ -357,7 +415,7 @@ export default function ExpensesPage() {
         )}
         {prevTotal !== null && (
           <div style={{ fontSize: 13, color: '#3d1020', marginBottom: 12 }}>
-            Previous period (same length): {fmtKES(prevTotal)}
+            Previous period (same length, all expenses): {fmtKES(prevTotal)}
             {changePct !== null && <span style={{ fontWeight: 700, color: changePct > 0 ? '#dc2626' : '#059669' }}> ({changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%)</span>}
           </div>
         )}
@@ -371,6 +429,48 @@ export default function ExpensesPage() {
           <button type="button" className="btn-secondary" onClick={exportCsv} disabled={visible.length === 0}>Export CSV</button>
           <button type="button" className="btn-secondary" onClick={exportExcel} disabled={visible.length === 0}>Export Excel</button>
           <button type="button" className="btn-secondary" onClick={exportPdf} disabled={visible.length === 0}>Export PDF</button>
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'end', marginTop: 12 }}>
+          <div>
+            <label className="label" htmlFor="exp-f-method">Payment</label>
+            <select id="exp-f-method" className="input" style={{ width: 'auto' }} value={methodFilter} onChange={e => setMethodFilter(e.target.value)}>
+              <option value="">All methods</option>
+              <option value="cash">Cash</option>
+              <option value="mpesa">M-Pesa</option>
+              <option value="bank">Bank</option>
+              <option value="card">Card</option>
+              <option value="other">Not set</option>
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="exp-f-min">Min KES</label>
+            <input id="exp-f-min" className="input" type="number" min="0" style={{ width: 100 }} value={minAmt} onChange={e => setMinAmt(e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="exp-f-max">Max KES</label>
+            <input id="exp-f-max" className="input" type="number" min="0" style={{ width: 100 }} value={maxAmt} onChange={e => setMaxAmt(e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="exp-f-rcpt">Receipt</label>
+            <select id="exp-f-rcpt" className="input" style={{ width: 'auto' }} value={receiptFilter} onChange={e => setReceiptFilter(e.target.value)}>
+              <option value="">Any</option>
+              <option value="with">With receipt</option>
+              <option value="without">No receipt</option>
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="exp-f-sort">Sort by</label>
+            <select id="exp-f-sort" className="input" style={{ width: 'auto' }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+              <option value="date_desc">Newest first</option>
+              <option value="date_asc">Oldest first</option>
+              <option value="amount_desc">Amount, high to low</option>
+              <option value="amount_asc">Amount, low to high</option>
+              <option value="category">Category</option>
+            </select>
+          </div>
+          {(filtersOn || sortBy !== 'date_desc') && (
+            <button type="button" className="btn-secondary" onClick={() => { setSearch(''); setCatFilter(''); setMethodFilter(''); setMinAmt(''); setMaxAmt(''); setReceiptFilter(''); setSortBy('date_desc') }}>Clear filters</button>
+          )}
         </div>
         {visible.length !== expenses.length && (
           <div style={{ fontSize: 12, color: '#9b6070', marginTop: 8 }}>Showing {visible.length} of {expenses.length} entries - filtered total {fmtKES(visibleTotal)}</div>
@@ -444,8 +544,11 @@ export default function ExpensesPage() {
         {/* By category */}
         <div className="card">
           <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 16px' }}>By Category</h3>
-          {anyBudget && !budgetsActive && (
-            <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 12 }}>Budgets show when both dates are in the same month.</div>
+          {anyBudget && budgetsShown && filtersOn && (
+            <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 12 }}>Budgets are hidden while filters are on, so they are not compared with part of the spending.</div>
+          )}
+          {anyBudget && !budgetsShown && (
+            <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 12 }}>Budgets show for one month, or for whole months together (for example a quarter).</div>
           )}
           {anyBudget && budgetsActive && !fullMonth && (
             <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 12 }}>This range is part of a month. Each budget is for the whole month.</div>
@@ -464,6 +567,9 @@ export default function ExpensesPage() {
                 {budgetInfo(cat) && (
                   <div style={{ fontWeight: 700, color: budgetInfo(cat).color, marginTop: 2 }}>
                     {budgetInfo(cat).pct > 100 ? `Over budget by ${fmtKES(cat.total - budgetInfo(cat).budget)}` : `${fmtKES(cat.total)} of ${fmtKES(budgetInfo(cat).budget)} budget (${Math.round(budgetInfo(cat).pct)}%)`}
+                    {budgetInfo(cat).projected !== null && budgetInfo(cat).pct <= 100 && budgetInfo(cat).projected > budgetInfo(cat).budget && (
+                      <span style={{ display: 'block', fontWeight: 400, color: '#d97706' }}>At this pace: {fmtKES(Math.round(budgetInfo(cat).projected))} by month end</span>
+                    )}
                   </div>
                 )}
               </div>
@@ -488,28 +594,28 @@ export default function ExpensesPage() {
             <div className="modal-body">
               <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
-                  <label className="label">Description *</label>
-                  <input className="input" required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Electricity bill August 2025" />
+                  <label className="label" htmlFor="exp-desc">Description *</label>
+                  <input id="exp-desc" className="input" required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Electricity bill August 2025" />
                 </div>
                 <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
-                    <label className="label">Amount (KES) *</label>
-                    <input className="input" type="number" required min={0} step="0.01" value={form.amount_kes} onChange={e => setForm(f => ({ ...f, amount_kes: e.target.value }))} />
+                    <label className="label" htmlFor="exp-amt">Amount (KES) *</label>
+                    <input id="exp-amt" className="input" type="number" required min={0} step="0.01" value={form.amount_kes} onChange={e => setForm(f => ({ ...f, amount_kes: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="label">Date *</label>
-                    <input className="input" type="date" required value={form.expense_date} onChange={e => setForm(f => ({ ...f, expense_date: e.target.value }))} />
+                    <label className="label" htmlFor="exp-date">Date *</label>
+                    <input id="exp-date" className="input" type="date" required value={form.expense_date} onChange={e => setForm(f => ({ ...f, expense_date: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="label">Category</label>
-                    <select className="input" value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}>
+                    <label className="label" htmlFor="exp-cat">Category</label>
+                    <select id="exp-cat" className="input" value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}>
                       <option value="">Select category</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="label">Payment Method</label>
-                    <select className="input" value={form.payment_method} onChange={e => setForm(f => ({ ...f, payment_method: e.target.value }))}>
+                    <label className="label" htmlFor="exp-pay">Payment Method</label>
+                    <select id="exp-pay" className="input" value={form.payment_method} onChange={e => setForm(f => ({ ...f, payment_method: e.target.value }))}>
                       <option value="cash">💵 Cash</option>
                       <option value="mpesa">📱 M-Pesa</option>
                       <option value="bank">🏦 Bank Transfer</option>
@@ -518,8 +624,8 @@ export default function ExpensesPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="label">Reference / Receipt No</label>
-                  <input className="input" value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="Invoice or receipt number" />
+                  <label className="label" htmlFor="exp-ref">Reference / Receipt No</label>
+                  <input id="exp-ref" className="input" value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="Invoice or receipt number" />
                 </div>
                 <div>
                   <label className="label">Receipt Upload</label>
@@ -533,8 +639,8 @@ export default function ExpensesPage() {
                   <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => setReceiptFile(e.target.files[0])} />
                 </div>
                 <div>
-                  <label className="label">Notes</label>
-                  <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={{ resize: 'vertical' }} />
+                  <label className="label" htmlFor="exp-notes">Notes</label>
+                  <textarea id="exp-notes" className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={{ resize: 'vertical' }} />
                 </div>
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                   <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
