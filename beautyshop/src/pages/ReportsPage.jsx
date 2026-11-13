@@ -14,7 +14,8 @@ const TABS = ['Profit or Loss', 'Financial Position', 'Statement of Cash Flows',
 
 // ── Shared period picker component ─────────────────────────────────────────
 function PeriodPicker({ dateFrom, dateTo, setDateFrom, setDateTo, style, initial = 'month' }) {
-  const [period, setPeriod] = useState(initial); useEffect(() => { apply(initial) }, [])
+  const rangeOf = (v) => { const n = new Date(); if (v==='month') return [startOfMonth(n), endOfMonth(n)]; if (v==='last_month') { const l = subMonths(n,1); return [startOfMonth(l), endOfMonth(l)] } if (v==='year') return [startOfYear(n), endOfYear(n)]; if (v==='last6') return [startOfMonth(subMonths(n,5)), endOfMonth(n)]; return null }
+  const [period, setPeriod] = useState(() => { for (const v of ['month','last_month','last6','year']) { const r = rangeOf(v); if (r && format(r[0],'yyyy-MM-dd')===dateFrom && format(r[1],'yyyy-MM-dd')===dateTo) return v } return 'custom' })
   const apply = (v) => {
     setPeriod(v)
     if (v === 'month') {
@@ -1321,9 +1322,7 @@ export default function ReportsPage() {
                     </div>
                     <button className="btn-secondary no-print" style={{ fontSize:12 }} onClick={() => {
                       const rows=[...d.monthlyPL.map(m=>({Month:m.label,Revenue_KES:m.revenue,Cost_of_Sales_KES:m.cogs,Gross_Profit_KES:m.grossProfit,Expenses_KES:m.expenses,Net_Profit_KES:m.netProfit,Net_Margin_Pct:m.netMargin,Transactions:m.txCount})),{Month:'TOTAL / AVERAGE',Revenue_KES:d.totalRevenue6m,Cost_of_Sales_KES:d.monthlyPL.reduce((s,m)=>s+m.cogs,0),Gross_Profit_KES:d.monthlyPL.reduce((s,m)=>s+m.grossProfit,0),Expenses_KES:d.monthlyPL.reduce((s,m)=>s+m.expenses,0),Net_Profit_KES:d.totalNetProfit6m,Net_Margin_Pct:d.totalRevenue6m?((d.totalNetProfit6m/d.totalRevenue6m)*100).toFixed(1):'0.0',Transactions:d.monthlyPL.reduce((s,m)=>s+m.txCount,0)}]
-                      const headers=Object.keys(rows[0])
-                      const csv=[headers.join(','),...rows.map(r=>headers.map(h=>`"${r[h]??''}"`).join(','))].join('\n')
-                      const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${shop?.name?.replace(/\s+/g,'-')}-6month-pl.csv`;a.click();URL.revokeObjectURL(url)
+                      exportCSV(rows, `${shop?.name?.replace(/\s+/g,'-')}-6month-pl.csv`)
                     }}>⬇️ Download CSV</button>
                   </div>
                   <div className="table-wrap">
