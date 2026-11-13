@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDate } from '../lib/utils'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { format, startOfMonth, endOfMonth, subMonths, subDays, addDays } from 'date-fns'
 import { Plus, X, Edit, TrendingUp, Award, Scissors } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -16,6 +16,18 @@ const COMMISSION_TYPES = [
 ]
 const CAT_EMOJI = { hair: '💇', nails: '💅', skin: '✨', body: '💆', lashes: '👁️', makeup: '💄', repairs: '🔧', electronics: '📱', retail: '🛍️', food: '🍽️', other: '🌸' }
 const SERVICE_CATEGORIES = ['hair','nails','skin','body','lashes','makeup','repairs','electronics','retail','food','other']
+
+// Nairobi calendar day of a sale (created is stored in UTC). Returns '' when missing.
+const dayOf = (s) => {
+  const t = new Date(String(s?.created || '').replace(' ', 'T'))
+  if (isNaN(t.getTime())) return ''
+  return new Date(t.getTime() + 3 * 3600000).toISOString().slice(0, 10)
+}
+
+// Paid commission for one staff member whose payout period overlaps from..to
+const overlapPaid = (list, staffId, from, to) => list
+  .filter(p => p.staff_id === staffId && p.status === 'paid' && String(p.period_to || '').slice(0, 10) >= from && String(p.period_from || '').slice(0, 10) <= to)
+  .reduce((sum, p) => sum + (p.commission_kes || 0), 0)
 
 const calcCommission = (staff, sales) => {
   if (!staff.commission_type || staff.commission_type === 'none') return 0
@@ -74,6 +86,8 @@ export default function StaffPage() {
   const [payoutStaff, setPayoutStaff] = useState(null)
   const [receiptPayout, setReceiptPayout] = useState(null)
   const [clockingId, setClockingId] = useState(null)
+  const busyRef = useRef('')
+  const guarded = async (key, fn) => { if (busyRef.current) return; busyRef.current = key; try { await fn() } finally { busyRef.current = '' } }
   const [viewDate, setViewDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
   const thisMonth = { from: format(startOfMonth(new Date()), 'yyyy-MM-dd'), to: format(endOfMonth(new Date()), 'yyyy-MM-dd') }
@@ -90,11 +104,13 @@ export default function StaffPage() {
   const loadAll = async () => {
     setLoading(true)
     try {
+      const lmDate = subMonths(new Date(), 1)
+      const salesFrom = format(subDays(startOfMonth(lmDate), 1), 'yyyy-MM-dd')
       const [stf, svcs, pays, sales, shopAdmins, att] = await Promise.all([
         pb.collection(C.STAFF).getList(1, 200, { filter: `shop_id="${shop.id}"`, sort: 'name', '$cancelKey': 'staff-list' }).then(r => r.items),
         pb.collection(C.SERVICES).getList(1, 200, { filter: `shop_id="${shop.id}"`, sort: 'category,name', '$cancelKey': 'staff-svcs' }).then(r => r.items),
         pb.collection(C.COMMISSION_PAYOUTS).getList(1, 200, { filter: `shop_id="${shop.id}"`, expand: 'staff_id', sort: '-created', '$cancelKey': 'staff-pays' }).then(r => r.items),
-        pb.collection(C.SALES).getList(1, 500, { filter: `shop_id="${shop.id}" && status="completed"`, '$cancelKey': 'staff-sales' }).then(r => r.items),
+        pb.collection(C.SALES).getFullList({ filter: `shop_id="${shop.id}" && status="completed" && created>="${salesFrom} 00:00:00.000Z"`, '$cancelKey': 'staff-sales' }),
         // SECURITY FIX: only show admins who belong to THIS shop — never fetch global bs_admins
         pb.collection(C.SHOP_ADMINS).getList(1, 100, {
           filter: `shop_id="${shop.id}"`,
@@ -103,16 +119,10 @@ export default function StaffPage() {
         }).then(r => r.items.map(sa => sa.expand?.admin_id).filter(Boolean)),
         pb.collection(C.ATTENDANCE).getList(1, 500, { filter: `shop_id="${shop.id}" && date>="${format(startOfMonth(new Date()), 'yyyy-MM-dd')}" && date<="${format(endOfMonth(new Date()), 'yyyy-MM-dd')}"`, sort: '-created', '$cancelKey': 'staff-att' }).then(r => r.items),
       ])
-      // Last month sales for trend arrows
-      const lastMonthStart = format(startOfMonth(new Date(new Date().setMonth(new Date().getMonth() - 1))), 'yyyy-MM-dd')
-      const lastMonthEnd = format(endOfMonth(new Date(new Date().setMonth(new Date().getMonth() - 1))), 'yyyy-MM-dd')
-      let lms = []
-      try {
-        lms = await pb.collection(C.SALES).getList(1, 500, {
-          filter: `shop_id="${shop.id}" && status="completed" && created>="${lastMonthStart} 00:00:00.000Z" && created<="${lastMonthEnd} 23:59:59.999Z"`,
-          '$cancelKey': 'staff-lmsales'
-        }).then(r => r.items)
-      } catch { lms = [] }
+      // Last month sales for the trend arrows come from the same single load
+      const lmFrom = format(startOfMonth(lmDate), 'yyyy-MM-dd')
+      const lmTo = format(endOfMonth(lmDate), 'yyyy-MM-dd')
+      const lms = sales.filter(s => { const d = dayOf(s); return !!d && d >= lmFrom && d <= lmTo })
       setStaff(stf)
       setServices(svcs)
       setPayouts(pays)
@@ -129,11 +139,12 @@ export default function StaffPage() {
     if (!staffMember.admin_id) return []
     return allSales.filter(s => {
       if (s.served_by !== staffMember.admin_id) return false
-      const d = s.created ? s.created.slice(0, 10) : null
-      if (!d) return true
-      return d >= from && d <= to
+      const d = dayOf(s)
+      return !!d && d >= from && d <= to
     })
   }
+
+  const paidInMonth = (staffId) => overlapPaid(payouts, staffId, thisMonth.from, thisMonth.to)
 
   // Attendance helpers
   const toPbDate = (d) => d.toISOString().replace('T', ' ').slice(0, 23) + 'Z'
@@ -201,7 +212,8 @@ export default function StaffPage() {
     setStaffForm({ name: s.name, phone: s.phone || '', role: s.role || 'stylist', commission_type: s.commission_type || 'none', commission_value: s.commission_value || 0, monthly_target_kes: s.monthly_target_kes || 0, admin_id: s.admin_id || '', hire_date: s.hire_date?.split('T')[0] || '', notes: s.notes || '', is_active: s.is_active !== false })
     setShowStaffModal(true)
   }
-  const saveStaff = async () => {
+  const saveStaff = () => guarded('staff', saveStaffInner)
+  const saveStaffInner = async () => {
     if (isLocked) return toast.error('🔒 Account locked — renew your subscription to add or edit staff', { duration: 6000 })
     if (!staffForm.name.trim()) return toast.error('Name required')
     try {
@@ -225,7 +237,8 @@ export default function StaffPage() {
     setSvcForm({ name: s.name, category: s.category || 'hair', duration_minutes: s.duration_minutes || 60, price_kes: s.price_kes || 0, description: s.description || '', color: s.color || '#c8456a', is_active: s.is_active !== false })
     setShowServiceModal(true)
   }
-  const saveService = async () => {
+  const saveService = () => guarded('service', saveServiceInner)
+  const saveServiceInner = async () => {
     if (!svcForm.name.trim()) return toast.error('Service name required')
     if (!svcForm.price_kes) return toast.error('Price required')
     try {
@@ -246,14 +259,29 @@ export default function StaffPage() {
     const sales = getSalesForStaff(staffMember)
     const commission = calcCommission(staffMember, sales)
     setPayoutStaff(staffMember)
-    setPayoutForm({ period_from: thisMonth.from, period_to: thisMonth.to, commission_kes: Math.round(commission), payment_method: 'cash', notes: '' })
+    setPayoutForm({ period_from: thisMonth.from, period_to: thisMonth.to, commission_kes: Math.max(0, Math.round(commission - paidInMonth(staffMember.id))), payment_method: 'cash', notes: '' })
     setShowPayoutModal(true)
   }
-  const savePayout = async () => {
+  const savePayout = () => guarded('payout', savePayoutInner)
+  const savePayoutInner = async () => {
     if (isLocked) return toast.error('🔒 Account locked — renew your subscription to record commission payouts', { duration: 6000 })
     if (!payoutStaff) return
+    const amt = Number(payoutForm.commission_kes) || 0
+    if (amt <= 0) return toast.error('Enter a commission amount above zero')
+    const pFrom = payoutForm.period_from
+    const pTo = payoutForm.period_to
+    if (!pFrom || !pTo || pFrom > pTo) return toast.error('Check the period dates')
     try {
-      const sales = getSalesForStaff(payoutStaff, payoutForm.period_from, payoutForm.period_to)
+      let sales = []
+      if (payoutStaff.admin_id) {
+        const lo = format(subDays(new Date(pFrom + 'T12:00:00'), 1), 'yyyy-MM-dd')
+        const hi = format(addDays(new Date(pTo + 'T12:00:00'), 1), 'yyyy-MM-dd')
+        const rows = await pb.collection(C.SALES).getFullList({ filter: `shop_id="${shop.id}" && status="completed" && served_by="${payoutStaff.admin_id}" && created>="${lo} 00:00:00.000Z" && created<="${hi} 23:59:59.999Z"`, '$autoCancel': false })
+        sales = rows.filter(s => { const d = dayOf(s); return !!d && d >= pFrom && d <= pTo })
+      }
+      const priorRows = await pb.collection(C.COMMISSION_PAYOUTS).getFullList({ filter: `shop_id="${shop.id}" && staff_id="${payoutStaff.id}"`, '$autoCancel': false })
+      const dueNow = Math.max(0, Math.round(calcCommission(payoutStaff, sales) - overlapPaid(priorRows, payoutStaff.id, pFrom, pTo)))
+      if (amt > dueNow + 0.5) return toast.error(`Commission due for this period is ${fmtKES(dueNow)}. Lower the amount or change the period.`)
       const created = await pb.collection(C.COMMISSION_PAYOUTS).create({
         shop_id: shop.id,
         staff_id: payoutStaff.id,
@@ -276,24 +304,19 @@ export default function StaffPage() {
   // Last month sales for a staff member (for trend arrow)
   const getLastMonthSalesForStaff = (staffMember) => {
     if (!staffMember.admin_id) return []
-    const lastMonthStart = format(startOfMonth(new Date(new Date().setMonth(new Date().getMonth() - 1))), 'yyyy-MM-dd')
-    const lastMonthEnd = format(endOfMonth(new Date(new Date().setMonth(new Date().getMonth() - 1))), 'yyyy-MM-dd')
-    return lastMonthSales.filter(s => {
-      if (s.served_by !== staffMember.admin_id) return false
-      const d = s.created ? s.created.slice(0, 10) : null
-      if (!d) return true
-      return d >= lastMonthStart && d <= lastMonthEnd
-    })
+    return lastMonthSales.filter(s => s.served_by === staffMember.admin_id)
   }
 
   // Broadcast WhatsApp to all active staff
   const broadcastWhatsApp = () => {
     const activeWithPhone = staff.filter(s => s.is_active && s.phone)
     if (activeWithPhone.length === 0) return toast.error('No active staff with phone numbers on file')
+    const note = (window.prompt('Type the message to send to all active staff:') || '').trim()
+    if (!note) return
     const msg = encodeURIComponent(
       `👋 Hi team!\n\n` +
       `A message from *${shop.name}*:\n\n` +
-      `[Type your message here before sending]\n\n` +
+      `${note}\n\n` +
       `_${shop.name} · Powered by SalesTrack_`
     )
     let opened = 0
@@ -329,11 +352,7 @@ export default function StaffPage() {
     window.open(`https://wa.me/${phone}?text=${msg}`, '_blank')
     toast.success(`🏆 Sent Staff of the Month to ${staffOfTheMonth.name}!`)
   }
-  const totalMonthlyRevenue = allSales.filter(s => {
-    const d = s.created ? s.created.slice(0, 10) : null
-    if (!d) return false
-    return d >= thisMonth.from && d <= thisMonth.to
-  }).reduce((s, x) => s + (x.total_kes || 0), 0)
+  const totalMonthlyRevenue = allSales.filter(s => { const d = dayOf(s); return !!d && d >= thisMonth.from && d <= thisMonth.to }).reduce((s, x) => s + (x.total_kes || 0), 0)
 
   return (
     <div>
@@ -408,7 +427,7 @@ export default function StaffPage() {
                 const revenue = monthSales.reduce((sum, x) => sum + x.total_kes, 0)
                 const profit = monthSales.reduce((sum, x) => sum + (x.gross_profit_kes || 0), 0)
                 const commission = calcCommission(s, monthSales)
-                const paidThisMonth = payouts.filter(p => p.staff_id === s.id && p.period_from >= thisMonth.from && p.status === 'paid').reduce((sum, p) => sum + p.commission_kes, 0)
+                const paidThisMonth = paidInMonth(s.id)
                 const outstanding = Math.max(0, commission - paidThisMonth)
 
                 return (
@@ -811,7 +830,7 @@ export default function StaffPage() {
                   {(() => {
                     // Live commission preview using this month's team average revenue
                     const avgRevenue = staff.length > 0
-                      ? allSales.filter(s => { const d = s.created?.slice(0,10); return d >= thisMonth.from && d <= thisMonth.to }).reduce((sum, s) => sum + s.total_kes, 0) / Math.max(1, staff.filter(s => s.admin_id).length)
+                      ? allSales.filter(s => { const d = dayOf(s); return d >= thisMonth.from && d <= thisMonth.to }).reduce((sum, s) => sum + s.total_kes, 0) / Math.max(1, staff.filter(s => s.admin_id).length)
                       : 0
                     const previewSales = [{ total_kes: avgRevenue, gross_profit_kes: avgRevenue * 0.35 }]
                     const preview = calcCommission({ commission_type: staffForm.commission_type, commission_value: staffForm.commission_value }, previewSales)
