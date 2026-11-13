@@ -16,3 +16,12 @@ export function calcMaxRedeemable(points) {
   if (points < LOYALTY_MIN_REDEEM) return 0
   return calcPointsValue(points)
 }
+
+// Redemption cap: at most this % of the payable amount can be paid with points
+export const LOYALTY_MAX_REDEEM_PCT = 50
+export function calcRedeemForSale(points, payable) {
+  if (points < LOYALTY_MIN_REDEEM || payable <= 0) return { points: 0, kes: 0 }
+  const capKes = Math.floor(payable * LOYALTY_MAX_REDEEM_PCT / 100)
+  const pts = Math.min(Math.floor(points), Math.floor(capKes / calcPointsValue(1)))
+  return { points: pts, kes: calcPointsValue(pts) }
+}
