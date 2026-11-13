@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C, PB_URL } from '../lib/pb'
 import { fmtKES, generateReceiptNo, r2 } from '../lib/utils'
-import { calcPointsEarned, calcMaxRedeemable } from '../lib/loyalty'
+import { calcPointsEarned, calcMaxRedeemable, calcPointsValue } from '../lib/loyalty'
 import { Search, ScanLine, Plus, Minus, Trash2, CreditCard, Smartphone, Banknote, ShoppingBag, X, User, Tag, PauseCircle, PlayCircle, UserPlus, Split } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { queueSale, getPendingSales, markSynced, cacheProducts, cacheCategories, getCachedProducts, getCachedCategories } from '../lib/offlineQueue'
@@ -213,6 +213,9 @@ export default function POSPage() {
             gross_profit_kes: s.gross_profit_kes || 0,
             served_by:        s.served_by || null,
             etims_status:     'pending',
+            cash_tendered:    s.cash_tendered ?? null,
+            change_given:     s.change_given || 0,
+            notes:            s.notes || '',
           }
           const sale = await pb.collection(C.SALES).create(salePayload)
           const items = s.items || []
@@ -243,6 +246,12 @@ export default function POSPage() {
             } catch (stockErr) {
               console.error('Stock deduction failed during sync for item', item.id, stockErr?.message)
             }
+          }
+          if (s.customer_id) {
+            try {
+              const cu = await pb.collection(C.CUSTOMERS).getOne(s.customer_id, { '$autoCancel': false, '$cancelKey': 'sync-cust-' + s.id })
+              await pb.collection(C.CUSTOMERS).update(s.customer_id, { total_spent_kes: (cu.total_spent_kes || 0) + (s.total_kes || 0), visit_count: (cu.visit_count || 0) + 1, loyalty_points: Math.max(0, (cu.loyalty_points || 0) - (s.points_redeemed || 0)) + (s.points_earned || 0) })
+            } catch (custErr) { console.error('Customer update failed during sync', custErr?.message) }
           }
           await markSynced(s.id)
           synced++
@@ -474,6 +483,7 @@ export default function POSPage() {
   const totalCost       = cart.reduce((s, i) => s + (i.cost_price_kes || 0) * i.qty, 0)
   const grossProfit     = total - totalCost
   const pointsEarned    = customer ? calcPointsEarned(total) : 0
+  const pointsRedeemed  = loyaltyDiscount > 0 && customer ? Math.min(customer.loyalty_points || 0, Math.ceil(loyaltyDiscount / calcPointsValue(1))) : 0
   const mpesaAmt        = paymentMethod === 'mixed' ? (Number(mpesaAmount) || 0) : 0
   const cashAmt         = paymentMethod === 'mixed' ? Math.max(0, total - mpesaAmt) : 0
   const change          = paymentMethod === 'cash' && cashTendered ? Math.max(0, Number(cashTendered) - total) : 0
@@ -585,6 +595,11 @@ export default function POSPage() {
         status: 'completed',
         total_cost_kes: totalCost, gross_profit_kes: grossProfit,
         served_by: admin?.id,
+        cash_tendered: paymentMethod === 'cash' ? Number(cashTendered) || total : paymentMethod === 'mixed' ? cashAmt : null,
+        change_given: change,
+        notes: redeemPoints && loyaltyDiscount > 0 ? ('Loyalty redeemed: ' + fmtKES(loyaltyDiscount)) : '',
+        points_redeemed: pointsRedeemed,
+        points_earned: pointsEarned,
         items: cart,
         customer,
       })
@@ -635,7 +650,7 @@ export default function POSPage() {
         await pb.collection(C.INV_MOVEMENTS).create({ shop_id: shop.id, product_id: item.id, type: 'sale', qty: -item.qty, before_qty: item.stock_qty, after_qty: nq, reference: receiptNo, created_by: admin?.id }, { '$autoCancel': false, '$cancelKey': `inv-move-${idx}` })
       }))
       if (customer) {
-        const newPts = Math.max(0, (customer.loyalty_points || 0) - (redeemPoints ? customer.loyalty_points : 0)) + pointsEarned
+        const newPts = Math.max(0, (customer.loyalty_points || 0) - pointsRedeemed) + pointsEarned
         await pb.collection(C.CUSTOMERS).update(customer.id, { total_spent_kes: (customer.total_spent_kes || 0) + total, visit_count: (customer.visit_count || 0) + 1, loyalty_points: newPts })
       }
 
