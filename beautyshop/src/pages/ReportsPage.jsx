@@ -494,9 +494,9 @@ export default function ReportsPage() {
       const avgMonthlyNet = spanPL.reduce((s,m)=>s+m.netProfit,0)/spanMonths
       const profitableMonths=spanPL.filter(m=>m.netProfit>0).length
       const consistencyScore=Math.round((profitableMonths/spanMonths)*100)
-      const firstMonthRev=monthlyPL[0]?.revenue||0
-      const lastMonthRev=monthlyPL[5]?.revenue||0
-      const growthRate=firstMonthRev>0?(((lastMonthRev-firstMonthRev)/firstMonthRev)*100).toFixed(0):null
+      const firstMonthRev=spanPL[0]?.revenue||0
+      const lastMonthRev=spanPL[spanPL.length-1]?.revenue||0
+      const growthRate=spanMonths>1&&firstMonthRev>0?(((lastMonthRev-firstMonthRev)/firstMonthRev)*100).toFixed(0):null
       setLenderData({
         lifetimeRevenue, lifetimeTx:lifetimeSales.length,
         monthsActive, avgMonthlyRevenue, avgMonthlyNet, spanMonths,
