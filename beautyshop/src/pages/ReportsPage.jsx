@@ -373,8 +373,8 @@ export default function ReportsPage() {
     const seq = ++srSeq.current
     setSrLoad(true)
     try {
-      const payMap = await loadPayMap(); const [salesAll] = await Promise.all([
-        pb.collection(C.SALES).getFullList({ filter:`shop_id="${shop.id}" && status="completed"`, '$autoCancel':false, '$cancelKey':'sr-sales' }).then(r=>r.filter(x=>{const d=rDate(x);return d&&d>=srFrom&&d<=srTo})),
+      let srUndated = 0; const payMap = await loadPayMap(); const [salesAll] = await Promise.all([
+        pb.collection(C.SALES).getFullList({ filter:`shop_id="${shop.id}" && status="completed"`, '$autoCancel':false, '$cancelKey':'sr-sales' }).then(r=>{ srUndated = r.filter(x=>!rDate(x)).length; return r.filter(x=>{const d=rDate(x);return d&&d>=srFrom&&d<=srTo}) }),
         
       ])
       const salesByDay = {}
@@ -412,7 +412,7 @@ export default function ReportsPage() {
       salesAll.forEach(s=>{if(s.customer_id){if(!customerSales[s.customer_id])customerSales[s.customer_id]={count:0,total:0};customerSales[s.customer_id].count++;customerSales[s.customer_id].total+=s.total_kes}})
       if (seq !== srSeq.current) return
       setSrData({
-        salesChart,topProducts,peakHours,payBreakdown,revenue,
+        salesChart,topProducts,peakHours,payBreakdown,revenue,undatedCount:srUndated,
         salesCount:salesAll.length,
         returningCount:Object.keys(customerSales).length,
         walkInCount:salesAll.filter(s=>!s.customer_id).length,
@@ -886,7 +886,7 @@ export default function ReportsPage() {
               {/* KPI cards */}
               <div className="stat-grid-3" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:20 }}>
                 {[
-                  {label:'Receipts from customers',value:fmtKES(cfData.totalInflows),color:'#059669',icon:'💰',sub:`${cfData.cashSalesCount} cash/mpesa sales`},
+                  {label:'Receipts from customers',value:fmtKES(cfData.totalInflows),color:'#059669',icon:'💰',sub:`${cfData.cashSalesCount} receipts received`},
                   {label:'Payments (expenses and stock)',value:fmtKES(cfData.totalOutflows),color:'#dc2626',icon:'💸',sub:'Expenses and cash stock purchases'},
                   {label:'Net cash from operating activities',value:fmtKES(cfData.netCashFlow),color:cfData.netCashFlow>=0?'#059669':'#dc2626',icon:cfData.netCashFlow>=0?'✅':'⚠️',sub:cfData.netCashFlow>=0?'Positive cash position':'Negative cash position'},
                 ].map((kpi,i) => (
@@ -921,7 +921,7 @@ export default function ReportsPage() {
 
               {cfData.creditSalesTotal > 0 && (
                 <div style={{ background:'#fef3c7', border:'1px solid #fde68a', borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#92400e' }}>
-                  ℹ️ Credit sales of <strong>{fmtKES(cfData.creditSalesTotal)}</strong> are excluded from cash inflows — cash flow only counts money actually received.
+                  ℹ️ Unpaid balance of credit sales made in this period: <strong>{fmtKES(cfData.creditSalesTotal)}</strong>. Not counted as cash inflows — cash flow only counts money actually received.
                 </div>
               )}
 
@@ -1034,7 +1034,7 @@ export default function ReportsPage() {
           </div>
           {srLoad ? <Spinner/> : srData ? (
             <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-              <div style={{ display:'flex', justifyContent:'flex-end' }}>
+              {srData.undatedCount > 0 && <div style={{ fontSize:11, color:'#92400e', background:'#fef3c7', borderRadius:8, padding:'6px 10px' }}>{srData.undatedCount} completed sale(s) have no date in the receipt number, so they are not included in this report.</div>}<div style={{ display:'flex', justifyContent:'flex-end' }}>
                 <button className="btn-secondary" onClick={() => exportCSV(srData.topProducts.map(p=>({Product:p.name,Qty_Sold:p.qty,Revenue_KES:p.revenue.toFixed(2),Profit_KES:p.profit.toFixed(2)})),'sales-report.csv')}><Download size={14}/> Export CSV</button>
               </div>
               <div className="mobile-stack" style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:20 }}>
@@ -1482,7 +1482,7 @@ function PLRow({ label, value, bold, big, negative, indent, border, sub, color, 
         <span style={{ fontSize:big?15:13, fontWeight:bold?700:400, color:'#3d1020', paddingLeft:indent?12:0 }}>{label}</span>
         {sub&&<div style={{ fontSize:11, color:'#9b6070' }}>{sub}</div>}
       </div>
-      <span style={{ fontSize:big?16:13, fontWeight:bold?700:500, color:displayColor, fontFamily:big?'Playfair Display,serif':'Nunito,sans-serif' }}>
+      <span style={{ fontSize:big?16:13, fontWeight:bold?700:500, color:displayColor, whiteSpace:'nowrap', paddingLeft:12, fontFamily:big?'Playfair Display,serif':'Nunito,sans-serif' }}>
         {isNeg?'(':''}{display}{isNeg?')':''}
       </span>
     </div>
