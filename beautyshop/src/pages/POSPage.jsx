@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C, PB_URL } from '../lib/pb'
 import { fmtKES, generateReceiptNo, r2 } from '../lib/utils'
-import { calcPointsEarned, calcRedeemForSale, LOYALTY_MAX_REDEEM_PCT } from '../lib/loyalty'
+import { calcPointsEarned, calcRedeemWithConfig, getLoyaltyConfig } from '../lib/loyalty'
 import { Search, ScanLine, Plus, Minus, Trash2, CreditCard, Smartphone, Banknote, ShoppingBag, X, User, Tag, PauseCircle, PlayCircle, UserPlus, Split } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { queueSale, getPendingSales, markSynced, cacheProducts, cacheCategories, getCachedProducts, getCachedCategories } from '../lib/offlineQueue'
@@ -496,16 +496,17 @@ export default function POSPage() {
   }
 
   const subtotal        = cart.reduce((s, i) => s + i.unit_price * i.qty, 0)
+  const loyaltyCfg = getLoyaltyConfig(shop)
   // Discount can never be negative or larger than the subtotal
   const discountAmt     = Math.min(Math.max(Number(discount) || 0, 0), subtotal)
-  const loyaltyCalc     = customer ? calcRedeemForSale(customer.loyalty_points || 0, subtotal - discountAmt) : { points: 0, kes: 0 }
+  const loyaltyCalc     = customer ? calcRedeemWithConfig(customer.loyalty_points || 0, subtotal - discountAmt, loyaltyCfg) : { points: 0, kes: 0 }
   const loyaltyDiscount = redeemPoints ? loyaltyCalc.kes : 0
   const afterDiscount   = Math.max(0, subtotal - discountAmt - loyaltyDiscount)
   const tax             = shop?.tax_rate ? afterDiscount * (shop.tax_rate / 100) : 0
   const total           = afterDiscount + tax
   const totalCost       = cart.reduce((s, i) => s + (i.cost_price_kes || 0) * i.qty, 0)
   const grossProfit     = total - totalCost
-  const pointsEarned    = customer ? calcPointsEarned(total) : 0
+  const pointsEarned    = customer && loyaltyCfg.enabled ? calcPointsEarned(total) : 0
   const pointsRedeemed  = redeemPoints ? loyaltyCalc.points : 0
   const mpesaAmt        = paymentMethod === 'mixed' ? (Number(mpesaAmount) || 0) : 0
   const cashAmt         = paymentMethod === 'mixed' ? Math.max(0, total - mpesaAmt) : 0
@@ -949,10 +950,10 @@ export default function POSPage() {
                     <div>⏱️ Last: {customerHistory.lastAmount ? fmtKES(customerHistory.lastAmount) : 'N/A'}</div>
                   </div>
                 )}
-                {(customer.loyalty_points || 0) >= 50 && (
+                {loyaltyCfg.enabled && (customer.loyalty_points || 0) >= loyaltyCfg.minPoints && (
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#d97706', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, marginTop: 3 }}>
                     <input type="checkbox" checked={redeemPoints} onChange={e => setRedeemPoints(e.target.checked)} style={{ accentColor: '#d97706' }} />
-                    Redeem ({fmtKES(loyaltyCalc.kes)} max, {LOYALTY_MAX_REDEEM_PCT}% of sale)
+                    Redeem ({fmtKES(loyaltyCalc.kes)} max, {loyaltyCfg.capPct}% of sale)
                   </label>
                 )}
               </div>

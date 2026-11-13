@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
+import { getLoyaltyConfig, calcRedeemWithConfig } from '../lib/loyalty'
 import toast from 'react-hot-toast'
-import { Save, Store, ShieldCheck, Users, Plus, Trash2, X, Tag, Palette, Upload, Edit2, Check, Link, ExternalLink } from 'lucide-react'
+import { Save, Store, ShieldCheck, Users, Plus, Trash2, X, Tag, Palette, Upload, Edit2, Check, Link, ExternalLink, Star } from 'lucide-react'
 
 const TABS = [
   { label: 'Business',    icon: Store },
@@ -12,6 +13,7 @@ const TABS = [
   { label: 'Categories',  icon: Tag },
   { label: 'eTIMS / KRA', icon: ShieldCheck },
   { label: 'Staff',       icon: Users },
+  { label: 'Loyalty', icon: Star },
 ]
 
 const BRAND_COLORS = [
@@ -86,6 +88,7 @@ export default function SettingsPage() {
         founded_year:        shop.founded_year        || '',
         business_hours:      (shop.business_hours && Object.keys(shop.business_hours).length > 0) ? shop.business_hours : DEFAULT_HOURS,
       })
+      setShopForm(f => ({ ...f, loyalty_off: !!shop.loyalty_off, loyalty_cap_pct: shop.loyalty_cap_pct || "", loyalty_min_points: shop.loyalty_min_points || "", loyalty_point_value_kes: shop.loyalty_point_value_kes || "" }))
       setCustomColor(shop.brand_color || '#c8456a')
       loadStaff()
       loadCategories()
@@ -144,6 +147,7 @@ export default function SettingsPage() {
       const fd = new FormData()
       Object.entries(shopForm).forEach(([k,v]) => {
         if (k === 'business_hours') fd.append(k, JSON.stringify(v))
+        else if (k.indexOf('loyalty_') === 0 && v === '') fd.append(k, '0')
         else fd.append(k, String(v ?? ''))
       })
       if (logoFile)  fd.append('logo', logoFile)
@@ -188,6 +192,16 @@ export default function SettingsPage() {
     catch { toast.error('Failed') }
   }
 
+  const saveLoyalty = (e) => {
+    e?.preventDefault()
+    const cap = Number(shopForm.loyalty_cap_pct || 0)
+    const minp = Number(shopForm.loyalty_min_points || 0)
+    const val = Number(shopForm.loyalty_point_value_kes || 0)
+    if (cap < 0 || cap > 90) return toast.error("Most of a sale paid with points must be between 1 and 90 percent")
+    if (minp < 0) return toast.error("Minimum points cannot be negative")
+    if (val < 0) return toast.error("Value of one point cannot be negative")
+    saveShop()
+  }
   const callStaff = async (payload) => { const r = await fetch('/api/staff/manage', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pb.authStore.token }, body: JSON.stringify(payload) }); const data = await r.json().catch(() => ({})); if (!r.ok || !data?.ok) throw new Error(data?.error || 'Request failed'); return data }
   const handleAddStaff = async (e) => {
     e.preventDefault()
@@ -946,6 +960,51 @@ export default function SettingsPage() {
               💡 Change a staff member's role using the dropdown above — takes effect on their next login.
             </div>
           </div>
+        </div>
+      )}
+
+      {/* TAB 7: LOYALTY RULES (R2) */}
+      {tab === 7 && (
+        <div className="card" style={{ maxWidth:680 }}>
+          <h2 style={{ fontFamily:"Playfair Display,serif", fontSize:20, color:"#3d1020", margin:"0 0 6px" }}>Loyalty Rules</h2>
+          <p style={{ fontSize:13, color:"#9b6070", margin:"0 0 20px" }}>Choose how customers use loyalty points at the till. Leave a box empty to use the standard rule.</p>
+          <form onSubmit={saveLoyalty} style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            <label htmlFor="loy-on" style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:13, color:"#3d1020", fontWeight:700 }}>
+              <input id="loy-on" type="checkbox" checked={!shopForm.loyalty_off} onChange={e=>setShopForm(f=>({...f,loyalty_off:!e.target.checked}))} />
+              Loyalty is on (customers earn and redeem points)
+            </label>
+            <div className="mobile-stack" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14 }}>
+              <div>
+                <label className="label" htmlFor="loy-cap">Most of a sale paid with points (%)</label>
+                <input id="loy-cap" className="input" type="number" min={1} max={90} step={1} value={shopForm.loyalty_cap_pct ?? ""} onChange={e=>setShopForm(f=>({...f,loyalty_cap_pct:e.target.value}))} placeholder="50" />
+              </div>
+              <div>
+                <label className="label" htmlFor="loy-min">Minimum points to redeem</label>
+                <input id="loy-min" className="input" type="number" min={1} step={1} value={shopForm.loyalty_min_points ?? ""} onChange={e=>setShopForm(f=>({...f,loyalty_min_points:e.target.value}))} placeholder="50" />
+              </div>
+              <div>
+                <label className="label" htmlFor="loy-val">Value of one point (KES)</label>
+                <input id="loy-val" className="input" type="number" min={0} step={0.01} value={shopForm.loyalty_point_value_kes ?? ""} onChange={e=>setShopForm(f=>({...f,loyalty_point_value_kes:e.target.value}))} placeholder="1" />
+              </div>
+            </div>
+            {(() => {
+              const cfg = getLoyaltyConfig(shopForm)
+              const ex = calcRedeemWithConfig(1000, 1000, cfg)
+              return (
+                <div role="status" style={{ background:"#fdf5f7", border:"1px solid #f0e4e8", borderRadius:10, padding:"12px 14px", fontSize:13, color:"#6b4050", lineHeight:1.6 }}>
+                  {cfg.enabled
+                    ? ("Example: a customer with 1,000 points on a KES 1,000 sale can redeem " + ex.points + " points for KES " + ex.kes + " off. Redeeming starts at " + cfg.minPoints + " points, each point is worth KES " + cfg.pointValue + ", and at most " + cfg.capPct + "% of a sale can be paid with points.")
+                    : "Loyalty is off: no points are earned and the redeem box is hidden at the till."}
+                </div>
+              )
+            })()}
+            <div style={{ fontSize:12, color:"#9b6070", lineHeight:1.6 }}>
+              Points are earned at 1 point for every KES 100 spent. A loyalty discount lowers your gross profit, because the cost of the goods stays at full price. Only whole points are redeemed, and a sale can never total KES 0.
+            </div>
+            <div style={{ paddingTop:8, borderTop:"1px solid #f5edf0" }}>
+              <button type="submit" className="btn-primary" disabled={saving}><Save size={15}/>{saving?"Saving...":"Save Loyalty Rules"}</button>
+            </div>
+          </form>
         </div>
       )}
 
