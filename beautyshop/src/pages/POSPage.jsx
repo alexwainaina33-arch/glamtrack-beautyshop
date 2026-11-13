@@ -10,6 +10,27 @@ import toast from 'react-hot-toast'
 import { queueSale, getPendingSales, markSynced, cacheProducts, cacheCategories, getCachedProducts, getCachedCategories } from '../lib/offlineQueue'
 import ReceiptModal from '../components/ReceiptModal'
 
+// R1c: wait for every write to settle, then report the first failure (a retry never races an in-flight write)
+const allDone = async (promises) => {
+  const results = await Promise.allSettled(promises)
+  const bad = results.find(r => r.status === 'rejected')
+  if (bad) throw bad.reason
+  return results
+}
+
+// R1c: re-read stock from the server just before saving; lines already deducted on an earlier attempt are skipped
+async function refreshCartStock(cart, done) {
+  return Promise.all(cart.map(async (item) => {
+    if (!item.track_inventory || done[item.cartKey]) return item
+    const cur = item.variant_id
+      ? await pb.collection(C.PRODUCT_VARIANTS).getOne(item.variant_id, { '$autoCancel': false })
+      : await pb.collection(C.PRODUCTS).getOne(item.id, { '$autoCancel': false })
+    const live = Number(cur.stock_qty || 0)
+    if (Number(item.qty) > live) throw new Error('Only ' + r2(live) + ' ' + (item.unit || 'pcs') + ' of ' + item.name + ' available now')
+    return { ...item, stock_qty: live }
+  }))
+}
+
 export default function POSPage() {
   const { shop, admin, loading: authLoading, isLocked } = useAuth()
   const [products, setProducts]     = useState([])
@@ -49,6 +70,7 @@ export default function POSPage() {
   const [variantPopupProduct, setVariantPopupProduct] = useState(null)
   const audioRef = useRef(null)
   const custSearchTimer = useRef(null)
+  const attemptRef = useRef(null)
 
   useEffect(() => {
     if (shop && !authLoading) {
@@ -500,6 +522,13 @@ export default function POSPage() {
   const creditProfit        = creditTotal - totalCost
   const loyaltyIgnoredForCredit = redeemPoints && loyaltyDiscount > 0
 
+  // R1c: one attempt per cart. A retry after a partial failure resumes the same sale instead of creating a second one
+  const getAttempt = (kind) => {
+    const sig = JSON.stringify([kind, shop?.id, customer?.id || null, paymentMethod, discountAmt, loyaltyDiscount, mpesaAmount, kind === 'credit' ? creditTotal : total, cart.map(i => [i.cartKey, i.qty, i.unit_price])])
+    if (!attemptRef.current || attemptRef.current.sig !== sig) attemptRef.current = { sig, receiptNo: generateReceiptNo(shop.slug), sale: null, items: {}, stock: {} }
+    return attemptRef.current
+  }
+
   const payLater = async () => {
     if (isLocked) return toast.error('🔒 Account locked — renew your subscription to record sales', { duration: 6000 })
     if (processing) return
@@ -521,8 +550,10 @@ export default function POSPage() {
     if (!confirm(creditConfirmText)) return
     setProcessing(true)
     try {
-      const receiptNo = generateReceiptNo(shop.slug)
-      const sale = await pb.collection(C.SALES).create({
+      const attempt = getAttempt('credit')
+      const liveCart = await refreshCartStock(cart, attempt.stock)
+      const receiptNo = attempt.receiptNo
+      const sale = attempt.sale || await pb.collection(C.SALES).create({
         shop_id: shop.id, receipt_no: receiptNo,
         customer_id: customer.id,
         subtotal_kes: subtotal, discount_kes: discountAmt,
@@ -534,24 +565,25 @@ export default function POSPage() {
         notes: `CREDIT — awaiting payment`,
         share_token: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36)
       })
-      await Promise.all(cart.map((item, idx) => pb.collection(C.SALE_ITEMS).create({
+      attempt.sale = sale
+      await allDone(cart.map((item, idx) => attempt.items[idx] ? null : pb.collection(C.SALE_ITEMS).create({
         sale_id: sale.id,
         product_id: item.id, product_name: item.name,
         qty: item.qty, unit_price_kes: item.unit_price, unit_cost_kes: item.cost_price_kes || 0,
         total_kes: item.unit_price * item.qty,
-      }, { '$autoCancel': false, '$cancelKey': `pay-later-item-${idx}` })))
+      }, { '$autoCancel': false, '$cancelKey': `pay-later-item-${idx}` }).then(() => { attempt.items[idx] = true })))
       // Deduct stock
-      await Promise.all(cart.filter(i => i.track_inventory).map(async (item, idx) => {
+      await allDone(liveCart.filter(i => i.track_inventory && !attempt.stock[i.cartKey]).map(async (item, idx) => {
         const nq = r2(Math.max(0, (item.stock_qty || 0) - item.qty))
         if (item.variant_id) {
-          await pb.collection(C.PRODUCT_VARIANTS).update(item.variant_id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `pay-later-variant-stock-${idx}` })
+          await pb.collection(C.PRODUCT_VARIANTS).update(item.variant_id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `pay-later-variant-stock-${idx}` }); attempt.stock[item.cartKey] = true
           try {
             const siblings = await pb.collection(C.PRODUCT_VARIANTS).getFullList({ filter: `product_id="${item.id}"`, '$autoCancel': false, '$cancelKey': `pay-later-siblings-${idx}` })
             const total = siblings.reduce((s, v) => s + (v.id === item.variant_id ? nq : (v.stock_qty || 0)), 0)
             await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: total }, { '$autoCancel': false, '$cancelKey': `pay-later-parent-stock-${idx}` })
           } catch {}
         } else {
-          await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `pay-later-stock-${idx}` })
+          await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `pay-later-stock-${idx}` }); attempt.stock[item.cartKey] = true
         }
         await pb.collection(C.INV_MOVEMENTS).create({ shop_id: shop.id, product_id: item.id, type: 'sale', qty: -item.qty, before_qty: item.stock_qty, after_qty: nq, reference: receiptNo, created_by: admin?.id }, { '$autoCancel': false, '$cancelKey': `pay-later-inv-${idx}` })
       }))
@@ -559,9 +591,10 @@ export default function POSPage() {
       await pb.collection(C.CUSTOMERS).update(customer.id, {
         visit_count: (customer.visit_count || 0) + 1,
       })
+      attemptRef.current = null
       clearCart(); loadData()
       toast.success(`💳 Credit recorded for ${customer.name} — KES ${creditTotal.toLocaleString('en-KE', { minimumFractionDigits: 2 })}`, { duration: 5000 })
-    } catch (err) { toast.error('Failed: ' + (err?.message || 'Unknown')) }
+    } catch (err) { toast.error((attemptRef.current?.sale ? 'Not finished: ' : 'Failed: ') + (err?.message || 'Unknown') + (attemptRef.current?.sale ? ' The sale is saved. Tap the same button again to finish it; do not re-enter it.' : ''), { duration: 9000 }) }
     finally { setProcessing(false) }
   }
 
@@ -617,8 +650,10 @@ export default function POSPage() {
 
     setProcessing(true)
     try {
-      const receiptNo = generateReceiptNo(shop.slug)
-      const sale = await pb.collection(C.SALES).create({
+      const attempt = getAttempt('sale')
+      const liveCart = await refreshCartStock(cart, attempt.stock)
+      const receiptNo = attempt.receiptNo
+      const sale = attempt.sale || await pb.collection(C.SALES).create({
         shop_id: shop.id, receipt_no: receiptNo,
         customer_id: customer?.id || null,
         subtotal_kes: subtotal, discount_kes: discountAmt + loyaltyDiscount,
@@ -631,23 +666,24 @@ export default function POSPage() {
         notes: redeemPoints && loyaltyDiscount > 0 ? `Loyalty: ${pointsRedeemed} pts = ${fmtKES(loyaltyDiscount)}` : '',
         share_token: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36)
       })
-      await Promise.all(cart.map((item, idx) => pb.collection(C.SALE_ITEMS).create({
+      attempt.sale = sale
+      await allDone(cart.map((item, idx) => attempt.items[idx] ? null : pb.collection(C.SALE_ITEMS).create({
         sale_id: sale.id, product_id: item.id,
         product_name: item.variant_name ? `${item.name}` : item.name,
         qty: item.qty, unit_price_kes: item.unit_price, unit_cost_kes: item.cost_price_kes || 0,
         total_kes: item.unit_price * item.qty,
-      }, { '$autoCancel': false, '$cancelKey': `sale-item-${idx}` })))
-      await Promise.all(cart.filter(i => i.track_inventory).map(async (item, idx) => {
+      }, { '$autoCancel': false, '$cancelKey': `sale-item-${idx}` }).then(() => { attempt.items[idx] = true })))
+      await allDone(liveCart.filter(i => i.track_inventory && !attempt.stock[i.cartKey]).map(async (item, idx) => {
         const nq = r2(Math.max(0, (item.stock_qty || 0) - item.qty))
         if (item.variant_id) {
-          await pb.collection(C.PRODUCT_VARIANTS).update(item.variant_id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `variant-stock-${idx}` })
+          await pb.collection(C.PRODUCT_VARIANTS).update(item.variant_id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `variant-stock-${idx}` }); attempt.stock[item.cartKey] = true
           try {
             const siblings = await pb.collection(C.PRODUCT_VARIANTS).getFullList({ filter: `product_id="${item.id}"`, '$autoCancel': false, '$cancelKey': `siblings-${idx}` })
             const total = siblings.reduce((s, v) => s + (v.id === item.variant_id ? nq : (v.stock_qty || 0)), 0)
             await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: total }, { '$autoCancel': false, '$cancelKey': `parent-stock-${idx}` })
           } catch {}
         } else {
-          await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `stock-update-${idx}` })
+          await pb.collection(C.PRODUCTS).update(item.id, { stock_qty: nq }, { '$autoCancel': false, '$cancelKey': `stock-update-${idx}` }); attempt.stock[item.cartKey] = true
         }
         await pb.collection(C.INV_MOVEMENTS).create({ shop_id: shop.id, product_id: item.id, type: 'sale', qty: -item.qty, before_qty: item.stock_qty, after_qty: nq, reference: receiptNo, created_by: admin?.id }, { '$autoCancel': false, '$cancelKey': `inv-move-${idx}` })
       }))
@@ -656,6 +692,7 @@ export default function POSPage() {
         await pb.collection(C.CUSTOMERS).update(customer.id, { total_spent_kes: (customer.total_spent_kes || 0) + total, visit_count: (customer.visit_count || 0) + 1, loyalty_points: newPts })
       }
 
+      attemptRef.current = null
       setCompletedSale({ ...sale, items: cart, customer, change, pointsEarned })
       setShowReceipt(true); clearCart(); loadData()
       toast.success(`Sale done! ${receiptNo}`, { icon: '🎉', duration: 4000 })
@@ -716,7 +753,7 @@ export default function POSPage() {
           }
         }
       }
-    } catch (err) { toast.error('Failed: ' + (err?.message || 'Unknown')) }
+    } catch (err) { toast.error((attemptRef.current?.sale ? 'Not finished: ' : 'Failed: ') + (err?.message || 'Unknown') + (attemptRef.current?.sale ? ' The sale is saved. Tap the same button again to finish it; do not re-enter it.' : ''), { duration: 9000 }) }
     finally { setProcessing(false) }
   }
 
