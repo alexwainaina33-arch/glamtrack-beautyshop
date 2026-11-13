@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
@@ -11,7 +12,6 @@ import ProductsPage from './pages/ProductsPage'
 import InventoryPage from './pages/InventoryPage'
 import SalesPage from './pages/SalesPage'
 import ExpensesPage from './pages/ExpensesPage'
-import ReportsPage from './pages/ReportsPage'
 import CustomersPage from './pages/CustomersPage'
 import SuppliersPage from './pages/SuppliersPage'
 import AnalyticsPage from './pages/AnalyticsPage'
@@ -31,6 +31,7 @@ import InstallBanner from './components/InstallBanner'
 import RoleGuard from './components/RoleGuard'
 import PlanGuard from './components/PlanGuard'
 import ProfilePage from './pages/ProfilePage'
+const ReportsPage = lazy(() => import('./pages/ReportsPage'))
 
 function LandingRedirect() {
   window.location.replace('/landing.html')
@@ -88,7 +89,7 @@ function AppRoutes() {
 />
         <Route path="sales"        element={<SalesPage />} />
         <Route path="expenses"     element={<RoleGuard allow={['owner','manager']}><ExpensesPage /></RoleGuard>} />
-        <Route path="reports"      element={<RoleGuard allow={['owner','manager','viewer']}><ReportsPage /></RoleGuard>} />
+        <Route path="reports"      element={<RoleGuard allow={['owner','manager','viewer']}><Suspense fallback={<div style={{ display:'flex', justifyContent:'center', padding:48 }}><div className="spinner" /></div>}><ReportsPage /></Suspense></RoleGuard>} />
         <Route path="customers"    element={<CustomersPage />} />
         <Route path="suppliers"    element={<RoleGuard allow={['owner','manager']}><SuppliersPage /></RoleGuard>} />
         <Route path="analytics"    element={<RoleGuard allow={['owner','manager','viewer']}><PlanGuard requiredPlan="growth"><AnalyticsPage /></PlanGuard></RoleGuard>} />
