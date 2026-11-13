@@ -89,6 +89,20 @@ export default function StaffPage() {
   const busyRef = useRef('')
   const guarded = async (key, fn) => { if (busyRef.current) return; busyRef.current = key; try { await fn() } finally { busyRef.current = '' } }
   const [viewDate, setViewDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [poFrom, setPoFrom] = useState('')
+  const [poTo, setPoTo] = useState('')
+  const filteredPayouts = payouts.filter(p => { const d = String(p.paid_date || '').slice(0, 10); if (poFrom && d < poFrom) return false; if (poTo && d > poTo) return false; return true })
+  const filteredPayoutTotal = filteredPayouts.reduce((s, p) => s + (p.commission_kes || 0), 0)
+  const exportCSV = (rows, filename) => {
+    if (!rows || !rows.length) return toast.error('No data to export')
+    const headers = Object.keys(rows[0])
+    const esc = v => { let s = String(typeof v === 'number' ? Math.round(v * 100) / 100 : (v ?? '')); if (typeof v === 'string' && /^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"' }
+    const csv = [headers.map(esc).join(','), ...rows.map(r => headers.map(h => esc(r[h])).join(','))].join('\r\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = filename; a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const thisMonth = { from: format(startOfMonth(new Date()), 'yyyy-MM-dd'), to: format(endOfMonth(new Date()), 'yyyy-MM-dd') }
   const todayStr = format(new Date(), 'yyyy-MM-dd')
@@ -117,7 +131,7 @@ export default function StaffPage() {
           expand: 'admin_id',
           '$cancelKey': 'staff-adms',
         }).then(r => r.items.map(sa => sa.expand?.admin_id).filter(Boolean)),
-        pb.collection(C.ATTENDANCE).getList(1, 500, { filter: `shop_id="${shop.id}" && date>="${format(startOfMonth(new Date()), 'yyyy-MM-dd')}" && date<="${format(endOfMonth(new Date()), 'yyyy-MM-dd')}"`, sort: '-created', '$cancelKey': 'staff-att' }).then(r => r.items),
+        pb.collection(C.ATTENDANCE).getFullList({ filter: `shop_id="${shop.id}" && date>="${format(startOfMonth(new Date()), 'yyyy-MM-dd')}" && date<="${format(endOfMonth(new Date()), 'yyyy-MM-dd')}"`, sort: '-created', '$cancelKey': 'staff-att' }),
       ])
       // Last month sales for the trend arrows come from the same single load
       const lmFrom = format(startOfMonth(lmDate), 'yyyy-MM-dd')
@@ -262,6 +276,36 @@ export default function StaffPage() {
     setPayoutForm({ period_from: thisMonth.from, period_to: thisMonth.to, commission_kes: Math.max(0, Math.round(commission - paidInMonth(staffMember.id))), payment_method: 'cash', notes: '' })
     setShowPayoutModal(true)
   }
+  // Records a paid commission as an Expense (category "Staff commissions") so Reports and Cash Flows see it.
+  const recordPayoutExpense = async (payout) => {
+    try {
+      const ref = 'commission:' + payout.id
+      const dup = await pb.collection(C.EXPENSES).getList(1, 1, { filter: `shop_id="${shop.id}" && reference="${ref}"`, '$autoCancel': false })
+      if (dup.items.length) return true
+      let catId = ''
+      try {
+        const cats = await pb.collection(C.EXPENSE_CATS).getFullList({ filter: `shop_id="${shop.id}" && name="Staff commissions"`, '$autoCancel': false })
+        if (cats[0]) catId = cats[0].id
+        else { const nc = await pb.collection(C.EXPENSE_CATS).create({ shop_id: shop.id, name: 'Staff commissions', icon: '\uD83D\uDCB8' }); catId = nc.id }
+      } catch (e) { catId = '' }
+      const staffName = payoutStaff?.name || 'staff'
+      const body = {
+        shop_id: shop.id,
+        description: 'Commission - ' + staffName + ' (' + payout.period_from + ' to ' + payout.period_to + ')',
+        amount_kes: payout.commission_kes,
+        expense_date: payout.paid_date,
+        payment_method: payout.payment_method,
+        reference: ref,
+        notes: 'Recorded automatically from Staff commission payout',
+      }
+      if (catId) body.category_id = catId
+      await pb.collection(C.EXPENSES).create(body)
+      return true
+    } catch (e) {
+      toast.error('Payout saved, but the expense was not recorded (' + (e?.data?.message || e.message) + '). Add it under Expenses so your reports stay correct.', { duration: 9000 })
+      return false
+    }
+  }
   const savePayout = () => guarded('payout', savePayoutInner)
   const savePayoutInner = async () => {
     if (isLocked) return toast.error('🔒 Account locked — renew your subscription to record commission payouts', { duration: 6000 })
@@ -294,12 +338,13 @@ export default function StaffPage() {
       })
       toast.success(`Commission of ${fmtKES(payoutForm.commission_kes)} paid to ${payoutStaff.name} ✅`)
       setShowPayoutModal(false)
+      await recordPayoutExpense(created)
       if (payoutStaff.phone) sendPayoutWhatsApp(created, payoutStaff)
       loadAll()
     } catch (e) { toast.error('Failed: ' + e.message) }
   }
 
-  const totalMonthlyCommission = staff.reduce((sum, s) => sum + calcCommission(s, getSalesForStaff(s)), 0)
+  const totalMonthlyCommission = staff.reduce((sum, s) => sum + Math.max(0, calcCommission(s, getSalesForStaff(s)) - paidInMonth(s.id)), 0)
 
   // Last month sales for a staff member (for trend arrow)
   const getLastMonthSalesForStaff = (staffMember) => {
@@ -620,7 +665,7 @@ export default function StaffPage() {
                       </div>
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#d97706' }}>{fmtKES(ranked.reduce((s, x) => s + x.commission, 0))}</div>
-                        <div style={{ fontSize: 11, color: '#9b6070' }}>Total commissions due</div>
+                        <div style={{ fontSize: 11, color: '#9b6070' }}>Total commissions earned</div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#3b82f6' }}>{ranked.reduce((s, x) => s + x.salesCount, 0)}</div>
@@ -681,12 +726,20 @@ export default function StaffPage() {
           {tab === 3 && (
             <div className="card" style={{ padding: 0 }}>
               <div style={{ padding: '14px 20px', borderBottom: '1px solid #f5edf0' }}>
-                <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 16, color: '#3d1020', margin: 0 }}>Commission Payout History</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                  <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 16, color: '#3d1020', margin: 0 }}>Commission Payout History</h3>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input className="input" type="date" aria-label="Paid from" value={poFrom} onChange={e => setPoFrom(e.target.value)} style={{ maxWidth: 150 }} />
+                    <input className="input" type="date" aria-label="Paid to" value={poTo} onChange={e => setPoTo(e.target.value)} style={{ maxWidth: 150 }} />
+                    <span style={{ fontSize: 12, color: '#9b6070' }}>{filteredPayouts.length} payout(s) - {fmtKES(filteredPayoutTotal)}</span>
+                    <button className="btn-secondary" style={{ fontSize: 12 }} onClick={() => exportCSV(filteredPayouts.map(p => ({ Staff: p.expand?.staff_id?.name || '', Period_From: String(p.period_from || '').slice(0, 10), Period_To: String(p.period_to || '').slice(0, 10), Sales_KES: p.total_sales_kes || 0, Commission_KES: p.commission_kes || 0, Method: p.payment_method || '', Date_Paid: String(p.paid_date || '').slice(0, 10), Notes: p.notes || '' })), 'commission-payouts.csv')}>Export CSV</button>
+                  </div>
+                </div>
               </div>
-              {payouts.length === 0 ? (
+              {filteredPayouts.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 48, color: '#9b6070' }}>
                   <div style={{ fontSize: 32, marginBottom: 8 }}>💸</div>
-                  <div>No payouts recorded yet.</div>
+                  <div>{payouts.length ? 'No payouts in this date range.' : 'No payouts recorded yet.'}</div>
                 </div>
               ) : (
                 <div className="table-wrap">
@@ -697,7 +750,7 @@ export default function StaffPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {payouts.map(p => (
+                      {filteredPayouts.map(p => (
                         <tr key={p.id}>
                           <td style={{ fontWeight: 600 }}>{p.expand?.staff_id?.name || '—'}</td>
                           <td style={{ fontSize: 12, color: '#9b6070' }}>{p.period_from} → {p.period_to}</td>
@@ -747,6 +800,27 @@ export default function StaffPage() {
                 <div style={{ padding: '14px 20px', borderBottom: '1px solid #f5edf0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                   <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 16, color: '#3d1020', margin: 0 }}>Attendance Log</h3>
                   <input className="input" type="date" value={viewDate} onChange={e => setViewDate(e.target.value)} style={{ maxWidth: 160 }} />
+                </div>
+                <div style={{ padding: '14px 20px', borderBottom: '1px solid #f5edf0' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#9b6070', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Hours this month (finished shifts only)</div>
+                  {(() => {
+                    const rows = staff.filter(s => s.is_active).map(s => {
+                      const recs = attendance.filter(a => a.staff_id === s.id)
+                      return { name: s.name, days: new Set(recs.map(a => a.date)).size, hours: recs.filter(a => a.clock_out).reduce((sum, a) => sum + hoursWorked(a), 0) }
+                    })
+                    if (rows.length === 0) return <div style={{ color: '#9b6070', fontSize: 13 }}>No active staff.</div>
+                    return (
+                      <div>
+                        <div className="table-wrap">
+                          <table>
+                            <thead><tr><th>Staff</th><th>Days</th><th>Hours</th></tr></thead>
+                            <tbody>{rows.map(r => <tr key={r.name}><td style={{ fontWeight: 600 }}>{r.name}</td><td>{r.days}</td><td>{r.hours.toFixed(1)}h</td></tr>)}</tbody>
+                          </table>
+                        </div>
+                        <button className="btn-secondary" style={{ fontSize: 12, marginTop: 8 }} onClick={() => exportCSV(rows.map(r => ({ Staff: r.name, Days: r.days, Hours: Math.round(r.hours * 100) / 100 })), 'attendance-hours.csv')}>Export CSV</button>
+                      </div>
+                    )
+                  })()}
                 </div>
                 {attendance.filter(a => a.date === viewDate).length === 0 ? (
                   <div style={{ textAlign: 'center', padding: 48, color: '#9b6070' }}>
