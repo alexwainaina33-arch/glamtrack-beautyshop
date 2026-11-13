@@ -295,14 +295,14 @@ export default function ReportsPage() {
   }
 
   // ══════════════════════════════════════════════════════════════════════
-  // TAB 2 — CASH FLOW STATEMENT (backed by buildCashFlow — deep export data)
+  // TAB 2 — CASH FLOW STATEMENT (backed by buildCashStatement — deep export data)
   // ══════════════════════════════════════════════════════════════════════
   const loadCF = async () => {
     setCfLoad(true)
     try {
       const cf = await buildCashStatement(shop, cfFrom, cfTo)
 
-      // Month-by-month breakdown (still computed here — buildCashFlow gives
+      // Month-by-month breakdown (still computed here — buildCashStatement gives
       // range totals + transaction-level detail, monthly bucketing is a
       // page-level concern since it's only used for the chart/table)
       const months = eachMonthOfInterval({
