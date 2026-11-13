@@ -55,6 +55,10 @@ export default function ReportsPage() {
   const printRef = useRef()
   const plSeq = useRef(0)
   const erSeq = useRef(0)
+  const bsSeq = useRef(0)
+  const cfSeq = useRef(0)
+  const srSeq = useRef(0)
+  const svSeq = useRef(0)
 
   // ── Per-tab date state ─────────────────────────────────────────────────
   const [plFrom,   setPlFrom]   = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
@@ -230,9 +234,11 @@ export default function ReportsPage() {
   // TAB 1 — BALANCE SHEET (fully automated, mathematically correct)
   // ══════════════════════════════════════════════════════════════════════
   const loadBS = async () => {
+    const seq = ++bsSeq.current
     setBsLoad(true)
     try {
       const tb = await buildTrialBalance(shop, bsDate)
+      if (seq !== bsSeq.current) return
 
       setBsData({
         // Assets
@@ -262,8 +268,8 @@ export default function ReportsPage() {
         products: tb.products,
         asOf: bsDate,
       })
-    } catch(err) { console.error(err); toast.error('Failed to load Balance Sheet') }
-    finally { setBsLoad(false) }
+    } catch(err) { console.error(err); if (seq === bsSeq.current) toast.error('Failed to load Balance Sheet') }
+    finally { if (seq === bsSeq.current) setBsLoad(false) }
   }
 
   const shareBSWhatsApp = () => {
@@ -298,9 +304,11 @@ export default function ReportsPage() {
   // TAB 2 — CASH FLOW STATEMENT (backed by buildCashStatement — deep export data)
   // ══════════════════════════════════════════════════════════════════════
   const loadCF = async () => {
+    const seq = ++cfSeq.current
     setCfLoad(true)
     try {
       const cf = await buildCashStatement(shop, cfFrom, cfTo)
+      if (seq !== cfSeq.current) return
 
       // Month-by-month breakdown (still computed here — buildCashStatement gives
       // range totals + transaction-level detail, monthly bucketing is a
@@ -338,8 +346,8 @@ export default function ReportsPage() {
         inflowTransactions: cf.inflowTransactions,
         outflowTransactions: cf.outflowTransactions,
       })
-    } catch(err) { console.error(err); toast.error('Failed to load Cash Flow') }
-    finally { setCfLoad(false) }
+    } catch(err) { console.error(err); if (seq === cfSeq.current) toast.error('Failed to load Cash Flow') }
+    finally { if (seq === cfSeq.current) setCfLoad(false) }
   }
 
   const shareCFWhatsApp = () => {
@@ -361,13 +369,14 @@ export default function ReportsPage() {
   // TAB 3 — SALES REPORT
   // ══════════════════════════════════════════════════════════════════════
   const loadSR = async () => {
+    const seq = ++srSeq.current
     setSrLoad(true)
     try {
-      const payMap = await loadPayMap(); const [salesAll, saleItems] = await Promise.all([
+      const payMap = await loadPayMap(); const [salesAll] = await Promise.all([
         pb.collection(C.SALES).getFullList({ filter:`shop_id="${shop.id}" && status="completed"`, '$autoCancel':false, '$cancelKey':'sr-sales' }).then(r=>r.filter(x=>{const d=rDate(x);return d&&d>=srFrom&&d<=srTo})),
-        Promise.resolve([]),
+        
       ])
-      const salesByDay = {}; const saleIds = new Set(salesAll.map(s => s.id))
+      const salesByDay = {}
       salesAll.forEach(s => {
         const mm=s.receipt_no?.match(/-(\d{6})-/)
         if(!mm) return
@@ -400,6 +409,7 @@ export default function ReportsPage() {
       const revenue=salesAll.reduce((s,x)=>s+(x.total_kes||0),0)
       const customerSales={}
       salesAll.forEach(s=>{if(s.customer_id){if(!customerSales[s.customer_id])customerSales[s.customer_id]={count:0,total:0};customerSales[s.customer_id].count++;customerSales[s.customer_id].total+=s.total_kes}})
+      if (seq !== srSeq.current) return
       setSrData({
         salesChart,topProducts,peakHours,payBreakdown,revenue,
         salesCount:salesAll.length,
@@ -408,8 +418,8 @@ export default function ReportsPage() {
         avgCustomerValue:Object.keys(customerSales).length?Object.values(customerSales).reduce((s,c)=>s+c.total,0)/Object.keys(customerSales).length:0,
         creditOutstanding:salesAll.filter(s=>s.payment_status==='pending').reduce((s,x)=>s+owed(x,payMap),0),
       })
-    } catch(err){console.error(err);toast.error('Failed to load Sales Report')}
-    finally{setSrLoad(false)}
+    } catch(err){console.error(err);if (seq === srSeq.current) toast.error('Failed to load Sales Report')}
+    finally{if(seq===srSeq.current)setSrLoad(false)}
   }
 
   // ══════════════════════════════════════════════════════════════════════
@@ -436,13 +446,15 @@ export default function ReportsPage() {
   // TAB 5 — STOCK VALUATION
   // ══════════════════════════════════════════════════════════════════════
   const loadSV = async () => {
+    const seq = ++svSeq.current
     setSvLoad(true)
     try {
       const products = await pb.collection(C.PRODUCTS).getFullList({ filter:`shop_id="${shop.id}" && status="active"`, '$autoCancel':false })
       const stockVal = products.map(p=>({...p, costValue:(p.stock_qty||0)*(p.cost_price_kes||0), retailValue:(p.stock_qty||0)*(p.price_kes||0)})).sort((a,b)=>b.retailValue-a.retailValue)
+      if (seq !== svSeq.current) return
       setSvData({ stockVal, totalStockCost:stockVal.reduce((s,p)=>s+p.costValue,0), totalStockRetail:stockVal.reduce((s,p)=>s+p.retailValue,0) })
-    } catch(err){console.error(err);toast.error('Failed to load Stock Valuation')}
-    finally{setSvLoad(false)}
+    } catch(err){console.error(err);if (seq === svSeq.current) toast.error('Failed to load Stock Valuation')}
+    finally{if(seq===svSeq.current)setSvLoad(false)}
   }
 
   // ══════════════════════════════════════════════════════════════════════
