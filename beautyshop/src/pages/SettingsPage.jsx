@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { getLoyaltyConfig, calcRedeemWithConfig } from '../lib/loyalty'
 import toast from 'react-hot-toast'
-import { Save, Store, ShieldCheck, Users, Plus, Trash2, X, Tag, Palette, Upload, Edit2, Check, Link, ExternalLink, Star } from 'lucide-react'
+import { Save, Store, ShieldCheck, Users, Plus, Trash2, X, Tag, Palette, Upload, Edit2, Check, Link, ExternalLink, Star, Shield } from 'lucide-react'
 
 const TABS = [
   { label: 'Business',    icon: Store },
@@ -14,6 +14,7 @@ const TABS = [
   { label: 'eTIMS / KRA', icon: ShieldCheck },
   { label: 'Staff',       icon: Users },
   { label: 'Loyalty', icon: Star },
+  { label: 'Till rules', icon: Shield },
 ]
 
 const BRAND_COLORS = [
@@ -88,7 +89,7 @@ export default function SettingsPage() {
         founded_year:        shop.founded_year        || '',
         business_hours:      (shop.business_hours && Object.keys(shop.business_hours).length > 0) ? shop.business_hours : DEFAULT_HOURS,
       })
-      setShopForm(f => ({ ...f, loyalty_off: !!shop.loyalty_off, loyalty_cap_pct: shop.loyalty_cap_pct || "", loyalty_min_points: shop.loyalty_min_points || "", loyalty_point_value_kes: shop.loyalty_point_value_kes || "" }))
+      setShopForm(f => ({ ...f, loyalty_off: !!shop.loyalty_off, loyalty_cap_pct: shop.loyalty_cap_pct || "", loyalty_min_points: shop.loyalty_min_points || "", loyalty_point_value_kes: shop.loyalty_point_value_kes || "", till_limit_discount: !!shop.till_limit_discount, till_cashier_max_discount_pct: shop.till_cashier_max_discount_pct || "", till_block_below_cost: !!shop.till_block_below_cost, till_credit_limit_kes: shop.till_credit_limit_kes || "" }))
       setCustomColor(shop.brand_color || '#c8456a')
       loadStaff()
       loadCategories()
@@ -147,7 +148,7 @@ export default function SettingsPage() {
       const fd = new FormData()
       Object.entries(shopForm).forEach(([k,v]) => {
         if (k === 'business_hours') fd.append(k, JSON.stringify(v))
-        else if (k.indexOf('loyalty_') === 0 && v === '') fd.append(k, '0')
+        else if ((k.indexOf('loyalty_') === 0 || k.indexOf('till_') === 0) && v === '') fd.append(k, '0')
         else fd.append(k, String(v ?? ''))
       })
       if (logoFile)  fd.append('logo', logoFile)
@@ -200,6 +201,14 @@ export default function SettingsPage() {
     if (cap < 0 || cap > 90) return toast.error("Most of a sale paid with points must be between 1 and 90 percent")
     if (minp < 0) return toast.error("Minimum points cannot be negative")
     if (val < 0) return toast.error("Value of one point cannot be negative")
+    saveShop()
+  }
+  const saveTill = (e) => {
+    e?.preventDefault()
+    const pct = Number(shopForm.till_cashier_max_discount_pct || 0)
+    const lim = Number(shopForm.till_credit_limit_kes || 0)
+    if (pct < 0 || pct > 100) return toast.error("Cashier discount limit must be between 0 and 100 percent")
+    if (lim < 0) return toast.error("Credit limit cannot be negative")
     saveShop()
   }
   const callStaff = async (payload) => { const r = await fetch('/api/staff/manage', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pb.authStore.token }, body: JSON.stringify(payload) }); const data = await r.json().catch(() => ({})); if (!r.ok || !data?.ok) throw new Error(data?.error || 'Request failed'); return data }
@@ -1003,6 +1012,43 @@ export default function SettingsPage() {
             </div>
             <div style={{ paddingTop:8, borderTop:"1px solid #f5edf0" }}>
               <button type="submit" className="btn-primary" disabled={saving}><Save size={15}/>{saving?"Saving...":"Save Loyalty Rules"}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* TAB 8: TILL RULES (R2b) */}
+      {tab === 8 && (
+        <div className="card" style={{ maxWidth:680 }}>
+          <h2 style={{ fontFamily:"Playfair Display,serif", fontSize:20, color:"#3d1020", margin:"0 0 6px" }}>Till Rules</h2>
+          <p style={{ fontSize:13, color:"#9b6070", margin:"0 0 20px" }}>Protect your takings. Choose what cashiers may do at the till and how much credit one customer can owe. Owners and managers are not limited by the price and discount rules. Leave everything off or empty for no limits.</p>
+          <form onSubmit={saveTill} style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            <label htmlFor="till-disc-on" style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:13, color:"#3d1020", fontWeight:700 }}>
+              <input id="till-disc-on" type="checkbox" checked={!!shopForm.till_limit_discount} onChange={e=>setShopForm(f=>({...f,till_limit_discount:e.target.checked}))} />
+              Limit the discount a cashier can give
+            </label>
+            <div style={{ maxWidth:260 }}>
+              <label className="label" htmlFor="till-disc-pct">Cashier discount limit (% of sale)</label>
+              <input id="till-disc-pct" className="input" type="number" min={0} max={100} step={1} disabled={!shopForm.till_limit_discount} value={shopForm.till_cashier_max_discount_pct ?? ""} onChange={e=>setShopForm(f=>({...f,till_cashier_max_discount_pct:e.target.value}))} placeholder="0" />
+              <div style={{ fontSize:11, color:"#9b6070", marginTop:3 }}>Empty or 0 means cashiers cannot give any discount.</div>
+            </div>
+            <label htmlFor="till-cost" style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:13, color:"#3d1020", fontWeight:700 }}>
+              <input id="till-cost" type="checkbox" checked={!!shopForm.till_block_below_cost} onChange={e=>setShopForm(f=>({...f,till_block_below_cost:e.target.checked}))} />
+              Do not let cashiers sell below cost price
+            </label>
+            <div style={{ maxWidth:260 }}>
+              <label className="label" htmlFor="till-credit">Credit limit per customer (KES)</label>
+              <input id="till-credit" className="input" type="number" min={0} step={1} value={shopForm.till_credit_limit_kes ?? ""} onChange={e=>setShopForm(f=>({...f,till_credit_limit_kes:e.target.value}))} placeholder="No limit" />
+              <div style={{ fontSize:11, color:"#9b6070", marginTop:3 }}>Pay Later is blocked for cashiers when unpaid balance plus the new sale goes above this. Owners and managers are asked to confirm. Empty or 0 means no limit.</div>
+            </div>
+            <div role="status" style={{ background:"#fdf5f7", border:"1px solid #f0e4e8", borderRadius:10, padding:"12px 14px", fontSize:13, color:"#6b4050", lineHeight:1.6 }}>
+              {"Cashiers: " + (shopForm.till_limit_discount ? ("discounts up to " + (Number(shopForm.till_cashier_max_discount_pct) || 0) + "% of a sale") : "no discount limit") + "; " + (shopForm.till_block_below_cost ? "cannot sell below cost" : "may sell below cost") + ". Credit: " + (Number(shopForm.till_credit_limit_kes) > 0 ? ("limit KES " + Number(shopForm.till_credit_limit_kes).toLocaleString() + " per customer") : "no limit") + "."}
+            </div>
+            <div style={{ fontSize:12, color:"#9b6070", lineHeight:1.6 }}>
+              A cashier can never sell a line at KES 0. These checks run at the till on this device; they stop honest mistakes and casual under-charging.
+            </div>
+            <div style={{ paddingTop:8, borderTop:"1px solid #f5edf0" }}>
+              <button type="submit" className="btn-primary" disabled={saving}><Save size={15}/>{saving?"Saving...":"Save Till Rules"}</button>
             </div>
           </form>
         </div>

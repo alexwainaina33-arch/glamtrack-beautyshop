@@ -32,7 +32,7 @@ async function refreshCartStock(cart, done) {
 }
 
 export default function POSPage() {
-  const { shop, admin, loading: authLoading, isLocked } = useAuth()
+  const { shop, admin, role, loading: authLoading, isLocked } = useAuth()
   const [products, setProducts]     = useState([])
   const [categories, setCategories] = useState([])
   const [cart, setCart]             = useState([])
@@ -523,6 +523,24 @@ export default function POSPage() {
   const creditProfit        = creditTotal - totalCost
   const loyaltyIgnoredForCredit = redeemPoints && loyaltyDiscount > 0
 
+  // R2b: till rules set by the owner. Owner and manager are never limited. Client-side convenience, not security.
+  const tillLimited = role === 'cashier'
+  const tillMaxDiscPct = Math.max(0, Math.min(100, Number(shop?.till_cashier_max_discount_pct) || 0))
+  const tillCreditLimit = Math.max(0, Number(shop?.till_credit_limit_kes) || 0)
+  const tillProblem = (() => {
+    if (!tillLimited) return null
+    const zero = cart.find(i => Number(i.unit_price) <= 0)
+    if (zero) return zero.name + ': price cannot be KES 0. Ask the owner or manager.'
+    if (shop?.till_block_below_cost) {
+      const low = cart.find(i => Number(i.cost_price_kes) > 0 && Number(i.unit_price) < Number(i.cost_price_kes))
+      if (low) return low.name + ': price is below cost (KES ' + r2(low.cost_price_kes) + '). Ask the owner or manager.'
+    }
+    if (shop?.till_limit_discount && discountAmt > 0 && discountAmt > subtotal * tillMaxDiscPct / 100 + 0.005) {
+      return 'Discount is above the limit of ' + tillMaxDiscPct + '% (KES ' + r2(subtotal * tillMaxDiscPct / 100) + '). Ask the owner or manager.'
+    }
+    return null
+  })()
+
   // R1c: one attempt per cart. A retry after a partial failure resumes the same sale instead of creating a second one
   const getAttempt = (kind) => {
     const sig = JSON.stringify([kind, shop?.id, customer?.id || null, paymentMethod, discountAmt, loyaltyDiscount, mpesaAmount, kind === 'credit' ? creditTotal : total, cart.map(i => [i.cartKey, i.qty, i.unit_price])])
@@ -545,6 +563,24 @@ export default function POSPage() {
       return toast.error(`Enter a valid quantity for ${invalidCreditQtyItem.name}`)
     }
 
+    if (tillProblem) return toast.error(tillProblem, { duration: 7000 })
+    if (tillCreditLimit > 0) {
+      try {
+        const owedSales = await pb.collection(C.SALES).getFullList({ filter: 'shop_id="' + shop.id + '" && customer_id="' + customer.id + '" && payment_status="pending"', requestKey: null })
+        let owed = 0
+        for (const s of owedSales) {
+          const pays = await pb.collection('bs_payments').getFullList({ filter: 'sale_id="' + s.id + '"', requestKey: null })
+          const paid = pays.reduce((a, p) => a + (Number(p.amount_kes) || 0), 0)
+          owed += Math.max(0, (Number(s.total_kes) || 0) - paid)
+        }
+        owed = r2(owed)
+        if (owed + creditTotal > tillCreditLimit + 0.005) {
+          const limitMsg = 'Credit limit: ' + customer.name + ' already owes ' + fmtKES(owed) + ' and this sale adds ' + fmtKES(creditTotal) + '. The limit is ' + fmtKES(tillCreditLimit) + '.'
+          if (tillLimited) return toast.error(limitMsg + ' Ask the owner or manager.', { duration: 8000 })
+          if (!confirm(limitMsg + ' Record it anyway?')) return
+        }
+      } catch (err) { return toast.error('Could not check the credit limit: ' + (err?.message || 'Unknown') + '. Please try again.') }
+    }
     const creditConfirmText =
       `Record KES ${creditTotal.toLocaleString('en-KE', { minimumFractionDigits: 2 })} as credit for ${customer.name}?` +
       (loyaltyIgnoredForCredit ? '\n\nNote: loyalty points are not applied to credit sales, so this is recorded at full price.' : '')
@@ -605,6 +641,7 @@ export default function POSPage() {
     if (!cart.length) return toast.error('Cart is empty')
     if (paymentMethod === 'cash' && cashTendered && Number(cashTendered) < total) return toast.error('Insufficient cash')
     if (total <= 0) return toast.error('Total must be more than KES 0. Reduce the discount.')
+    if (tillProblem) return toast.error(tillProblem, { duration: 7000 })
 
     const invalidQtyItem = cart.find(item =>
       item.qty === '' ||
@@ -1076,6 +1113,7 @@ export default function POSPage() {
                 {mpesaNegative && <div role="alert" style={{ background: '#fef2f2', color: '#b91c1c', borderRadius: 8, padding: '5px 11px', fontSize: 12, fontWeight: 700 }}>⚠️ M-Pesa amount cannot be negative</div>}
               </div>
             )}
+            {tillProblem && <div role="alert" style={{ background: '#fef2f2', color: '#b91c1c', borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Till rule: {tillProblem}</div>}
             <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: 14, borderRadius: 12 }} onClick={() => setShowPaymentConfirm(true)} disabled={processing || !cart.length || isLocked}>
               {processing ? <><div style={{ width: 15, height: 15, border: '2px solid #fff4', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Processing…</> : isLocked ? '🔒 Account Locked' : `✅ Complete · ${fmtKES(total)}`}
             </button>

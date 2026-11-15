@@ -384,6 +384,9 @@ export default function CustomersPage() {
                     <td style={{ fontSize: 12, color: '#9b6070' }}>{fmtDate(c.created)}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        {owe && c.phone && !creditError && (
+                          <button onClick={() => remind(c, owe.balance)} aria-label={'Remind ' + c.name + ' about their balance'} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>Remind</button>
+                        )}
                         {owe && canReceive && !creditError && (
                           <button onClick={() => openPay(c)} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0fdf4', color: '#059669', fontWeight: 700, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>💵 Receive</button>
                         )}
