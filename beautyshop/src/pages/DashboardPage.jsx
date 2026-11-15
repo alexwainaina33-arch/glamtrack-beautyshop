@@ -27,6 +27,9 @@ const parseDay = (s) => {
 }
 const MAX_CUSTOM_DAYS = 366
 
+// Chart axis labels: whole shillings below 1,000, then 1.2k style
+const axisTick = (v) => v >= 1000 ? String(Math.round(v / 100) / 10) + 'k' : String(Math.round(v))
+
 // Revenue bars for a date range: one bar per day (up to 31 days), otherwise one bar per week.
 const buildDailyChart = (sales, from, to) => {
   const now = new Date()
@@ -1053,6 +1056,7 @@ export default function DashboardPage() {
   const [assistantData, setAssistantData] = useState(null)
   const [hasLifetimeSales, setHasLifetimeSales] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
+  const [summarising, setSummarising] = useState(false)
 
   const loadSeq = useRef(0)
   const todayStr = format(new Date(), 'yyyy-MM-dd')
@@ -1246,37 +1250,72 @@ export default function DashboardPage() {
     setPeriod(p)
   }
 
-  const sendWhatsAppSummary = () => {
+  const sendWhatsAppSummary = async () => {
     const phone = toWaPhone(shop?.phone)
     if (!phone) { toast.error('Add your phone number in Settings first'); return }
-    const s = stats || {}
-    const summaryTitle = period === 'today' ? 'Daily Summary' : period === '7d' ? 'Last 7 Days' : period === 'custom' ? customLabel : 'This Month'
-    const msg = [
-      `💅 *${shop.name}*`,
-      `_${summaryTitle} — ${format(new Date(), 'dd MMM yyyy')}_`,
-      ``,
-      `💰 Revenue`,
-      `*KES ${(s.revenue||0).toLocaleString('en-KE')}*`,
-      ``,
-      `📈 Gross Profit`,
-      `*KES ${(s.grossProfit||0).toLocaleString('en-KE')}*`,
-      ``,
-      `💸 Expenses`,
-      `*KES ${(s.totalExpenses||0).toLocaleString('en-KE')}*`,
-      ``,
-      `🎯 Net Profit`,
-      `*KES ${(s.netProfit||0).toLocaleString('en-KE')}*`,
-      ``,
-      `🧾 Transactions: *${s.salesCount||0}*`,
-      ``,
-      (s.lowStockCount||0) > 0 ? `⚠️ Stock alert: *${s.lowStockCount} item(s) running low*` : `✅ All stock levels healthy`,
-      ``,
-      `_${shop.name} · Powered by SalesTrack_`
-    ].join('\n')
-    const a = document.createElement('a')
-    a.href = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
-    a.target = '_blank'; a.rel = 'noopener noreferrer'
-    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    if (summarising) return
+    setSummarising(true)
+    toast.loading('Preparing your summary...', { id: 'dash-summary' })
+    // Open the tab now, while the tap is still fresh, and fill it in when the figures are ready.
+    const w = window.open('', '_blank')
+    try {
+      const { buildCashStatement, buildTrialBalance } = await import('../lib/financials')
+      const { from, to } = getPeriodRange()
+      const [cs, tb] = await Promise.all([
+        buildCashStatement(shop, format(from, 'yyyy-MM-dd'), format(to, 'yyyy-MM-dd')),
+        buildTrialBalance(shop, format(new Date(), 'yyyy-MM-dd')),
+      ])
+      const s = stats || {}
+      const money = (n) => 'KES ' + (Math.round((n || 0) * 100) / 100).toLocaleString('en-KE')
+      const summaryTitle = period === 'today' ? 'Daily Summary' : period === '7d' ? 'Last 7 Days' : period === 'custom' ? customLabel : 'This Month'
+      const methodName = { cash: 'Cash', mpesa: 'M-Pesa', bank: 'Card / bank', mixed: 'Split (not separated)', other: 'Other' }
+      const lines = [
+        '\uD83D\uDCCA *' + shop.name + '*',
+        '_' + summaryTitle + ' - ' + format(new Date(), 'dd MMM yyyy') + '_',
+        '',
+        '*Sales (credit sales included)*',
+        'Revenue: *' + money(s.revenue) + '*',
+        'Gross profit: *' + money(s.grossProfit) + '*',
+        'Expenses: *' + money(s.totalExpenses) + '*',
+        'Net profit: *' + money(s.netProfit) + '*',
+        'Transactions: *' + (s.salesCount || 0) + '*',
+        '',
+        '*Money received*',
+      ]
+      if (cs.inflowRows.length === 0) lines.push('Nothing received in this period')
+      cs.inflowRows.forEach(r => lines.push((methodName[r.method] || r.method) + ': ' + money(r.total)))
+      lines.push('Total received: *' + money(cs.totalInflows) + '*')
+      if (cs.creditSalesTotal > 0.004 || tb.accountsReceivable > 0.004) {
+        lines.push('')
+        lines.push('*Credit*')
+        if (cs.creditSalesTotal > 0.004) lines.push('Sold on credit, still unpaid: ' + money(cs.creditSalesTotal))
+        if (tb.accountsReceivable > 0.004) lines.push('Owed to you now (all customers): *' + money(tb.accountsReceivable) + '*')
+      }
+      lines.push('')
+      if ((s.lowStockCount || 0) > 0) {
+        lines.push('\u26A0\uFE0F *Low stock (' + s.lowStockCount + ')*')
+        lowStock.forEach(p => lines.push('- ' + p.name + ': ' + r2(p.stock_qty) + ' left'))
+        if (s.lowStockCount > lowStock.length) lines.push('+ ' + (s.lowStockCount - lowStock.length) + ' more')
+      } else {
+        lines.push('\u2705 All stock levels healthy')
+      }
+      lines.push('')
+      lines.push('_' + shop.name + ' - Powered by SalesTrack_')
+      const url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(lines.join('\n'))
+      if (w) {
+        try { w.opener = null } catch (e) {}
+        w.location.href = url
+      } else {
+        toast.error('Your browser blocked the WhatsApp tab. Allow pop-ups for this site and tap again.')
+      }
+    } catch (err) {
+      if (w) w.close()
+      console.error(err)
+      toast.error('Could not prepare the summary. Check your connection and try again.')
+    } finally {
+      toast.dismiss('dash-summary')
+      setSummarising(false)
+    }
   }
 
   if (needsShop) return <ShopSetupWizard />
@@ -1287,7 +1326,7 @@ export default function DashboardPage() {
   ] : [
     { label: 'Revenue',      value: fmtKES(stats.revenue),     sub: stats.prevRevenue > 0 ? `${pctChange(stats.revenue, stats.prevRevenue)}% vs ${stats.prevLabel}` : 'No earlier sales to compare', icon: '💰', cls: 'rose', trend: stats.revenue >= stats.prevRevenue },
     { label: 'Gross Profit', value: fmtKES(stats.grossProfit), sub: `Margin ${stats.revenue ? ((stats.grossProfit/stats.revenue)*100).toFixed(1) : 0}%`, icon: '📈', cls: 'gold', trend: stats.grossProfit > 0 },
-    { label: 'Net Profit',   value: fmtKES(stats.netProfit),   sub: `After KES ${(stats.totalExpenses/1000).toFixed(1)}k expenses`, icon: '🎯', cls: stats.netProfit >= 0 ? 'green' : 'rose', trend: stats.netProfit >= 0 },
+    { label: 'Net Profit',   value: fmtKES(stats.netProfit),   sub: 'After ' + fmtKES(stats.totalExpenses) + ' expenses', icon: '🎯', cls: stats.netProfit >= 0 ? 'green' : 'rose', trend: stats.netProfit >= 0 },
     { label: 'Transactions', value: stats.salesCount,          sub: `Avg ${fmtKES(stats.avgOrderValue)}`, icon: '🧾', cls: 'blue', trend: true },
   ]) : []
 
@@ -1307,7 +1346,7 @@ export default function DashboardPage() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
           {!isLimited && (
-            <button onClick={sendWhatsAppSummary} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center', gap: 6, minHeight: 40 }}>
+            <button onClick={sendWhatsAppSummary} disabled={summarising} aria-busy={summarising} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', alignItems: 'center', gap: 6, minHeight: 40 }}>
               📲 WhatsApp Summary
             </button>
           )}
@@ -1395,7 +1434,7 @@ export default function DashboardPage() {
                         <BarChart data={salesChart} barSize={salesChart.length > 12 ? undefined : 28}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f0e4e8" vertical={false} />
                           <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+                          <YAxis tick={{ fontSize: 11, fill: '#9b6070', fontFamily: 'Nunito,sans-serif' }} axisLine={false} tickLine={false} tickFormatter={axisTick} />
                           <Tooltip formatter={v => fmtKES(v)} contentStyle={{ borderRadius: 10, border: '1px solid #f0e4e8', fontFamily: 'Nunito,sans-serif' }} />
                           <Bar dataKey="revenue" fill="url(#roseGrad)" radius={[6,6,0,0]} />
                           <defs>
