@@ -6,7 +6,9 @@ import { Plus, AlertTriangle, ArrowUp, ArrowDown, RefreshCw, X, Filter, Upload, 
 import toast from 'react-hot-toast'
 
 export default function InventoryPage() {
-  const { shop, loading: authLoading, isLocked } = useAuth()
+  const { shop, loading: authLoading, isLocked, role } = useAuth()
+  const canWriteOff = role === 'owner' || role === 'manager'
+  const canReceive = role !== 'viewer'
   const [products, setProducts] = useState([])
   const [movements, setMovements] = useState([])
   const [loading, setLoading] = useState(true)
@@ -31,8 +33,33 @@ export default function InventoryPage() {
   const [importing, setImporting] = useState(false)
   const fileRef = useRef()
   const [selectedProducts, setSelectedProducts] = useState(new Set())
+  const [countVals, setCountVals] = useState({})
+  const [countNote, setCountNote] = useState('')
+  const [countSaving, setCountSaving] = useState(false)
+  const [lossFrom, setLossFrom] = useState(() => new Date(Date.now() + 10800000).toISOString().slice(0, 8) + '01')
+  const [lossTo, setLossTo] = useState(() => new Date(Date.now() + 10800000).toISOString().slice(0, 10))
+  const [lossRows, setLossRows] = useState([])
+  const [lossLoading, setLossLoading] = useState(false)
+  const [lossTick, setLossTick] = useState(0)
 
   useEffect(() => { if (shop && !authLoading) loadData() }, [shop, authLoading])
+
+  useEffect(() => {
+    if (tab !== 'loss' || !shop || !canWriteOff || !lossFrom || !lossTo) return
+    let cancelled = false
+    setLossLoading(true)
+    const start = new Date(lossFrom + 'T00:00:00+03:00').toISOString().replace('T', ' ')
+    const end = new Date(lossTo + 'T23:59:59.999+03:00').toISOString().replace('T', ' ')
+    pb.collection(C.INV_MOVEMENTS).getFullList({
+      filter: 'shop_id="' + shop.id + '" && (type="adjustment" || type="damage" || type="stock_out") && created>="' + start + '" && created<="' + end + '"',
+      sort: '-created',
+      expand: 'product_id,created_by'
+    })
+      .then(rows => { if (!cancelled) setLossRows(rows) })
+      .catch(() => { if (!cancelled) { setLossRows([]); toast.error('Could not load the loss report') } })
+      .finally(() => { if (!cancelled) setLossLoading(false) })
+    return () => { cancelled = true }
+  }, [tab, lossFrom, lossTo, shop, canWriteOff, lossTick])
 
   useEffect(() => {
     // Auto-alert on low stock items
@@ -74,6 +101,9 @@ export default function InventoryPage() {
   const handleAdjust = async (e) => {
     e.preventDefault()
     if (isLocked) return toast.error('🔒 Account locked — renew your subscription to adjust stock', { duration: 6000 })
+    if (!canReceive) return toast.error('Viewers cannot change stock')
+    if (['stock_out', 'damage', 'adjustment'].includes(adjustType) && !canWriteOff) return toast.error('Only the owner or a manager can record stock out, damage or adjustments')
+    if (['stock_out', 'damage', 'adjustment'].includes(adjustType) && !adjustNote.trim()) return toast.error('Add a reason in Notes / Reference')
     if (!adjustQty || isNaN(adjustQty) || Number(adjustQty) <= 0) return toast.error('Enter valid quantity')
     setSaving(true)
     try {
@@ -85,6 +115,7 @@ export default function InventoryPage() {
       const isInbound = ['stock_in', 'return', 'opening_stock'].includes(adjustType)
       const isPurchase = ['stock_in', 'opening_stock'].includes(adjustType)
       const deltaQty = isInbound ? qty : -qty
+      if (!isInbound && qty > currentQty) return toast.error('Only ' + r2(currentQty) + ' on hand. Use Stock Count if the shelf has less.')
       const newQty = r2(Math.max(0, currentQty + deltaQty))
 
       const supplierUnitCost = Number(adjustCost) || 0
@@ -134,6 +165,56 @@ export default function InventoryPage() {
       loadData()
     } catch (err) { toast.error(err?.message || 'Failed') }
     finally { setSaving(false) }
+  }
+
+  const signedKES = v => (v < 0 ? '-' : v > 0 ? '+' : '') + fmtKES(Math.abs(v))
+
+  const saveCount = async () => {
+    if (isLocked) return toast.error('Account locked. Renew your subscription to record a count.')
+    if (!canWriteOff) return toast.error('Only the owner or a manager can record a stock count')
+    const entries = products.filter(p => !p.has_variants && countVals[p.id] !== undefined && countVals[p.id] !== '')
+    if (entries.length === 0) return toast.error('Type at least one counted quantity')
+    for (const p of entries) {
+      const c = Number(countVals[p.id])
+      if (isNaN(c) || c < 0) return toast.error('Check the count for ' + p.name + ': it must be 0 or more')
+    }
+    if (!window.confirm('Save this stock count? Stock levels will be set to the quantities you counted.')) return
+    setCountSaving(true)
+    let saved = 0
+    let same = 0
+    const failed = []
+    for (const p of entries) {
+      try {
+        const counted = r2(Number(countVals[p.id]))
+        const fresh = await pb.collection(C.PRODUCTS).getOne(p.id)
+        const before = Number(fresh.stock_qty || 0)
+        const delta = r2(counted - before)
+        if (delta === 0) { same++; continue }
+        await pb.collection(C.PRODUCTS).update(p.id, { stock_qty: counted })
+        await pb.collection(C.INV_MOVEMENTS).create({
+          shop_id: shop.id,
+          product_id: p.id,
+          type: 'adjustment',
+          qty: delta,
+          before_qty: before,
+          after_qty: counted,
+          reference: 'Stock count',
+          notes: countNote ? 'Stock count: ' + countNote : 'Stock count',
+          created_by: pb.authStore.model?.id
+        })
+        saved++
+      } catch (err) { failed.push(p.name) }
+    }
+    setCountSaving(false)
+    if (failed.length > 0) {
+      toast.error('Not finished: ' + failed.join(', ') + ' not saved. Check Movements, then save again.', { duration: 8000 })
+    } else {
+      toast.success('Stock count saved: ' + saved + ' changed, ' + same + ' matched')
+      setCountVals({})
+      setCountNote('')
+    }
+    await loadData()
+    setLossTick(t => t + 1)
   }
 
   const filteredProducts = filterAlert
@@ -252,8 +333,8 @@ export default function InventoryPage() {
           <div className="page-subtitle">{products.length} tracked products</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn-secondary" onClick={() => setShowBulkImport(true)} disabled={isLocked}><Upload size={14} /> Bulk Import</button>
-          <button className="btn-primary" onClick={() => openAdjust(null, 'stock_in')} disabled={isLocked} title={isLocked ? 'Account locked — renew to adjust stock' : ''}>
+          <button className="btn-secondary" onClick={() => setShowBulkImport(true)} disabled={isLocked || !canWriteOff}><Upload size={14} /> Bulk Import</button>
+          <button className="btn-primary" onClick={() => openAdjust(null, 'stock_in')} disabled={isLocked || !canReceive} title={isLocked ? 'Account locked — renew to adjust stock' : ''}>
             {isLocked ? '🔒 Locked' : <><Plus size={16} /> Receive Stock</>}
           </button>
         </div>
@@ -276,8 +357,8 @@ export default function InventoryPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, background: '#fce8ed', borderRadius: 12, padding: 4, width: 'fit-content' }}>
-        {[['stock', '📊 Stock Levels'], ['movements', '🔄 Movements'], ['valuation', '📋 Stock Report']].map(([v, l]) => (
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, background: '#fce8ed', borderRadius: 12, padding: 4, width: 'fit-content', maxWidth: '100%', flexWrap: 'wrap' }}>
+        {[['stock', '📊 Stock Levels'], ['movements', '🔄 Movements'], ['valuation', '📋 Stock Report']].concat(canWriteOff ? [['count', '\uD83D\uDD22 Stock Count'], ['loss', '\uD83D\uDCC9 Loss Report']] : []).map(([v, l]) => (
           <button key={v} onClick={() => setTab(v)} style={{ padding: '7px 20px', borderRadius: 8, border: 'none', background: tab === v ? 'linear-gradient(135deg,#c8456a,#8b2550)' : 'transparent', color: tab === v ? '#fff' : '#8b2550', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
             {l}
           </button>
@@ -364,9 +445,9 @@ export default function InventoryPage() {
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <button className="btn-ghost" onClick={() => openAdjust(p, 'stock_in')} title="Stock In" style={{ padding: '5px 10px', color: '#059669', minHeight: 44 }}><ArrowUp size={14} /></button>
-                          <button className="btn-ghost" onClick={() => openAdjust(p, 'stock_out')} title="Stock Out / Damage" style={{ padding: '5px 10px', color: '#dc2626', minHeight: 44 }}><ArrowDown size={14} /></button>
-                          <button className="btn-ghost" onClick={() => openAdjust(p, 'adjustment')} title="Adjust" style={{ padding: '5px 10px', minHeight: 44 }}><RefreshCw size={14} /></button>
+                          {canReceive && <button className="btn-ghost" onClick={() => openAdjust(p, 'stock_in')} title="Stock In" style={{ padding: '5px 10px', color: '#059669', minHeight: 44 }}><ArrowUp size={14} /></button>}
+                          {canWriteOff && <button className="btn-ghost" onClick={() => openAdjust(p, 'stock_out')} title="Stock Out / Damage" style={{ padding: '5px 10px', color: '#dc2626', minHeight: 44 }}><ArrowDown size={14} /></button>}
+                          {canWriteOff && <button className="btn-ghost" onClick={() => openAdjust(p, 'adjustment')} title="Adjust" style={{ padding: '5px 10px', minHeight: 44 }}><RefreshCw size={14} /></button>}
                           {(isLow || isOut) && (
                             <button
                               className="btn-ghost"
@@ -394,6 +475,12 @@ export default function InventoryPage() {
 
       {tab === 'valuation' && (
         <div>
+          {(movements.length >= 100 || movements.some(m => m.type === 'adjustment')) && (
+            <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#92400e' }}>
+              {movements.length >= 100 && <div>This statement uses only the latest 100 movements, so it may be incomplete. Stock Levels shows the real quantities.</div>}
+              {movements.some(m => m.type === 'adjustment') && <div>Stock counts and manual adjustments are not shown as a column here, so Closing Qty can differ from Stock Levels.</div>}
+            </div>
+          )}
           {/* Date range picker */}
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -489,6 +576,155 @@ export default function InventoryPage() {
           </div>
         </div>
       )}
+
+      {tab === 'count' && canWriteOff && (() => {
+        const rows = products.filter(p => !p.has_variants)
+        const lines = rows.map(p => {
+          const raw = countVals[p.id]
+          const entered = raw !== undefined && raw !== ''
+          const counted = entered ? Number(raw) : null
+          const system = Number(p.stock_qty || 0)
+          const bad = entered && (isNaN(counted) || counted < 0)
+          const diff = entered && !bad ? r2(counted - system) : 0
+          const value = r2(diff * Number(p.cost_price_kes || 0))
+          return { p, entered, system, bad, diff, value }
+        })
+        const changed = lines.filter(l => l.entered && !l.bad && l.diff !== 0)
+        const hasBad = lines.some(l => l.bad)
+        const shortage = r2(changed.filter(l => l.value < 0).reduce((s, l) => s + l.value, 0))
+        const surplus = r2(changed.filter(l => l.value > 0).reduce((s, l) => s + l.value, 0))
+        const skipped = products.length - rows.length
+        return (
+          <div>
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, color: '#3d1020', fontSize: 14 }}>Stock Count</div>
+              <div style={{ fontSize: 12, color: '#9b6070', marginTop: 4 }}>Count the shelf and type what you counted. Leave an item blank to skip it. Pause sales while you count. Differences are valued at the current cost price.</div>
+              {skipped > 0 && <div style={{ fontSize: 12, color: '#92400e', marginTop: 6 }}>{skipped} item(s) with variants are not counted here.</div>}
+              <div style={{ marginTop: 12 }}>
+                <label className="label">Note (optional)</label>
+                <input className="input" value={countNote} onChange={e => setCountNote(e.target.value)} placeholder="e.g. Monthly count" />
+              </div>
+            </div>
+            <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
+              <div className="stat-card"><div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700 }}>{changed.length}</div><div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Items to change</div></div>
+              <div className="stat-card"><div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#dc2626' }}>{signedKES(shortage)}</div><div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Shortage at cost</div></div>
+              <div className="stat-card"><div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#059669' }}>{signedKES(surplus)}</div><div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Surplus at cost</div></div>
+              <div className="stat-card"><div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700 }}>{signedKES(r2(shortage + surplus))}</div><div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Net difference</div></div>
+            </div>
+            <div className="card" style={{ padding: 0 }}>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Product</th><th style={{ textAlign: 'right' }}>System</th><th>Counted</th><th style={{ textAlign: 'right' }}>Difference</th><th style={{ textAlign: 'right' }}>Value at cost</th></tr>
+                  </thead>
+                  <tbody>
+                    {lines.map(l => (
+                      <tr key={l.p.id}>
+                        <td><div style={{ fontWeight: 600 }}>{l.p.name}</div></td>
+                        <td style={{ textAlign: 'right' }}>{r2(l.system)} <span style={{ color: '#9b6070', fontSize: 12 }}>{l.p.unit || 'pcs'}</span></td>
+                        <td>
+                          <input className="input" type="number" min={0} step="0.01" inputMode="decimal" style={{ maxWidth: 110 }} value={countVals[l.p.id] === undefined ? '' : countVals[l.p.id]} onChange={e => setCountVals({ ...countVals, [l.p.id]: e.target.value })} placeholder="Counted" />
+                          {l.bad && <div style={{ fontSize: 11, color: '#dc2626' }}>Enter 0 or more</div>}
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: l.diff < 0 ? '#dc2626' : l.diff > 0 ? '#059669' : '#9b6070' }}>{l.entered && !l.bad ? (l.diff > 0 ? '+' : '') + l.diff : '-'}</td>
+                        <td style={{ textAlign: 'right', color: l.value < 0 ? '#dc2626' : l.value > 0 ? '#059669' : '#9b6070' }}>{l.entered && !l.bad && l.diff !== 0 ? signedKES(l.value) : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+              <button className="btn-secondary" onClick={() => { setCountVals({}); setCountNote('') }} disabled={countSaving}>Clear</button>
+              <button className="btn-primary" onClick={saveCount} disabled={countSaving || hasBad || changed.length === 0 || isLocked}>{countSaving ? 'Saving...' : 'Save count (' + changed.length + ' to change)'}</button>
+            </div>
+          </div>
+        )
+      })()}
+
+      {tab === 'loss' && canWriteOff && (() => {
+        const rows = lossRows.map(m => {
+          const prod = m.expand && m.expand.product_id
+          const who = m.expand && m.expand.created_by
+          return { m, name: prod ? prod.name : 'Deleted product', value: r2(Number(m.qty || 0) * Number(prod ? prod.cost_price_kes || 0 : 0)), who: who ? (who.name || who.email || 'Unknown') : 'Unknown' }
+        })
+        const lossTotal = r2(rows.filter(r => r.value < 0).reduce((s, r) => s + r.value, 0))
+        const gainTotal = r2(rows.filter(r => r.value > 0).reduce((s, r) => s + r.value, 0))
+        const byPerson = {}
+        rows.forEach(r => {
+          if (!byPerson[r.who]) byPerson[r.who] = { who: r.who, entries: 0, value: 0 }
+          byPerson[r.who].entries += 1
+          byPerson[r.who].value = r2(byPerson[r.who].value + r.value)
+        })
+        const people = Object.values(byPerson).sort((a, b) => a.value - b.value)
+        const typeColors = { stock_out: '#dc2626', damage: '#ef4444', adjustment: '#8b5cf6' }
+        return (
+          <div>
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <div>
+                  <label className="label">From</label>
+                  <input className="input" type="date" value={lossFrom} onChange={e => setLossFrom(e.target.value)} style={{ maxWidth: 160 }} />
+                </div>
+                <div>
+                  <label className="label">To</label>
+                  <input className="input" type="date" value={lossTo} onChange={e => setLossTo(e.target.value)} style={{ maxWidth: 160 }} />
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: '#9b6070', marginTop: 10 }}>Stock that left the shelf without a sale: stock out, damage and adjustments, including stock counts. Values use the CURRENT cost price. It shows only what was recorded or counted; unrecorded theft appears only when someone does a stock count.</div>
+            </div>
+            <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
+              <div className="stat-card"><div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#dc2626' }}>{signedKES(lossTotal)}</div><div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Losses recorded</div></div>
+              <div className="stat-card"><div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#059669' }}>{signedKES(gainTotal)}</div><div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Surpluses recorded</div></div>
+              <div className="stat-card"><div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700 }}>{signedKES(r2(lossTotal + gainTotal))}</div><div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Net</div></div>
+              <div className="stat-card"><div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700 }}>{rows.length}</div><div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Entries</div></div>
+            </div>
+            {people.length > 0 && (
+              <div className="card" style={{ padding: 0, marginBottom: 16 }}>
+                <div style={{ padding: '12px 20px', borderBottom: '1px solid #f5edf0', fontWeight: 700, color: '#3d1020', fontSize: 14 }}>By person</div>
+                <div className="table-wrap">
+                  <table>
+                    <thead><tr><th>Recorded by</th><th style={{ textAlign: 'right' }}>Entries</th><th style={{ textAlign: 'right' }}>Net value at cost</th></tr></thead>
+                    <tbody>
+                      {people.map(pp => (
+                        <tr key={pp.who}>
+                          <td style={{ fontWeight: 600 }}>{pp.who}</td>
+                          <td style={{ textAlign: 'right' }}>{pp.entries}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: pp.value < 0 ? '#dc2626' : pp.value > 0 ? '#059669' : '#9b6070' }}>{signedKES(pp.value)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            <div className="card" style={{ padding: 0 }}>
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>Date</th><th>Product</th><th>Type</th><th style={{ textAlign: 'right' }}>Qty</th><th style={{ textAlign: 'right' }}>Value at cost</th><th>Reason</th><th>Recorded by</th></tr></thead>
+                  <tbody>
+                    {lossLoading ? (
+                      <tr><td colSpan={7} style={{ textAlign: 'center', padding: 24, color: '#9b6070' }}>Loading...</td></tr>
+                    ) : rows.length === 0 ? (
+                      <tr><td colSpan={7} style={{ textAlign: 'center', padding: 24, color: '#9b6070' }}>No stock out, damage or adjustments recorded in this period.</td></tr>
+                    ) : rows.map(r => (
+                      <tr key={r.m.id}>
+                        <td style={{ fontSize: 12, color: '#9b6070', whiteSpace: 'nowrap' }}>{fmtDateTime(r.m.created)}</td>
+                        <td style={{ fontWeight: 600 }}>{r.name}</td>
+                        <td><span style={{ background: (typeColors[r.m.type] || '#6b7280') + '20', color: typeColors[r.m.type] || '#6b7280', padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{r.m.type}</span></td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: r.m.qty > 0 ? '#059669' : '#dc2626' }}>{r.m.qty > 0 ? '+' : ''}{r.m.qty}</td>
+                        <td style={{ textAlign: 'right', color: r.value < 0 ? '#dc2626' : r.value > 0 ? '#059669' : '#9b6070' }}>{signedKES(r.value)}</td>
+                        <td style={{ fontSize: 12, color: '#9b6070' }}>{r.m.reference || r.m.notes || '-'}</td>
+                        <td style={{ fontSize: 12 }}>{r.who}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {tab === 'movements' && (
         <div className="card" style={{ padding: 0 }}>
