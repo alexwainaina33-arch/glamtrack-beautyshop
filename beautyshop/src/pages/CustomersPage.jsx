@@ -65,6 +65,7 @@ export default function CustomersPage() {
   const canReceive = !isCashier && !isLocked
 
   const [customers, setCustomers] = useState([])
+  const [customerTotal, setCustomerTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -96,7 +97,7 @@ export default function CustomersPage() {
   const loadCredit = async () => {
     try {
       const [cs, ps] = await Promise.all([
-        pb.collection(C.SALES).getFullList({ filter: `shop_id="${shop.id}" && payment_status="pending"`, sort: 'created', '$autoCancel': false, '$cancelKey': 'cust-credit' }),
+        pb.collection(C.SALES).getFullList({ filter: `shop_id="${shop.id}" && (payment_status="pending" || payment_status="partial") && status!="voided"`, sort: 'created', '$autoCancel': false, '$cancelKey': 'cust-credit' }),
         pb.collection(PAYMENTS).getFullList({ filter: `shop_id="${shop.id}"`, '$autoCancel': false, '$cancelKey': 'cust-payments' }),
       ])
       setCreditSales(cs); setPayments(ps); setCreditError(false)
@@ -109,7 +110,7 @@ export default function CustomersPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const res = await pb.collection(C.CUSTOMERS).getList(1, 500, { filter: `shop_id="${shop.id}"`, sort: '-total_spent_kes' }).then(r => r.items)
+      const res = await pb.collection(C.CUSTOMERS).getList(1, 500, { filter: `shop_id="${shop.id}"`, sort: '-total_spent_kes' }).then(r => { setCustomerTotal(r.totalItems || 0); return r.items })
       setCustomers(res)
     } catch (err) {
       toast.error('Could not load customers: ' + (err?.message || 'Unknown error'))
@@ -198,6 +199,9 @@ export default function CustomersPage() {
   const handleSave = async (e) => {
     e.preventDefault()
     if (isLocked) return toast.error('🔒 Account locked — renew your subscription to add or edit customers', { duration: 6000 })
+    const phoneKey = toWaNumber(form.phone)
+    const dupe = phoneKey ? customers.find(c => c.id !== (editing ? editing.id : '') && toWaNumber(c.phone) === phoneKey) : null
+    if (dupe && !window.confirm(dupe.name + ' already has this phone number. Save anyway?')) return
     setSaving(true)
     try {
       if (editing) {
@@ -224,6 +228,7 @@ export default function CustomersPage() {
   if (onlyOwing) filtered.sort((a, b) => (credit.byCustomer[b.id]?.balance || 0) - (credit.byCustomer[a.id]?.balance || 0))
 
   const exportCustomersCSV = () => {
+    if (isCashier) return toast.error('Only the owner or a manager can export customers')
     if (!filtered.length) return toast.error('No customers to export')
     const rows = filtered.map(c => ({
       Name: c.name,
@@ -253,10 +258,10 @@ export default function CustomersPage() {
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div className="page-title">Customers 👥</div>
-          <div className="page-subtitle">{customers.length} customers · {fmtKES(totalSpend)} total paid</div>
+          <div className="page-subtitle">{customers.length} customers · {fmtKES(totalSpend)} paid in full</div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn-secondary" onClick={exportCustomersCSV}><Download size={16} /> Export CSV</button>
+          {!isCashier && <button className="btn-secondary" onClick={exportCustomersCSV}><Download size={16} /> Export CSV</button>}
           <button className="btn-primary" onClick={() => { setEditing(null); setForm(EMPTY); setShowModal(true) }} disabled={isLocked} title={isLocked ? 'Account locked — renew to add customers' : ''}>
             {isLocked ? '🔒 Locked' : <><Plus size={16} /> Add Customer</>}
           </button>
@@ -278,6 +283,11 @@ export default function CustomersPage() {
         ))}
       </div>
 
+      {customerTotal > 500 && (
+        <div role="alert" style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#92400e' }}>
+          Only the first 500 of {customerTotal} customers are loaded, so some customers, balances and totals are missing on this page.
+        </div>
+      )}
       {/* Money owed */}
       {creditError && (
         <div role="alert" style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#92400e' }}>
@@ -329,7 +339,7 @@ export default function CustomersPage() {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Customer</th><th>Phone</th><th>Balance Due</th><th>Total Paid</th><th>Visits</th><th>Loyalty Pts</th><th>Birthday</th><th>Joined</th><th></th></tr>
+              <tr><th>Customer</th><th>Phone</th><th>Balance Due</th><th title="Sales paid in full. Part-payments show here once the sale is settled.">Paid in Full</th><th>Visits</th><th>Loyalty Pts</th><th>Birthday</th><th>Joined</th><th></th></tr>
             </thead>
             <tbody>
               {filtered.map(c => {
@@ -435,7 +445,7 @@ export default function CustomersPage() {
               )}
               <div className="stat-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
                 {[
-                  { label: 'Total Paid', value: fmtKES(viewCustomer.total_spent_kes), color: '#c8456a' },
+                  { label: 'Paid in Full', value: fmtKES(viewCustomer.total_spent_kes), color: '#c8456a' },
                   { label: 'Visits', value: viewCustomer.visit_count || 0, color: '#3b82f6' },
                   { label: 'Loyalty Points', value: `⭐ ${viewCustomer.loyalty_points || 0}`, color: '#d97706' },
                 ].map((kpi, i) => (
