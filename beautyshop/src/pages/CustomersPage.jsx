@@ -33,6 +33,23 @@ function toWaNumber(phone) {
   return d
 }
 
+function shortDate(v) {
+  const d = new Date(String(v || '').replace(' ', 'T'))
+  if (isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function methodLabel(m) {
+  return m === 'cash' ? 'Cash' : m === 'mpesa' ? 'M-Pesa' : m === 'visa_mc' ? 'Card' : (m || 'Payment')
+}
+
+// CSV cell: phone numbers are written as ="0716..." so Excel keeps the leading 0
+function csvCell(h, v) {
+  const s = String(v === undefined || v === null ? '' : v)
+  if (h === 'Phone' && s) return '="' + s.replace(/"/g, '') + '"'
+  return '"' + s.replace(/"/g, '""') + '"'
+}
+
 // balance of a credit sale = total - payments recorded for it
 function computeCredit(sales, payments, now) {
   const paid = {}
@@ -196,6 +213,20 @@ export default function CustomersPage() {
     window.open(`https://wa.me/${toWaNumber(c.phone)}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer')
   }
 
+  const sendStatement = (c, entry) => {
+    if (!c.phone) return toast.error('Customer has no phone number')
+    const bills = entry.sales
+    const mine = payments.filter(p => p.customer_id === c.id && bills.some(b => b.id === p.sale_id))
+    const billLines = bills.slice(0, 12).map(b => '- ' + b.receipt_no + ' (' + shortDate(b.created) + ', ' + b.days + ' days): ' + fmtKES(b.balance) + (b.paid > 0 ? ' left of ' + fmtKES(b.total_kes) : ''))
+    if (bills.length > 12) billLines.push('+ ' + (bills.length - 12) + ' more bill(s)')
+    const payLines = mine.slice(0, 8).map(p => '- ' + shortDate(p.paid_on || p.created) + ' ' + methodLabel(p.method) + ': ' + fmtKES(p.amount_kes))
+    if (mine.length > 8) payLines.push('+ ' + (mine.length - 8) + ' more payment(s)')
+    let msg = 'Hello ' + c.name + ',\n\nStatement from *' + (shop?.name || 'our shop') + '*\n\n*Open bills (oldest first)*\n' + billLines.join('\n')
+    if (payLines.length > 0) msg += '\n\n*Payments received on these bills*\n' + payLines.join('\n')
+    msg += '\n\n*Total due: ' + fmtKES(entry.balance) + '*\n\nKindly settle at your earliest convenience. Thank you! \uD83D\uDE4F'
+    window.open('https://wa.me/' + toWaNumber(c.phone) + '?text=' + encodeURIComponent(msg), '_blank', 'noopener,noreferrer')
+  }
+
   const handleSave = async (e) => {
     e.preventDefault()
     if (isLocked) return toast.error('🔒 Account locked — renew your subscription to add or edit customers', { duration: 6000 })
@@ -234,15 +265,16 @@ export default function CustomersPage() {
       Name: c.name,
       Phone: c.phone || '',
       Email: c.email || '',
-      Total_Paid_KES: c.total_spent_kes || 0,
+      Paid_In_Full_KES: c.total_spent_kes || 0,
       Balance_Due_KES: credit.byCustomer[c.id]?.balance || 0,
+      Oldest_Bill_Age_Days: credit.byCustomer[c.id] ? credit.byCustomer[c.id].oldestDays : '',
       Visits: c.visit_count || 0,
       Loyalty_Points: c.loyalty_points || 0,
       Birthday: c.birthday ? c.birthday.slice(0, 10) : '',
       Joined: c.created ? c.created.slice(0, 10) : '',
     }))
     const headers = Object.keys(rows[0])
-    const csv = [headers.join(','), ...rows.map(r => headers.map(h => `"${r[h] ?? ''}"`).join(','))].join('\n')
+    const csv = [headers.join(','), ...rows.map(r => headers.map(h => csvCell(h, r[h])).join(','))].join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url; a.download = 'customers.csv'; a.click()
@@ -252,6 +284,7 @@ export default function CustomersPage() {
   const totalSpend = customers.reduce((s, c) => s + (c.total_spent_kes || 0), 0)
   const totalVisits = customers.reduce((s, c) => s + (c.visit_count || 0), 0)
   const viewEntry = viewCustomer ? credit.byCustomer[viewCustomer.id] : null
+  const custPayments = viewCustomer ? payments.filter(p => p.customer_id === viewCustomer.id).sort((a, b) => String(b.paid_on || b.created).localeCompare(String(a.paid_on || a.created))) : []
 
   return (
     <div>
@@ -272,7 +305,7 @@ export default function CustomersPage() {
       <div className="stat-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
         {[
           { label: 'Total Customers', value: customers.length, icon: '👤', color: '#c8456a' },
-          { label: 'Total Revenue', value: fmtKES(totalSpend), icon: '💰', color: '#059669' },
+          { label: 'Paid in Full', value: fmtKES(totalSpend), icon: '💰', color: '#059669' },
           { label: 'Total Visits', value: totalVisits, icon: '🚶', color: '#3b82f6' },
         ].map((s, i) => (
           <div key={i} className="stat-card">
@@ -395,7 +428,7 @@ export default function CustomersPage() {
                     <td>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         {owe && c.phone && !creditError && (
-                          <button onClick={() => remind(c, owe.balance)} aria-label={'Remind ' + c.name + ' about their balance'} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>Remind</button>
+                          <button onClick={() => sendStatement(c, owe)} aria-label={'Remind ' + c.name + ' about their balance'} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>Remind</button>
                         )}
                         {owe && canReceive && !creditError && (
                           <button onClick={() => openPay(c)} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0fdf4', color: '#059669', fontWeight: 700, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>💵 Receive</button>
@@ -465,7 +498,7 @@ export default function CustomersPage() {
                         <button onClick={() => openPay(viewCustomer)} style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: '#059669', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>💵 Receive Payment</button>
                       )}
                       {viewCustomer.phone && (
-                        <button onClick={() => remind(viewCustomer, viewEntry.balance)} style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>📲 Remind</button>
+                        <button onClick={() => sendStatement(viewCustomer, viewEntry)} style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>📲 Remind</button>
                       )}
                     </div>
                   </div>
@@ -479,6 +512,20 @@ export default function CustomersPage() {
                       </span>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {!creditError && custPayments.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#3d1020', marginBottom: 6 }}>Payments received on credit</div>
+                  {custPayments.slice(0, 10).map(p => (
+                    <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, padding: '4px 0', borderBottom: '1px solid #f5edf0', color: '#6b4050' }}>
+                      <span style={{ whiteSpace: 'nowrap' }}>{shortDate(p.paid_on || p.created)}</span>
+                      <span>{methodLabel(p.method)}{p.payment_ref ? ' \u00B7 ' + p.payment_ref : ''}</span>
+                      <span style={{ fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>{fmtKES(p.amount_kes)}</span>
+                    </div>
+                  ))}
+                  {custPayments.length > 10 && <div style={{ fontSize: 11, color: '#9b6070', marginTop: 4 }}>Showing the latest 10 of {custPayments.length} payments.</div>}
                 </div>
               )}
 
