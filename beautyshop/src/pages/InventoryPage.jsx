@@ -41,6 +41,33 @@ export default function InventoryPage() {
   const [lossRows, setLossRows] = useState([])
   const [lossLoading, setLossLoading] = useState(false)
   const [lossTick, setLossTick] = useState(0)
+  const [repMovs, setRepMovs] = useState(null)
+  const [repFor, setRepFor] = useState('')
+  const [repLoading, setRepLoading] = useState(false)
+  const [repError, setRepError] = useState(false)
+  const [repTick, setRepTick] = useState(0)
+  const [importFunding, setImportFunding] = useState('owner_capital')
+  const [importSupplier, setImportSupplier] = useState('')
+  const [importErrors, setImportErrors] = useState([])
+
+  useEffect(() => {
+    if (tab !== 'valuation' || !shop || !valFrom) return
+    const x = new Date(valFrom + 'T00:00:00+03:00')
+    if (isNaN(x.getTime())) return
+    const start = x.toISOString().replace('T', ' ')
+    let cancelled = false
+    setRepLoading(true)
+    setRepError(false)
+    pb.collection(C.INV_MOVEMENTS).getFullList({
+      filter: 'shop_id="' + shop.id + '" && created>="' + start + '"',
+      fields: 'id,product_id,type,qty,created',
+      sort: 'created'
+    })
+      .then(rows => { if (!cancelled) { setRepMovs(rows); setRepFor(start) } })
+      .catch(() => { if (!cancelled) { setRepError(true); toast.error('Could not load the stock report') } })
+      .finally(() => { if (!cancelled) setRepLoading(false) })
+    return () => { cancelled = true }
+  }, [tab, valFrom, shop, repTick])
 
   useEffect(() => { if (shop && !authLoading) loadData() }, [shop, authLoading])
 
@@ -83,6 +110,7 @@ export default function InventoryPage() {
       ])
       setProducts(prods)
       setMovements(movs.items)
+      setRepTick(t => t + 1)
     } finally { setLoading(false) }
   }
 
@@ -222,53 +250,78 @@ export default function InventoryPage() {
     : products
 
   const handleBulkImportCSV = async () => {
+    if (isLocked) return toast.error('Account locked. Renew your subscription to import stock.')
+    if (!canWriteOff) return toast.error('Only the owner or a manager can import stock')
     if (!importData.trim()) return toast.error('Paste CSV data first')
     setImporting(true)
+    setImportErrors([])
     try {
-      const lines = importData.trim().split('\n').filter(l => l.trim())
+      const lines = importData.trim().split(/\r?\n/).filter(l => l.trim())
+      if (lines.length < 2) return toast.error('Add a header row and at least one stock row')
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase())
-      const rows = lines.slice(1).map(l => {
-        const vals = l.split(',').map(v => v.trim())
-        const obj = {}
-        headers.forEach((h, i) => { obj[h] = vals[i] || '' })
-        return obj
-      })
+      if (!headers.some(h => h === 'name' || h === 'product_name')) return toast.error('The first row must have a name column')
 
-      let success = 0, failed = 0
-      for (const row of rows) {
+      let success = 0
+      const errors = []
+      const failedLines = []
+      for (let i = 1; i < lines.length; i++) {
+        const vals = lines[i].split(',').map(v => v.trim())
+        const row = {}
+        headers.forEach((h, j) => { row[h] = vals[j] || '' })
+        const productName = row.name || row.product_name
+        const label = 'Row ' + (i + 1) + (productName ? ' (' + productName + ')' : '')
+        const fail = msg => { errors.push(label + ': ' + msg); failedLines.push(lines[i]) }
+        if (!productName) { fail('name is empty'); continue }
+        const qty = Number(row.qty || row.quantity)
+        const costText = row.cost !== undefined && row.cost !== '' ? row.cost : (row.cost_price || '')
+        const cost = Number(costText)
+        const notes = row.notes || row.reference || ''
+        if (!qty || isNaN(qty) || qty <= 0) { fail('quantity must be more than 0'); continue }
+        if (costText === '' || isNaN(cost) || cost < 0) { fail('cost is missing or not a number'); continue }
+        const matches = products.filter(p => p.name.toLowerCase().trim() === productName.toLowerCase().trim())
+        if (matches.length === 0) { fail('no tracked product with this name'); continue }
+        if (matches.length > 1) { fail('more than one product has this name'); continue }
+        const prod = matches[0]
+        if (prod.has_variants) { fail('products with variants are not imported here'); continue }
         try {
-          const productName = row.name || row.product_name
-          if (!productName) continue
-          
-          const qty = Number(row.qty || row.quantity || 0)
-          const cost = Number(row.cost || row.cost_price || 0)
-          const notes = row.notes || row.reference || ''
-
-          // Find product by name
-          const prod = products.find(p => p.name.toLowerCase().trim() === productName.toLowerCase().trim())
-          if (!prod) { failed++; continue }
-
-          const newQty = r2(Math.max(0, (prod.stock_qty || 0) + qty))
-          await pb.collection(C.PRODUCTS).update(prod.id, { stock_qty: newQty })
-          await pb.collection(C.INV_MOVEMENTS).create({
-            shop_id: shop.id,
-            product_id: prod.id,
-            type: 'stock_in',
-            qty: qty,
-            before_qty: prod.stock_qty || 0,
-            after_qty: newQty,
-            cost_per_unit: cost,
-            funding_source: 'bulk_import',
-            notes: notes,
-            created_by: pb.authStore.model?.id
-          })
+          const fresh = await pb.collection(C.PRODUCTS).getOne(prod.id)
+          const curQty = Number(fresh.stock_qty || 0)
+          const curCost = Number(fresh.cost_price_kes || 0)
+          const newQty = r2(curQty + qty)
+          const newCost = curQty <= 0 ? cost : ((curQty * curCost) + (qty * cost)) / newQty
+          await pb.collection(C.PRODUCTS).update(prod.id, { stock_qty: newQty, cost_price_kes: Number(newCost.toFixed(4)) })
+          try {
+            await pb.collection(C.INV_MOVEMENTS).create({
+              shop_id: shop.id,
+              product_id: prod.id,
+              type: 'stock_in',
+              qty: qty,
+              before_qty: curQty,
+              after_qty: newQty,
+              cost_per_unit: cost,
+              funding_source: importFunding,
+              supplier_name: importSupplier.trim() || null,
+              reference: 'Bulk import',
+              notes: notes ? 'Bulk import: ' + notes : 'Bulk import',
+              created_by: pb.authStore.model?.id
+            })
+          } catch (e2) {
+            await pb.collection(C.PRODUCTS).update(prod.id, { stock_qty: curQty, cost_price_kes: curCost }).catch(() => {})
+            throw e2
+          }
           success++
-        } catch (e) { failed++ }
+        } catch (e) { fail('not saved (' + (e && e.message ? e.message : 'error') + ')') }
       }
-      toast.success(`✅ Imported ${success} products${failed > 0 ? ` (${failed} failed)` : ''}`)
-      setShowBulkImport(false)
-      setImportData('')
-      loadData()
+      setImportErrors(errors)
+      if (errors.length === 0) {
+        setShowBulkImport(false)
+        setImportData('')
+      } else {
+        setImportData([lines[0]].concat(failedLines).join('\n'))
+      }
+      if (success > 0) toast.success('Imported ' + success + ' row(s)' + (errors.length > 0 ? ', ' + errors.length + ' not saved. See the list.' : ''), { duration: 6000 })
+      else toast.error('Nothing was imported. See the list.')
+      if (success > 0) await loadData()
     } finally { setImporting(false) }
   }
 
@@ -297,33 +350,38 @@ export default function InventoryPage() {
   const outCount = products.filter(p => p.stock_qty <= 0).length
 
   // Stock Valuation Report — computed from movements in date range
-  const valReport = products.map(p => {
-    const pMovs = movements.filter(m => m.product_id === p.id || m.expand?.product_id?.id === p.id)
-    const inRange = pMovs.filter(m => {
-      const d = m.created?.slice(0,10)
-      return d >= valFrom && d <= valTo
+  const toUtc = (d, t) => { const x = new Date(d + t); return isNaN(x.getTime()) ? '' : x.toISOString().replace('T', ' ') }
+  const repStart = toUtc(valFrom, 'T00:00:00+03:00')
+  const repEnd = toUtc(valTo, 'T23:59:59.999+03:00')
+  const repReady = repMovs !== null && repFor === repStart && !repLoading && !repError && !!repStart && !!repEnd && repStart <= repEnd
+
+  // Stock Report is rebuilt from REAL stock: closing = stock today minus movements after the period end;
+  // opening = closing minus the movements inside the period.
+  const valReport = repReady ? products.map(p => {
+    let after = 0, recv = 0, sold = 0, out = 0, adj = 0
+    repMovs.forEach(m => {
+      if (m.product_id !== p.id) return
+      const q = Number(m.qty || 0)
+      if (m.created > repEnd) { after += q; return }
+      if (m.type === 'sale') sold -= q
+      else if (m.type === 'stock_out' || m.type === 'damage') out -= q
+      else if (m.type === 'adjustment') adj += q
+      else recv += q
     })
-    const opening = pMovs.filter(m => m.created?.slice(0,10) < valFrom)
-      .reduce((s, m) => s + (m.qty || 0), 0)
-    const received = inRange.filter(m => ['stock_in','opening_stock','return'].includes(m.type))
-      .reduce((s, m) => s + Math.abs(m.qty || 0), 0)
-    const damaged = inRange.filter(m => m.type === 'damage')
-      .reduce((s, m) => s + Math.abs(m.qty || 0), 0)
-    const sold = inRange.filter(m => ['sale','stock_out'].includes(m.type))
-      .reduce((s, m) => s + Math.abs(m.qty || 0), 0)
-    const closing = opening + received - damaged - sold
-    const closingValue = closing * (p.cost_price_kes || 0)
-    return { ...p, opening, received, damaged, sold, closing, closingValue }
-  }).filter(p => p.opening > 0 || p.received > 0 || p.closing > 0)
+    const closing = r2(Number(p.stock_qty || 0) - after)
+    const opening = r2(closing - (recv - sold - out + adj))
+    return { ...p, opening, recv: r2(recv), sold: r2(sold), out: r2(out), adj: r2(adj), closing, closingValue: closing * Number(p.cost_price_kes || 0) }
+  }).filter(p => p.opening !== 0 || p.recv !== 0 || p.sold !== 0 || p.out !== 0 || p.adj !== 0 || p.closing !== 0) : []
 
   const valTotals = valReport.reduce((t, p) => ({
-    opening: t.opening + p.opening,
-    received: t.received + p.received,
-    damaged: t.damaged + p.damaged,
-    sold: t.sold + p.sold,
-    closing: t.closing + p.closing,
+    opening: r2(t.opening + p.opening),
+    recv: r2(t.recv + p.recv),
+    sold: r2(t.sold + p.sold),
+    out: r2(t.out + p.out),
+    adj: r2(t.adj + p.adj),
+    closing: r2(t.closing + p.closing),
     closingValue: t.closingValue + p.closingValue,
-  }), { opening: 0, received: 0, damaged: 0, sold: 0, closing: 0, closingValue: 0 })
+  }), { opening: 0, recv: 0, sold: 0, out: 0, adj: 0, closing: 0, closingValue: 0 })
 
   return (
     <div>
@@ -475,13 +533,9 @@ export default function InventoryPage() {
 
       {tab === 'valuation' && (
         <div>
-          {(movements.length >= 100 || movements.some(m => m.type === 'adjustment')) && (
-            <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#92400e' }}>
-              {movements.length >= 100 && <div>This statement uses only the latest 100 movements, so it may be incomplete. Stock Levels shows the real quantities.</div>}
-              {movements.some(m => m.type === 'adjustment') && <div>Stock counts and manual adjustments are not shown as a column here, so Closing Qty can differ from Stock Levels.</div>}
-            </div>
-          )}
-          {/* Date range picker */}
+          <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#92400e' }}>
+            Closing stock is the real stock you hold today, rolled back by the movements recorded after the period end, so it matches Stock Levels. Opening is worked out the same way, so any stock change that was never recorded sits inside Opening. Values use the CURRENT cost price.
+          </div>
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <div>
@@ -492,26 +546,23 @@ export default function InventoryPage() {
                 <label className="label">Period To</label>
                 <input className="input" type="date" value={valTo} onChange={e => setValTo(e.target.value)} style={{ maxWidth: 160 }} />
               </div>
-              <button className="btn-primary" style={{ marginBottom: 2 }} onClick={() => {
-                const lines = valReport.map(p =>
-                  `*${p.name}*\nOpen: ${p.opening} | +Received: ${p.received} | −Damaged: ${p.damaged} | −Sold: ${p.sold} | Closing: ${p.closing} @ ${fmtKES(p.cost_price_kes || 0)}/unit = *${fmtKES(p.closingValue)}*`
-                ).join('\n\n')
-                const msg = `📋 *Stock Valuation Report*\n*${shop.name}*\nPeriod: ${valFrom} → ${valTo}\n\n${lines}\n\n────────────────\n*TOTAL CLOSING STOCK VALUE*\n*${fmtKES(valTotals.closingValue)}*\n\n_Valued at cost price · SalesTrack_`
-                const phone = shop.phone?.replace(/\D/g,'').replace(/^0/,'254') || ''
-                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
+              <button className="btn-primary" style={{ marginBottom: 2 }} disabled={!repReady || valReport.length === 0} onClick={() => {
+                const lines = valReport.map(p => '*' + p.name + '*\nOpen: ' + p.opening + ' | Received: ' + p.recv + ' | Sold: ' + p.sold + ' | Written off: ' + p.out + ' | Counts: ' + (p.adj > 0 ? '+' : '') + p.adj + ' | Closing: ' + p.closing + ' @ ' + fmtKES(p.cost_price_kes || 0) + ' = *' + fmtKES(p.closingValue) + '*').join('\n\n')
+                const msg = '\uD83D\uDCCB *Stock Report*\n*' + shop.name + '*\nPeriod: ' + valFrom + ' to ' + valTo + '\n\n' + lines + '\n\n----------------\n*TOTAL CLOSING STOCK VALUE*\n*' + fmtKES(valTotals.closingValue) + '*\n\n_Valued at current cost price - SalesTrack_'
+                const phone = shop.phone ? shop.phone.replace(/\D/g, '').replace(/^0/, '254') : ''
+                window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(msg), '_blank')
               }}>
-                📲 Share Report
+                {'\uD83D\uDCF2'} Share Report
               </button>
             </div>
           </div>
 
-          {/* Summary cards */}
           <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
             {[
-              { label: 'Opening Stock', value: valTotals.opening + ' units', color: '#3b82f6', icon: '📂' },
-              { label: 'Stock Received', value: '+' + valTotals.received + ' units', color: '#059669', icon: '📦' },
-              { label: 'Damaged / Sold', value: '−' + (valTotals.damaged + valTotals.sold) + ' units', color: '#dc2626', icon: '📤' },
-              { label: 'Closing Value (Cost)', value: fmtKES(valTotals.closingValue), color: '#c8456a', icon: '💰' },
+              { label: 'Opening Stock', value: valTotals.opening + ' units', color: '#3b82f6', icon: '\uD83D\uDCC2' },
+              { label: 'Stock Received', value: '+' + valTotals.recv + ' units', color: '#059669', icon: '\uD83D\uDCE6' },
+              { label: 'Sold / Written off', value: '-' + r2(valTotals.sold + valTotals.out) + ' units', color: '#dc2626', icon: '\uD83D\uDCE4' },
+              { label: 'Closing Value (Cost)', value: fmtKES(valTotals.closingValue), color: '#c8456a', icon: '\uD83D\uDCB0' },
             ].map((s, i) => (
               <div key={i} className="stat-card">
                 <div style={{ fontSize: 24 }}>{s.icon}</div>
@@ -523,8 +574,8 @@ export default function InventoryPage() {
 
           <div className="card" style={{ padding: 0 }}>
             <div style={{ padding: '12px 20px', borderBottom: '1px solid #f5edf0' }}>
-              <div style={{ fontWeight: 700, color: '#3d1020', fontSize: 14 }}>Stock Movement Statement — valued at cost</div>
-              <div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Opening + Received − Damaged − Sold = Closing</div>
+              <div style={{ fontWeight: 700, color: '#3d1020', fontSize: 14 }}>Stock Movement Statement (valued at current cost)</div>
+              <div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>Opening + Received - Sold - Written off + Counts = Closing</div>
             </div>
             <div className="table-wrap">
               <table>
@@ -533,16 +584,21 @@ export default function InventoryPage() {
                     <th>Product</th>
                     <th style={{ textAlign: 'right' }}>Opening</th>
                     <th style={{ textAlign: 'right', color: '#059669' }}>+Received</th>
-                    <th style={{ textAlign: 'right', color: '#ef4444' }}>−Damaged</th>
-                    <th style={{ textAlign: 'right', color: '#c8456a' }}>−Sold</th>
+                    <th style={{ textAlign: 'right', color: '#c8456a' }}>-Sold</th>
+                    <th style={{ textAlign: 'right', color: '#ef4444' }}>-Written off</th>
+                    <th style={{ textAlign: 'right', color: '#8b5cf6' }}>Counts</th>
                     <th style={{ textAlign: 'right' }}>Closing Qty</th>
                     <th style={{ textAlign: 'right' }}>Cost/Unit</th>
                     <th style={{ textAlign: 'right', fontWeight: 800 }}>Closing Value</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {valReport.length === 0 ? (
-                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: '#9b6070' }}>No stock movements in this period. Record opening stock or stock received first.</td></tr>
+                  {!repReady ? (
+                    <tr><td colSpan={9} style={{ textAlign: 'center', padding: '32px', color: '#9b6070' }}>
+                      {repError ? 'The report could not be loaded. Switch tabs and come back.' : (repStart && repEnd && repStart > repEnd ? 'Period From must be on or before Period To.' : 'Loading...')}
+                    </td></tr>
+                  ) : valReport.length === 0 ? (
+                    <tr><td colSpan={9} style={{ textAlign: 'center', padding: '32px', color: '#9b6070' }}>No stock or stock movements in this period.</td></tr>
                   ) : valReport.map(p => (
                     <tr key={p.id}>
                       <td>
@@ -550,21 +606,23 @@ export default function InventoryPage() {
                         {p.brand && <div style={{ fontSize: 11, color: '#9b6070' }}>{p.brand}</div>}
                       </td>
                       <td style={{ textAlign: 'right', color: '#3b82f6', fontWeight: 600 }}>{p.opening}</td>
-                      <td style={{ textAlign: 'right', color: '#059669', fontWeight: 600 }}>+{p.received}</td>
-                      <td style={{ textAlign: 'right', color: '#ef4444', fontWeight: 600 }}>{p.damaged > 0 ? '−' + p.damaged : '—'}</td>
-                      <td style={{ textAlign: 'right', color: '#c8456a', fontWeight: 600 }}>−{p.sold}</td>
+                      <td style={{ textAlign: 'right', color: '#059669', fontWeight: 600 }}>{p.recv > 0 ? '+' + p.recv : '-'}</td>
+                      <td style={{ textAlign: 'right', color: '#c8456a', fontWeight: 600 }}>{p.sold > 0 ? '-' + p.sold : '-'}</td>
+                      <td style={{ textAlign: 'right', color: '#ef4444', fontWeight: 600 }}>{p.out > 0 ? '-' + p.out : '-'}</td>
+                      <td style={{ textAlign: 'right', color: '#8b5cf6', fontWeight: 600 }}>{p.adj === 0 ? '-' : (p.adj > 0 ? '+' : '') + p.adj}</td>
                       <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 15 }}>{p.closing}</td>
                       <td style={{ textAlign: 'right', color: '#9b6070', fontSize: 12 }}>{fmtKES(p.cost_price_kes || 0)}</td>
                       <td style={{ textAlign: 'right', fontWeight: 800, color: '#3d1020', fontSize: 14 }}>{fmtKES(p.closingValue)}</td>
                     </tr>
                   ))}
-                  {valReport.length > 0 && (
+                  {repReady && valReport.length > 0 && (
                     <tr style={{ background: 'linear-gradient(135deg,#fce8ed,#fdf5f7)', borderTop: '2px solid #f0e4e8' }}>
                       <td style={{ fontWeight: 800, color: '#3d1020' }}>TOTAL</td>
                       <td style={{ textAlign: 'right', fontWeight: 800, color: '#3b82f6' }}>{valTotals.opening}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#059669' }}>+{valTotals.received}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#ef4444' }}>{valTotals.damaged > 0 ? '−' + valTotals.damaged : '—'}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#c8456a' }}>−{valTotals.sold}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#059669' }}>{valTotals.recv > 0 ? '+' + valTotals.recv : '-'}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#c8456a' }}>{valTotals.sold > 0 ? '-' + valTotals.sold : '-'}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#ef4444' }}>{valTotals.out > 0 ? '-' + valTotals.out : '-'}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#8b5cf6' }}>{valTotals.adj === 0 ? '-' : (valTotals.adj > 0 ? '+' : '') + valTotals.adj}</td>
                       <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 16 }}>{valTotals.closing}</td>
                       <td></td>
                       <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 16, color: '#c8456a' }}>{fmtKES(valTotals.closingValue)}</td>
@@ -841,9 +899,9 @@ export default function InventoryPage() {
 
       {/* Bulk Import Modal */}
       {showBulkImport && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowBulkImport(false)}>
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setShowBulkImport(false); setImportErrors([]) } }}>
           <div className="modal" style={{ maxWidth: 560 }}>
-            <div className="modal-header"><span className="modal-title">📋 Bulk Stock Import</span><button onClick={() => setShowBulkImport(false)} className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
+            <div className="modal-header"><span className="modal-title">{'\uD83D\uDCCB Bulk Stock Import'}</span><button onClick={() => { setShowBulkImport(false); setImportErrors([]) }} className="btn-ghost" style={{ padding: 8 }}><X size={16} /></button></div>
             <div className="modal-body">
               <div style={{ background: '#f0fdf4', borderRadius: 10, padding: 12, marginBottom: 14, fontSize: 12, color: '#166534' }}>
                 <strong>Format:</strong> Paste CSV with columns: name, qty, cost, notes
@@ -852,16 +910,37 @@ export default function InventoryPage() {
                   <div>Hair Shampoo 500ml,10,350,Supplier Invoice #123</div>
                   <div>Nail Polish,25,150,Opening stock</div>
                 </div>
+                <div style={{ marginTop: 8 }}>Products must already exist in Inventory (matched by name). Qty must be more than 0 and every row needs a cost. Do not use commas inside names or notes.</div>
               </div>
-              
+
+              <div style={{ marginBottom: 12 }}>
+                <label className="label">How was this stock paid for? *</label>
+                <select className="input" value={importFunding} onChange={e => setImportFunding(e.target.value)}>
+                  <option value="owner_capital">{'\uD83D\uDCBC'} From my own capital (setup or new investment)</option>
+                  <option value="cash">{'\uD83D\uDCB5'} Cash / M-Pesa, paid now (counts as a cash purchase)</option>
+                  <option value="payable">{'\uD83E\uDDFE'} On credit, supplier not yet paid</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label className="label">Supplier Name</label>
+                <input className="input" value={importSupplier} onChange={e => setImportSupplier(e.target.value)} placeholder="Optional" />
+              </div>
+
               <textarea style={{
-                width: '100%', height: 200, padding: 12, border: '1px solid #f0e4e8', borderRadius: 8, fontFamily: 'monospace', fontSize: 12, marginBottom: 12, resize: 'vertical'
+                width: '100%', height: 180, padding: 12, border: '1px solid #f0e4e8', borderRadius: 8, fontFamily: 'monospace', fontSize: 12, marginBottom: 12, resize: 'vertical'
               }} placeholder="Paste CSV data here..." value={importData} onChange={e => setImportData(e.target.value)} />
 
+              {importErrors.length > 0 && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#991b1b', maxHeight: 140, overflowY: 'auto' }}>
+                  <strong>Not imported. Fix these rows (they are left in the box above):</strong>
+                  {importErrors.map((er, i) => <div key={i} style={{ marginTop: 4 }}>{er}</div>)}
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button className="btn-secondary" onClick={() => setShowBulkImport(false)} disabled={importing}>Cancel</button>
+                <button className="btn-secondary" onClick={() => { setShowBulkImport(false); setImportErrors([]) }} disabled={importing}>Cancel</button>
                 <button className="btn-primary" onClick={handleBulkImportCSV} disabled={importing || !importData.trim()}>
-                  {importing ? <><div style={{ width: 14, height: 14, border: '2px solid #fff4', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block', marginRight: 6 }} /> Importing…</> : `<Zap size={14} /> Import ${importData.split('\n').length - 1} items`}
+                  {importing ? <><div style={{ width: 14, height: 14, border: '2px solid #fff4', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block', marginRight: 6 }} /> Importing...</> : <><Zap size={14} /> Import {Math.max(0, importData.split('\n').filter(l => l.trim()).length - 1)} items</>}
                 </button>
               </div>
             </div>
@@ -871,6 +950,3 @@ export default function InventoryPage() {
     </div>
   )
 }
-
-
-
