@@ -501,7 +501,7 @@ export default function SalesPage() {
                     </td>
                     {!isCashier && <td>
                       <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: sale.etims_status === 'success' ? '#f0fdf4' : sale.etims_status === 'failed' ? '#fee2e2' : '#fefce8', color: sale.etims_status === 'success' ? '#059669' : sale.etims_status === 'failed' ? '#dc2626' : '#d97706' }}>
-                        {sale.etims_status || 'Not sent'}
+                        {(!sale.etims_status || sale.etims_status === 'pending') ? 'Not sent' : sale.etims_status}
                       </span>
                     </td>}
                     <td>
@@ -512,7 +512,7 @@ export default function SalesPage() {
                     <td>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         <button className="btn-ghost" style={{ padding: '5px 10px' }} aria-label="View receipt" title="View receipt" onClick={() => viewSale(sale)}><Eye size={14} /></button>
-                        {sale.payment_status === 'pending' && (
+                        {sale.payment_status === 'pending' && sale.status === 'completed' && (
                           <>
                             {!isCashier && sale.status === 'completed' && <button className="btn-ghost" style={{ padding: '5px 10px', color: '#dc2626', fontSize: 11 }} onClick={() => voidSale(sale)}>Void</button>}
                             {!isCashier && <button onClick={() => markPaid(sale)} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0fdf4', color: '#059669', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>✅ Paid</button>}
