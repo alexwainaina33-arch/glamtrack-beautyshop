@@ -50,6 +50,10 @@ function csvCell(h, v) {
   return '"' + s.replace(/"/g, '""') + '"'
 }
 
+function escHtml(v) {
+  return String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 // balance of a credit sale = total - payments recorded for it
 function computeCredit(sales, payments, now) {
   const paid = {}
@@ -217,7 +221,7 @@ export default function CustomersPage() {
     if (!c.phone) return toast.error('Customer has no phone number')
     const bills = entry.sales
     const mine = payments.filter(p => p.customer_id === c.id && bills.some(b => b.id === p.sale_id))
-    const billLines = bills.slice(0, 12).map(b => '- ' + b.receipt_no + ' (' + shortDate(b.created) + ', ' + b.days + ' days): ' + fmtKES(b.balance) + (b.paid > 0 ? ' left of ' + fmtKES(b.total_kes) : ''))
+    const billLines = bills.slice(0, 12).map(b => '- ' + b.receipt_no + ' (' + shortDate(b.created) + ', ' + b.days + (b.days === 1 ? ' day' : ' days') + '): ' + fmtKES(b.balance) + (b.paid > 0 ? ' left of ' + fmtKES(b.total_kes) : ''))
     if (bills.length > 12) billLines.push('+ ' + (bills.length - 12) + ' more bill(s)')
     const payLines = mine.slice(0, 8).map(p => '- ' + shortDate(p.paid_on || p.created) + ' ' + methodLabel(p.method) + ': ' + fmtKES(p.amount_kes))
     if (mine.length > 8) payLines.push('+ ' + (mine.length - 8) + ' more payment(s)')
@@ -225,6 +229,29 @@ export default function CustomersPage() {
     if (payLines.length > 0) msg += '\n\n*Payments received on these bills*\n' + payLines.join('\n')
     msg += '\n\n*Total due: ' + fmtKES(entry.balance) + '*\n\nKindly settle at your earliest convenience. Thank you! \uD83D\uDE4F'
     window.open('https://wa.me/' + toWaNumber(c.phone) + '?text=' + encodeURIComponent(msg), '_blank', 'noopener,noreferrer')
+  }
+
+  const printStatement = (c, entry) => {
+    const w = window.open('', '_blank')
+    if (!w) return toast.error('Allow pop-ups to open the statement')
+    const bills = entry.sales
+    const mine = payments.filter(p => p.customer_id === c.id && bills.some(b => b.id === p.sale_id))
+    const billRows = bills.map(b => '<tr><td>' + escHtml(b.receipt_no) + '</td><td>' + escHtml(shortDate(b.created)) + '</td><td class="r">' + b.days + '</td><td class="r">' + escHtml(fmtKES(b.total_kes)) + '</td><td class="r">' + escHtml(fmtKES(b.balance)) + '</td></tr>').join('')
+    const payRows = mine.map(p => '<tr><td>' + escHtml(shortDate(p.paid_on || p.created)) + '</td><td>' + escHtml(methodLabel(p.method)) + '</td><td>' + escHtml(p.payment_ref || '') + '</td><td class="r">' + escHtml(fmtKES(p.amount_kes)) + '</td></tr>').join('')
+    const waText = 'Hello ' + c.name + ', please find your statement from ' + (shop?.name || 'our shop') + '. Total due: ' + fmtKES(entry.balance) + '. Thank you.'
+    const waLink = c.phone ? '<a class="wa" target="_blank" rel="noopener" href="https://wa.me/' + toWaNumber(c.phone) + '?text=' + escHtml(encodeURIComponent(waText)) + '">Send on WhatsApp</a>' : ''
+    const css = 'body{font-family:Arial,sans-serif;color:#222;margin:28px auto;max-width:760px;padding:0 16px}h1{font-size:22px;margin:0}h2{font-size:14px;margin:22px 0 6px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid #ddd;padding:6px 4px;text-align:left}th{background:#f5f5f5}.r{text-align:right}.total{margin-top:16px;font-size:18px;font-weight:bold;text-align:right}.muted{color:#666;font-size:12px}.bar{margin-bottom:20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}.bar button,.wa{padding:9px 16px;border-radius:8px;border:0;font-weight:bold;font-size:13px;cursor:pointer;text-decoration:none;color:#fff}.bar button{background:#c8456a}.wa{background:#25D366}@media print{.bar{display:none}}'
+    const html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Statement - ' + escHtml(c.name) + '</title><style>' + css + '</style></head><body>' +
+      '<div class="bar"><button onclick="window.print()">Print / Save as PDF</button>' + waLink + '<span class="muted">Save the PDF first, then attach it in WhatsApp with the paperclip.</span></div>' +
+      '<h1>' + escHtml(shop?.name || 'Statement') + '</h1><div class="muted">' + escHtml(shop?.phone || '') + '</div>' +
+      '<h2>Statement of account</h2><div><strong>' + escHtml(c.name) + '</strong>' + (c.phone ? ' &middot; ' + escHtml(c.phone) : '') + '</div><div class="muted">Date: ' + escHtml(shortDate(new Date().toISOString())) + '</div>' +
+      '<h2>Open bills (oldest first)</h2><table><thead><tr><th>Receipt</th><th>Date</th><th class="r">Age (days)</th><th class="r">Bill total</th><th class="r">Balance</th></tr></thead><tbody>' + billRows + '</tbody></table>' +
+      (payRows ? '<h2>Payments received on these bills</h2><table><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th class="r">Amount</th></tr></thead><tbody>' + payRows + '</tbody></table>' : '') +
+      '<div class="total">Total due: ' + escHtml(fmtKES(entry.balance)) + '</div>' +
+      '<p class="muted">Age counts the days since the sale. Please settle at your earliest convenience. Thank you.</p></body></html>'
+    w.document.open()
+    w.document.write(html)
+    w.document.close()
   }
 
   const handleSave = async (e) => {
@@ -512,6 +539,12 @@ export default function CustomersPage() {
                       </span>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {viewEntry && viewEntry.balance > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <button className="btn-secondary" onClick={() => printStatement(viewCustomer, viewEntry)}>Statement (PDF)</button>
                 </div>
               )}
 
