@@ -151,6 +151,7 @@ export default function ProductsPage() {
 
   const [view, setView] = useState('table') // 'table' | 'margin'
   const [openFunding, setOpenFunding] = useState('owner_capital')
+  const [variantRows, setVariantRows] = useState([])
 
   const fileInputRef = useRef()
   const csvInputRef  = useRef()
@@ -170,6 +171,11 @@ export default function ProductsPage() {
       setProducts(prods)
       existingKeys = { sku: new Set(prods.map(p => (p.sku || '').trim().toLowerCase()).filter(Boolean)), barcode: new Set(prods.map(p => (p.barcode || '').trim()).filter(Boolean)) }
       setCategories(cats)
+      const vIds = prods.filter(p => p.has_variants).map(p => p.id)
+      if (vIds.length) {
+        const vr = await pb.collection(C.PRODUCT_VARIANTS).getList(1, 500, { filter: vIds.map(id => 'product_id="' + id + '"').join(' || '), '$autoCancel': false }).then(r => r.items).catch(() => [])
+        setVariantRows(vr)
+      } else { setVariantRows([]) }
     } finally { setLoading(false) }
   }
 
@@ -341,7 +347,21 @@ export default function ProductsPage() {
   const handleDelete = async (id) => {
     if (!canEdit) return
     if (!confirm('Delete this product?')) return
-    try { await pb.collection(C.PRODUCTS).delete(id); toast.success('Deleted'); loadData() }
+    try {
+      const pv = products.find(x => x.id === id)
+      const delVariants = async () => {
+        const vs = await pb.collection(C.PRODUCT_VARIANTS).getList(1, 100, { filter: 'product_id="' + id + '"', '$autoCancel': false })
+        for (const v of vs.items) await pb.collection(C.PRODUCT_VARIANTS).delete(v.id)
+      }
+      try { await pb.collection(C.PRODUCTS).delete(id) }
+      catch (e8) {
+        if (!(pv && pv.has_variants)) throw e8
+        await delVariants()
+        await pb.collection(C.PRODUCTS).delete(id)
+      }
+      if (pv && pv.has_variants) { try { await delVariants() } catch (e9) {} }
+      toast.success('Deleted'); loadData()
+    }
     catch { toast.error('Delete failed') }
   }
 
@@ -349,14 +369,26 @@ export default function ProductsPage() {
     try {
       if (!canEdit) return
       const { id, created, updated, collectionId, collectionName, expand, images, ...rest } = p
-      await pb.collection(C.PRODUCTS).create({
+      const dup = await pb.collection(C.PRODUCTS).create({
         ...rest,
-        name: `Copy of ${p.name}`,
-        sku: p.sku ? `${p.sku}-COPY` : '',
+        name: 'Copy of ' + p.name,
+        sku: p.sku ? p.sku + '-COPY' : '',
         barcode: '',
         stock_qty: 0,
         shop_id: shop.id,
       })
+      if (p.has_variants) {
+        let vFail = 0
+        try {
+          const srcV = await pb.collection(C.PRODUCT_VARIANTS).getList(1, 100, { filter: 'product_id="' + p.id + '"', sort: 'sort_order', '$autoCancel': false })
+          for (const v of srcV.items) {
+            try {
+              await pb.collection(C.PRODUCT_VARIANTS).create({ product_id: dup.id, name: v.name, sku: v.sku ? v.sku + '-COPY' : '', barcode: '', price_kes: v.price_kes || 0, cost_price_kes: v.cost_price_kes || 0, stock_qty: 0, reorder_point: v.reorder_point || 0, sort_order: v.sort_order || 0 })
+            } catch (e5) { vFail++ }
+          }
+        } catch (e6) { vFail++ }
+        if (vFail > 0) toast.error('Some variants could not be copied. Open the copy and check its variants.', { duration: 8000 })
+      }
       toast.success(`"${p.name}" duplicated! Edit the copy to update price/size.`)
       loadData()
     } catch { toast.error('Duplicate failed') }
@@ -566,11 +598,17 @@ export default function ProductsPage() {
             <div style={{ fontSize: 13, color: '#9b6070' }}>Products sorted by margin — lowest first. Red = losing money or very low margin. Fix these first.</div>
           </div>
           {(() => {
-            const withMargin = filtered
+            const marginItems = []
+            filtered.forEach(p => {
+              const pvs = p.has_variants ? variantRows.filter(v => v.product_id === p.id) : []
+              if (pvs.length) pvs.forEach(v => marginItems.push({ id: v.id, name: p.name + ' - ' + v.name, category_id: p.category_id, price_kes: v.price_kes, cost_price_kes: v.cost_price_kes }))
+              else marginItems.push(p)
+            })
+            const withMargin = marginItems
               .filter(p => p.price_kes > 0 && p.cost_price_kes > 0)
               .map(p => ({ ...p, margin: ((p.price_kes - p.cost_price_kes) / p.price_kes) * 100 }))
               .sort((a, b) => a.margin - b.margin)
-            const noMargin = filtered.filter(p => !p.cost_price_kes || p.cost_price_kes === 0)
+            const noMargin = marginItems.filter(p => !p.cost_price_kes || p.cost_price_kes === 0)
             if (withMargin.length === 0 && noMargin.length === 0) return (
               <div style={{ textAlign: 'center', padding: '32px 0', color: '#9b6070' }}>No products with cost prices set. Add cost prices to see margin health.</div>
             )
