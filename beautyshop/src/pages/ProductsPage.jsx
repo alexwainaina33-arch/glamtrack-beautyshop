@@ -150,6 +150,7 @@ export default function ProductsPage() {
   const [bulkResult, setBulkResult]     = useState(null)
 
   const [view, setView] = useState('table') // 'table' | 'margin'
+  const [openFunding, setOpenFunding] = useState('owner_capital')
 
   const fileInputRef = useRef()
   const csvInputRef  = useRef()
@@ -174,7 +175,7 @@ export default function ProductsPage() {
 
   const openNew  = () => {
     if (!canEdit) return
-    setEditing(null); setForm(EMPTY); setImageFiles([]); setImagePreview([]); setExistingImages([]); setRemovedImages([])
+    setEditing(null); setForm(EMPTY); setOpenFunding('owner_capital'); setImageFiles([]); setImagePreview([]); setExistingImages([]); setRemovedImages([])
     setVariants([]); setDeletedVariantIds([])
     setShowModal(true)
   }
@@ -234,6 +235,23 @@ export default function ProductsPage() {
     setImagePreview(files.map(f => URL.createObjectURL(f)))
   }
 
+  const writeOpeningMovement = async (productId, qty, cost, reference) => {
+    if (!(qty > 0)) return
+    await pb.collection(C.INV_MOVEMENTS).create({
+      shop_id: shop.id,
+      product_id: productId,
+      type: 'opening_stock',
+      qty: qty,
+      before_qty: 0,
+      after_qty: qty,
+      cost_per_unit: cost,
+      funding_source: openFunding,
+      reference: reference,
+      notes: reference,
+      created_by: pb.authStore.model?.id
+    })
+  }
+
   const handleSave = async (e) => {
     e.preventDefault()
     if (!canEdit) return
@@ -256,6 +274,8 @@ export default function ProductsPage() {
         formToSave.stock_qty = r2(variants.reduce((sum, v) => sum + (Number(v.stock_qty) || 0), 0))
       }
 
+      if (editing && !form.has_variants) delete formToSave.stock_qty
+
       const data = new FormData()
       Object.entries(formToSave).forEach(([k,v]) => { if (k !== 'images' && v !== undefined && v !== null && v !== '') data.append(k, v) })
       data.append('shop_id', shop.id)
@@ -268,6 +288,15 @@ export default function ProductsPage() {
       } else {
         const created = await pb.collection(C.PRODUCTS).create(data)
         productId = created.id
+        const openQ = r2(Number(form.stock_qty) || 0)
+        if (!form.has_variants && form.track_inventory && openQ > 0) {
+          try {
+            await writeOpeningMovement(created.id, openQ, Number(form.cost_price_kes) || 0, 'Opening stock (new product)')
+          } catch (e4) {
+            await pb.collection(C.PRODUCTS).update(created.id, { stock_qty: 0 }).catch(() => {})
+            toast.error('Product saved, but its opening stock was not recorded, so stock is 0. Receive it in Inventory.', { duration: 8000 })
+          }
+        }
       }
 
       // Sync variant rows: delete removed, update existing, create new
@@ -359,7 +388,7 @@ export default function ProductsPage() {
   const handleBulkImport = async () => {
     if (!canEdit || !bulkRows.length) return
     setBulkImporting(true)
-    let success = 0, failed = 0, failedNames = [], skipped = []
+    let success = 0, failed = 0, failedNames = [], skipped = [], stockFailed = []
     for (let ri = 0; ri < bulkRows.length; ri++) {
       const row = bulkRows[ri]
       const rowErrs = (bulkValidation[ri]?.errors || []).filter(e => !e.includes('not found'))
@@ -384,7 +413,7 @@ export default function ProductsPage() {
             setCategories(prev => [...prev, newCat])
           }
         }
-        await pb.collection(C.PRODUCTS).create({
+        const createdProd = await pb.collection(C.PRODUCTS).create({
           shop_id: shop.id,
           name: row.name || row.product_name || 'Unnamed',
           sku: row.sku || '',
@@ -403,20 +432,29 @@ export default function ProductsPage() {
           track_inventory: !isFalseText(row.track_inventory),
           is_taxable: !isFalseText(row.is_taxable),
         })
+        const openQty = r2(parseFloat(row.stock_qty || row.stock || 0))
+        if (!isFalseText(row.track_inventory) && openQty > 0) {
+          try {
+            await writeOpeningMovement(createdProd.id, openQty, parseFloat(row.cost_price_kes || row.cost || 0) || 0, 'Bulk product import')
+          } catch (e3) {
+            await pb.collection(C.PRODUCTS).update(createdProd.id, { stock_qty: 0 }).catch(() => {})
+            stockFailed.push(row.name || row.product_name || 'Unknown')
+          }
+        }
         success++
       } catch (err) {
         failed++
         failedNames.push(row.name || row.product_name || 'Unknown')
       }
     }
-    setBulkResult({ success, failed, failedNames, skipped })
+    setBulkResult({ success, failed, failedNames, skipped, stockFailed })
     setBulkStep(3)
     setBulkImporting(false)
     loadData()
   }
 
   const resetBulk = () => {
-    setShowBulk(false)
+    setShowBulk(false); setOpenFunding('owner_capital')
     setBulkStep(1)
     setBulkFile(null)
     setBulkRows([])
@@ -439,6 +477,7 @@ export default function ProductsPage() {
         <div>
           <div className="page-title">Products 📦</div>
           {!canEdit && <div style={{ fontSize:12, color:'#b45309', marginBottom:4 }}>View only. Ask the owner or a manager to change products.</div>}
+          {products.length >= 500 && <div style={{ fontSize:12, color:'#b45309', marginBottom:4 }}>Showing the first 500 products only. Search, margin and import checks may miss the rest.</div>}
           <div className="page-subtitle">{products.length} products · {categories.length} categories</div>
         </div>
         <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
@@ -492,16 +531,17 @@ export default function ProductsPage() {
             <div style={{ color:'rgba(255,255,255,0.8)', fontSize:13, marginTop:4 }}>📋 Pricelist · {new Date().toLocaleDateString('en-KE', { day:'numeric', month:'long', year:'numeric' })}</div>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {filtered.slice(0, 20).map(p => (
+            {filtered.filter(p => p.status === 'active').slice(0, 20).map(p => (
               <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 16px', background:'#fdf5f7', borderRadius:10, border:'1px solid #f0e4e8' }}>
                 <div>
                   <div style={{ fontWeight:700, fontSize:14, color:'#1a1a1f' }}>{p.name}</div>
                   {p.brand && <div style={{ fontSize:11, color:'#9b6070' }}>{p.brand}</div>}
                 </div>
-                <div style={{ fontWeight:800, fontSize:15, color:'#c8456a' }}>KES {Number(p.price_kes).toLocaleString('en-KE')}</div>
+                <div style={{ fontWeight:800, fontSize:15, color:'#c8456a' }}>{p.has_variants ? 'from ' : ''}KES {Number(p.price_kes).toLocaleString('en-KE')}</div>
               </div>
             ))}
           </div>
+          {filtered.filter(p => p.status === 'active').length > 20 && <div style={{ textAlign:'center', marginTop:14, fontSize:11, color:'#9b6070' }}>Showing 20 of {filtered.filter(p => p.status === 'active').length} products. Pick a category to share the rest.</div>}
           <div style={{ textAlign:'center', marginTop:20, fontSize:11, color:'#c8b0b8' }}>Powered by SalesTrack · Run your business from your phone</div>
         </div>
       </div>
@@ -686,8 +726,8 @@ export default function ProductsPage() {
                       <label className="label">Cost Price (KES)</label>
                       <input className="input" type="number" min={0} step="0.01" value={form.cost_price_kes} onChange={e=>setForm(f=>({...f,cost_price_kes:e.target.value}))} />
                       {form.price_kes && form.cost_price_kes && (
-                        <div style={{ fontSize:11, color:'#059669', marginTop:3 }}>
-                          Margin: {(((form.price_kes - form.cost_price_kes) / form.price_kes) * 100).toFixed(1)}%
+                        <div style={{ fontSize:11, color: Number(form.cost_price_kes) > Number(form.price_kes) ? '#dc2626' : '#059669', fontWeight: Number(form.cost_price_kes) > Number(form.price_kes) ? 700 : 400, marginTop:3 }}>
+                          {Number(form.cost_price_kes) > Number(form.price_kes) ? 'Below cost: you lose KES ' + r2(form.cost_price_kes - form.price_kes) + ' on every sale. ' : ''}Margin: {(((form.price_kes - form.cost_price_kes) / form.price_kes) * 100).toFixed(1)}%
                         </div>
                       )}
                     </div>
@@ -713,7 +753,18 @@ export default function ProductsPage() {
                   {!form.has_variants && (
                     <div>
                       <label className="label">Stock Quantity</label>
-                      <input className="input" type="number" min={0} step="0.01" value={form.stock_qty} onChange={e=>setForm(f=>({...f,stock_qty:e.target.value}))} />
+                      <input className="input" type="number" min={0} step="0.01" value={form.stock_qty} disabled={!!editing} onChange={e=>setForm(f=>({...f,stock_qty:e.target.value}))} />
+                      {editing && <div style={{ fontSize:11, color:'#9b6070', marginTop:3 }}>Change stock in Inventory so every change has a record.</div>}
+                      {!editing && form.track_inventory && Number(form.stock_qty) > 0 && (
+                        <div style={{ marginTop:8 }}>
+                          <label className="label">How was this stock paid for? *</label>
+                          <select className="input" value={openFunding} onChange={e=>setOpenFunding(e.target.value)}>
+                            <option value="owner_capital">From my own capital (setup or new investment)</option>
+                            <option value="cash">Cash / M-Pesa, paid now</option>
+                            <option value="payable">On credit, supplier not yet paid</option>
+                          </select>
+                        </div>
+                      )}
                     </div>
                   )}
                   {!form.has_variants && (
@@ -1000,6 +1051,17 @@ export default function ProductsPage() {
                   )}
 
                   {/* Preview table */}
+                  {bulkRows.some((r, i) => !isFalseText(r.track_inventory) && parseFloat(r.stock_qty || r.stock || 0) > 0 && !bulkValidation[i]?.errors.some(e => !e.includes('not found'))) && (
+                    <div style={{ background:'#f8f6f2', border:'1px solid #e5e2db', borderRadius:10, padding:'12px 14px', marginBottom:12 }}>
+                      <label className="label">How was the opening stock paid for? *</label>
+                      <select className="input" value={openFunding} onChange={e=>setOpenFunding(e.target.value)}>
+                        <option value="owner_capital">From my own capital (setup or new investment)</option>
+                        <option value="cash">Cash / M-Pesa, paid now</option>
+                        <option value="payable">On credit, supplier not yet paid</option>
+                      </select>
+                      <div style={{ fontSize:11, color:'#9b6070', marginTop:4 }}>Each product with stock gets an opening stock record, so it shows in Inventory movements and the Stock Report.</div>
+                    </div>
+                  )}
                   <div style={{ fontSize:12, fontWeight:700, color:'#3d1020', marginBottom:8 }}>
                     Preview — {bulkRows.length} products from {bulkFile?.name}
                   </div>
@@ -1105,6 +1167,11 @@ export default function ProductsPage() {
                     <div style={{ background:'#fefce8', border:'1px solid #fde68a', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:12, color:'#92400e', textAlign:'left', maxHeight:160, overflowY:'auto' }}>
                       <strong>{bulkResult.skipped.length} row(s) skipped and not imported:</strong>
                       {bulkResult.skipped.map((s, i) => <div key={i} style={{ marginTop:3 }}>{s}</div>)}
+                    </div>
+                  )}
+                  {bulkResult.stockFailed && bulkResult.stockFailed.length > 0 && (
+                    <div style={{ background:'#fef2f2', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:12, color:'#991b1b', textAlign:'left' }}>
+                      <strong>Opening stock not recorded for:</strong> {bulkResult.stockFailed.join(', ')}. These products were saved with stock 0. Receive the stock in Inventory.
                     </div>
                   )}
                   <p style={{ fontSize:13, color:'#9b6070', marginBottom:20 }}>
