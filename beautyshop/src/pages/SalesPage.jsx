@@ -3,12 +3,13 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import pb, { C } from '../lib/pb'
 import { fmtKES, fmtDateTime, fmtDate, r2 } from '../lib/utils'
-import { Eye, Search, RefreshCw, X, Download, Undo2, Copy, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Eye, Search, RefreshCw, X, Download, Undo2, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { format, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek } from 'date-fns'
 import ReceiptModal from '../components/ReceiptModal'
 import toast from 'react-hot-toast'
 
 const PAYMENTS = 'bs_payments'
+const METHOD_LABEL = { cash: 'Cash', mpesa: 'M-Pesa', mixed: 'Mixed', visa_mc: 'Card', credit: 'Credit', credit_unpaid: 'Credit (unpaid)' }
 
 // Format a Date for a PocketBase filter, e.g. created>="2026-11-07 21:00:00.000Z"
 const toPbDate = (d) => d.toISOString().replace('T', ' ')
@@ -41,8 +42,10 @@ export default function SalesPage() {
   const [recentlyVoided, setRecentlyVoided] = useState([])
   const [exporting, setExporting] = useState(false)
   const summaryReq = useRef(0)
+  const controlReq = useRef(0)
   const [searchQ, setSearchQ] = useState('')
   const [refundPick, setRefundPick] = useState('')
+  const [control, setControl] = useState(null)
   useEffect(() => {
     const tm = setTimeout(() => { setSearchQ(search.trim()); setPage(1) }, 400)
     return () => clearTimeout(tm)
@@ -50,8 +53,9 @@ export default function SalesPage() {
 
   useEffect(() => { if (shop) loadSales() }, [shop, dateFrom, dateTo, statusFilter, page, searchQ])
   useEffect(() => { if (shop) loadSummary() }, [shop, dateFrom, dateTo, statusFilter, searchQ])
+  useEffect(() => { if (shop && !isCashier) loadControl() }, [shop, dateFrom, dateTo])
 
-  const refreshAll = () => { loadSales(); loadSummary() }
+  const refreshAll = () => { loadSales(); loadSummary(); if (!isCashier) loadControl() }
 
   // Amount still owed on a credit sale = total minus payments recorded for it
   const balanceOf = (sale) => Math.max(0, r2((sale.total_kes || 0) - (paidMap[sale.id] || 0)))
@@ -144,6 +148,53 @@ export default function SalesPage() {
       }
     } catch (err) {
       if (myReq === summaryReq.current) setSummary(null)
+    }
+  }
+
+  const loadControl = async () => {
+    const myReq = ++controlReq.current
+    setControl(null)
+    try {
+      const f = ['shop_id="' + shop.id + '"']
+      if (dateFrom) f.push('created >= "' + dayStart(dateFrom) + '"')
+      if (dateTo) f.push('created <= "' + dayEnd(dateTo) + '"')
+      const all = await pb.collection(C.SALES).getFullList({
+        filter: f.join(' && '),
+        expand: 'served_by',
+        '$autoCancel': false, '$cancelKey': 'sales-control'
+      })
+      const voided = { n: 0, v: 0 }, refunded = { n: 0, v: 0 }, disc = { n: 0, v: 0 }, real = { n: 0, v: 0 }
+      const methods = {}, staff = {}
+      const bucket = (k, name) => {
+        if (!staff[k]) staff[k] = { name: name, n: 0, v: 0, d: 0, vn: 0, vv: 0, rn: 0, rv: 0 }
+        return staff[k]
+      }
+      all.forEach(s => {
+        const total = Number(s.total_kes) || 0
+        const who = bucket(s.served_by || 'none', s.expand?.served_by?.name || (s.served_by ? 'Unknown user' : 'Not recorded'))
+        const isRefund = s.status === 'refunded' || s.payment_status === 'refunded'
+        if (isRefund) { refunded.n++; refunded.v += total; who.rn++; who.rv += total; return }
+        if (s.status === 'voided') { voided.n++; voided.v += total; who.vn++; who.vv += total; return }
+        real.n++; real.v += total; who.n++; who.v += total
+        const d = Number(s.discount_kes) || 0
+        if (d > 0) { disc.n++; disc.v += d; who.d += d }
+        const unpaid = s.payment_status === 'pending' || s.payment_status === 'partial'
+        const key = unpaid ? 'credit_unpaid' : (s.payment_method || 'other')
+        if (!methods[key]) methods[key] = { n: 0, v: 0 }
+        methods[key].n++; methods[key].v += total
+      })
+      if (myReq === controlReq.current) {
+        setControl({
+          voided: { n: voided.n, v: r2(voided.v) },
+          refunded: { n: refunded.n, v: r2(refunded.v) },
+          disc: { n: disc.n, v: r2(disc.v) },
+          real: { n: real.n, v: r2(real.v) },
+          methods: Object.keys(methods).map(k => ({ key: k, n: methods[k].n, v: r2(methods[k].v) })).sort((a, b) => b.v - a.v),
+          staff: Object.keys(staff).map(k => ({ name: staff[k].name, n: staff[k].n, v: r2(staff[k].v), d: r2(staff[k].d), vn: staff[k].vn, vv: r2(staff[k].vv), rn: staff[k].rn, rv: r2(staff[k].rv) })).sort((a, b) => ((b.vn + b.rn) - (a.vn + a.rn)) || (b.v - a.v))
+        })
+      }
+    } catch (err) {
+      if (myReq === controlReq.current) setControl({ error: true })
     }
   }
 
@@ -263,22 +314,41 @@ export default function SalesPage() {
 
     setRefundProcessing(true)
     try {
+      const freshSale = await pb.collection(C.SALES).getOne(refundSale.id)
+      if (freshSale.status === 'voided' || freshSale.status === 'refunded') { toast.error('This sale was already voided or refunded'); setShowRefundModal(false); refreshAll(); return }
       const isFullRefund = amt >= refundSale.total_kes
       await pb.collection(C.SALES).update(refundSale.id, {
         status: isFullRefund ? 'voided' : 'refunded',
         payment_status: 'refunded',
-        notes: (refundSale.notes || '') + `\n[REFUND] ${refundReason} - ${fmtKES(amt)} on ${format(new Date(), 'dd/MM/yyyy HH:mm')}`
+        notes: (freshSale.notes || '') + `\n[REFUND] ${refundReason} - ${fmtKES(amt)} on ${format(new Date(), 'dd/MM/yyyy HH:mm')}`
       })
       // Restore stock for refunded items
       if (isFullRefund) {
         const items = await pb.collection(C.SALE_ITEMS).getList(1, 200, { filter: `sale_id="${refundSale.id}"` }).then(r => r.items)
-        await Promise.all(items.map(async (item) => {
-          const prod = await pb.collection(C.PRODUCTS).getOne(item.product_id).catch(() => null)
-          if (prod && prod.track_inventory) {
-            const newQty = r2((prod.stock_qty || 0) + item.qty)
-            await pb.collection(C.PRODUCTS).update(prod.id, { stock_qty: newQty })
-          }
-        }))
+        let rfSkip = 0, rfNoRec = 0
+        for (const item of items) {
+          try {
+            if (!item.product_id) { rfSkip++; continue }
+            const prod = await pb.collection(C.PRODUCTS).getOne(item.product_id)
+            if (!prod.track_inventory) continue
+            if (prod.has_variants) { rfSkip++; continue }
+            const q = Number(item.qty || 0)
+            if (q <= 0) continue
+            const before = Number(prod.stock_qty || 0)
+            const after = r2(before + q)
+            await pb.collection(C.PRODUCTS).update(prod.id, { stock_qty: after })
+            try {
+              await pb.collection(C.INV_MOVEMENTS).create({
+                shop_id: shop.id, product_id: prod.id, type: 'return', qty: q,
+                before_qty: before, after_qty: after,
+                reference: 'Refund ' + refundSale.receipt_no, notes: 'Sale refunded: ' + refundReason,
+                created_by: pb.authStore.model?.id
+              })
+            } catch { rfNoRec++ }
+          } catch { rfSkip++ }
+        }
+        if (rfSkip > 0) toast.error(rfSkip + ' item line(s) could not be put back (variants or errors). Check Inventory.', { duration: 7000 })
+        if (rfNoRec > 0) toast.error(rfNoRec + ' stock record(s) were not written. Stock is correct but Movements lacks the row.', { duration: 7000 })
       }
       setRecentlyVoided(prev => [{ id: refundSale.id, receipt: refundSale.receipt_no, amount: amt, timestamp: new Date() }, ...prev].slice(0, 3))
       toast.success(`✅ Refund processed! ${fmtKES(amt)} from ${refundSale.receipt_no}`)
@@ -286,17 +356,6 @@ export default function SalesPage() {
       refreshAll()
     } catch (err) { toast.error('Refund failed: ' + err?.message) }
     finally { setRefundProcessing(false) }
-  }
-
-  const repeatSale = (sale) => {
-    // Copy sale to clipboard as JSON so user can recreate in POS
-    const data = {
-      customer_id: sale.expand?.customer_id?.id || null,
-      items: sale.items || [],
-      total_kes: sale.total_kes
-    }
-    localStorage.setItem('repeat_sale_template', JSON.stringify(data))
-    toast.success(`📋 Sale copied! Go to POS and look for "Repeat Sale" option to paste.`, { duration: 5000, icon: '✂️' })
   }
 
   const toggleSaleSelection = (saleId) => {
@@ -356,6 +415,7 @@ export default function SalesPage() {
         if (!isCashier) {
           base.Served_By = s.expand?.served_by?.name || ''
           base.Profit_KES = s.gross_profit_kes || 0
+          base.Notes = String(s.notes || '').replace(/\s+/g, ' ').trim()
         }
         return base
       })
@@ -456,6 +516,72 @@ export default function SalesPage() {
         These cards cover all {total} records in the dates and status chosen above, not only this page. Revenue and Gross Profit count paid sales only. Unpaid credit is shown under Total Outstanding, so Revenue here can be lower than the Dashboard, which counts credit sales when they are made. Voided and refunded sales are not counted (a part-refund removes the whole sale from these cards).
       </div>
 
+      {!isCashier && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: '#8b2550', marginBottom: 2 }}>Control check: voids, refunds and discounts</div>
+          <div style={{ fontSize: 11, color: '#9b6070', marginBottom: 12 }}>Covers all sales in the dates chosen above. The Status and Search boxes do not change it. Voided and refunded show the value of the whole sale, by the date of the sale.</div>
+          {!control ? (
+            <div style={{ fontSize: 12, color: '#9b6070' }}>Loading...</div>
+          ) : control.error ? (
+            <div style={{ fontSize: 12, color: '#dc2626' }}>Could not load the control check. Press the refresh button.</div>
+          ) : (
+            <div>
+              <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 14 }}>
+                {[
+                  { label: 'Voided sales', main: control.voided.n, sub: fmtKES(control.voided.v), alert: control.voided.n > 0 },
+                  { label: 'Refunded sales', main: control.refunded.n, sub: fmtKES(control.refunded.v), alert: control.refunded.n > 0 },
+                  { label: 'Discounts given', main: fmtKES(control.disc.v), sub: 'on ' + control.disc.n + ' of ' + control.real.n + ' sales', alert: false },
+                  { label: 'Sales counted', main: control.real.n, sub: fmtKES(control.real.v), alert: false },
+                ].map((c, i) => (
+                  <div key={i} style={{ textAlign: 'center', padding: 12, borderRadius: 12, border: '1px solid ' + (c.alert ? '#fee2e2' : '#f0e4e8'), background: c.alert ? '#fff5f5' : '#fff' }}>
+                    <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'Playfair Display,serif', color: c.alert ? '#dc2626' : '#8b2550' }}>{c.main}</div>
+                    <div style={{ fontSize: 12, color: '#9b6070', marginTop: 2 }}>{c.label}</div>
+                    <div style={{ fontSize: 11, color: '#9b6070', marginTop: 2 }}>{c.sub}</div>
+                  </div>
+                ))}
+              </div>
+              {control.staff.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#9b6070' }}>No sales in these dates.</div>
+              ) : (
+                <div>
+                  <div className="table-wrap" style={{ marginBottom: 14 }}>
+                    <table>
+                      <thead><tr><th>Served by</th><th>Sales</th><th>Sales value</th><th>Discounts</th><th>Voided</th><th>Refunded</th></tr></thead>
+                      <tbody>
+                        {control.staff.map((p, i) => (
+                          <tr key={i}>
+                            <td style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</td>
+                            <td>{p.n}</td>
+                            <td>{fmtKES(p.v)}</td>
+                            <td style={{ color: p.d > 0 ? '#b45309' : '#9b6070' }}>{p.d > 0 ? fmtKES(p.d) : '-'}</td>
+                            <td style={{ color: p.vn > 0 ? '#dc2626' : '#9b6070', fontWeight: p.vn > 0 ? 700 : 400 }}>{p.vn > 0 ? p.vn + ' (' + fmtKES(p.vv) + ')' : '-'}</td>
+                            <td style={{ color: p.rn > 0 ? '#dc2626' : '#9b6070', fontWeight: p.rn > 0 ? 700 : 400 }}>{p.rn > 0 ? p.rn + ' (' + fmtKES(p.rv) + ')' : '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="table-wrap">
+                    <table>
+                      <thead><tr><th>Payment method (sales counted)</th><th>Sales</th><th>Value</th></tr></thead>
+                      <tbody>
+                        {control.methods.map(m => (
+                          <tr key={m.key}>
+                            <td style={{ fontSize: 13 }}>{METHOD_LABEL[m.key] || m.key}</td>
+                            <td>{m.n}</td>
+                            <td>{fmtKES(m.v)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Table */}
       <div className="card" style={{ padding: 0 }}>
         {loading ? (
@@ -522,7 +648,7 @@ export default function SalesPage() {
                         {!isCashier && sale.status === 'completed' && sale.payment_status !== 'pending' && (
                           <>
                             <button onClick={() => { setRefundSale(sale); setRefundAmount(String(sale.total_kes || '')); setRefundReason(''); setRefundPick(''); setShowRefundModal(true) }} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}><Undo2 size={11} style={{ display: 'inline', marginRight: 3 }} /> Refund</button>
-                            <button onClick={() => repeatSale(sale)} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0f9ff', color: '#0369a1', fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}><Copy size={11} style={{ display: 'inline', marginRight: 3 }} /> Repeat</button>
+                            
                             <button className="btn-ghost" style={{ padding: '5px 10px', color: '#dc2626', fontSize: 11 }} onClick={() => voidSale(sale)}>Void</button>
                           </>
                         )}
