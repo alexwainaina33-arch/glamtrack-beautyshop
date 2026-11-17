@@ -8,45 +8,24 @@ import toast from 'react-hot-toast'
 const EMPTY = { name:'', sku:'', barcode:'', category_id:'', description:'', unit:'piece', price_kes:'', cost_price_kes:'', compare_price_kes:'', stock_qty:'', reorder_point:5, track_inventory:true, is_service:false, is_taxable:true, brand:'', tags:'', status:'active' }
 
 // ─── CSV TEMPLATE ─────────────────────────────────────────────────
-const CSV_HEADERS = ['name','sku','barcode','category','price_kes','cost_price_kes','compare_price_kes','stock_qty','reorder_point','unit','brand','description','track_inventory','is_taxable','tags']
+let existingKeys = { sku: new Set(), barcode: new Set() }
 
-const CSV_SAMPLE_ROWS = [
-  ['Keratin Hair Treatment','KHT-001','6001234567890','Haircare','3500','1200','4000','10','3','piece','Cantu','Professional keratin smoothing treatment','true','true','hair,keratin,treatment'],
-  ['Aloe Vera Facial Cream','AVFC-002','6001234567891','Skincare','1200','450','1500','25','5','piece','Neutrogena','Soothing aloe vera moisturiser for all skin types','true','true','skincare,aloe,moisturiser'],
-  ['Mink Lash Set 25mm','MLS-003','6001234567892','Wigs','850','280','','15','4','piece','Ardell','Dramatic 25mm mink lashes reusable up to 25 times','true','true','lashes,mink,dramatic'],
-  ['Lavender Body Oil 200ml','LBO-004','6001234567893','Haircare','650','200','','30','8','ml','ORS','Moisturising lavender body and hair oil','true','true','oil,lavender,body'],
-  ['Hair Braiding Service','HBS-005','','Haircare','2500','0','','0','0','service','','Full head braiding service — 2 to 3 hours','false','false','service,braiding'],
-]
+const CSV_HEADERS = ['name','price_kes','category','cost_price_kes','stock_qty','reorder_point','barcode','sku','brand','unit','compare_price_kes','description','track_inventory','is_taxable','tags']
+const CSV_MARKER = ['#MUST FILL','MUST FILL','optional','optional','optional','optional','optional','optional','optional','optional','optional','optional','optional','optional','optional']
 
 function downloadTemplate(categories) {
-  const catNames = categories.map(c => c.name).join(' / ') || 'Haircare / Skincare / Wigs'
+  const catName = (categories[0] && categories[0].name) ? categories[0].name : 'General'
+  const catCell = catName.includes(',') ? '"' + catName + '"' : catName
+  const example = ['EXAMPLE - delete this row','100',catCell,'60','10','5','','EX-001','','piece','','','true','true','']
   const notes = [
-    '# SALESTRACK BULK IMPORT TEMPLATE',
-    '# ─────────────────────────────────────────────────────────────────',
-    '# HOW TO USE THIS TEMPLATE:',
-    '# 1. Fill in your products starting from Row 9 (after the sample rows)',
-    '# 2. Delete the sample rows (rows 9-13) before importing',
-    '# 3. Save as CSV (comma separated) and upload in the app',
-    '#',
-    '# FIELD GUIDE:',
-    `# category       → Must match exactly: ${catNames}`,
-    '# price_kes      → Selling price in KES (required)',
-    '# cost_price_kes → Your buying/cost price (for profit calculation)',
-    '# compare_price  → Original/crossed-out price (leave blank if none)',
-    '# stock_qty      → Current stock on hand (0 if none)',
-    '# reorder_point  → Alert when stock drops to this level (default 5)',
-    '# unit           → piece / ml / g / kg / litre / box / set / dozen / service',
-    '# track_inventory→ true = track stock levels, false = unlimited',
-    '# is_taxable     → true = apply VAT, false = tax exempt',
-    '# ─────────────────────────────────────────────────────────────────',
-    '',
-  ].join('\n')
-
-  const header = CSV_HEADERS.join(',')
-  const samples = CSV_SAMPLE_ROWS.map(r => r.map(v => v.includes(',') ? `"${v}"` : v).join(',')).join('\n')
-  const content = notes + header + '\n' + samples + '\n'
-
-  const blob = new Blob([content], { type: 'text/csv' })
+    '# HOW TO USE: fill the two MUST FILL columns (name and price_kes). Everything else is optional.',
+    '# Delete the EXAMPLE row. These # lines are ignored by the import so you may leave them.',
+    '# category: type any name. New categories are created automatically.',
+    '# barcode: format that column as Text in Excel first or long numbers get damaged.',
+    '# stock_qty is the quantity you have now. unit: piece / ml / g / kg / litre / box / set / dozen / service',
+  ]
+  const content = [CSV_HEADERS.join(','), CSV_MARKER.join(','), example.join(',')].concat(notes).join('\r\n') + '\r\n'
+  const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -55,7 +34,7 @@ function downloadTemplate(categories) {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
-  toast.success('Template downloaded! Open in Excel or Google Sheets.')
+  toast.success('Template downloaded. Fill the two MUST FILL columns, save as CSV, then upload.')
 }
 
 // ─── PARSE CSV (handles quoted fields with commas) ─────────────────
@@ -122,6 +101,12 @@ function validateRow(row, categories, index) {
   if (!name.trim()) errors.push('Name is required')
   const price = parseFloat(row.price_kes || row.price || 0)
   if (!price || price <= 0) errors.push('Price must be > 0')
+  const skuKey = (row.sku || '').trim().toLowerCase()
+  if (skuKey && existingKeys.sku.has(skuKey)) errors.push('SKU "' + row.sku + '" already exists in your products')
+  const barKey = (row.barcode || '').trim()
+  if (barKey && existingKeys.barcode.has(barKey)) errors.push('Barcode "' + barKey + '" already exists in your products')
+  if (/e\+/i.test(barKey)) errors.push('Barcode was damaged by Excel. Format the barcode column as Text and type it again')
+  if (/^example\b/i.test((name || '').trim())) errors.push('This is the example row. Delete it or replace it')
   if (row.category) {
     const found = categories.find(c => c.name.toLowerCase() === row.category.toLowerCase())
     if (!found) errors.push(`Category "${row.category}" not found — will be left blank`)
@@ -130,7 +115,8 @@ function validateRow(row, categories, index) {
 }
 
 export default function ProductsPage() {
-  const { shop, loading: authLoading, isLocked } = useAuth()
+  const { shop, role, loading: authLoading, isLocked } = useAuth()
+  const canEdit = role === 'owner' || role === 'manager'
   const [products, setProducts]     = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading]       = useState(true)
@@ -177,16 +163,19 @@ export default function ProductsPage() {
         pb.collection(C.CATEGORIES).getList(1, 200, { filter:`shop_id="${shop.id}"`, '$autoCancel':false }).then(r=>r.items).catch(()=>[]),
       ])
       setProducts(prods)
+      existingKeys = { sku: new Set(prods.map(p => (p.sku || '').trim().toLowerCase()).filter(Boolean)), barcode: new Set(prods.map(p => (p.barcode || '').trim()).filter(Boolean)) }
       setCategories(cats)
     } finally { setLoading(false) }
   }
 
   const openNew  = () => {
+    if (!canEdit) return
     setEditing(null); setForm(EMPTY); setImageFiles([]); setImagePreview([]); setExistingImages([]); setRemovedImages([])
     setVariants([]); setDeletedVariantIds([])
     setShowModal(true)
   }
   const openEdit = async (p) => {
+    if (!canEdit) return
     setEditing(p); setForm({...p}); setImageFiles([]); setImagePreview([]); setExistingImages(p.images || []); setRemovedImages([])
     setDeletedVariantIds([])
     setShowModal(true)
@@ -243,6 +232,7 @@ export default function ProductsPage() {
 
   const handleSave = async (e) => {
     e.preventDefault()
+    if (!canEdit) return
 
     // Validate variants before anything is saved
     if (form.has_variants) {
@@ -316,6 +306,7 @@ export default function ProductsPage() {
   }
 
   const handleDelete = async (id) => {
+    if (!canEdit) return
     if (!confirm('Delete this product?')) return
     try { await pb.collection(C.PRODUCTS).delete(id); toast.success('Deleted'); loadData() }
     catch { toast.error('Delete failed') }
@@ -323,6 +314,7 @@ export default function ProductsPage() {
 
   const duplicateProduct = async (p) => {
     try {
+      if (!canEdit) return
       const { id, created, updated, collectionId, collectionName, expand, images, ...rest } = p
       await pb.collection(C.PRODUCTS).create({
         ...rest,
@@ -339,6 +331,7 @@ export default function ProductsPage() {
 
   // ── Bulk import CSV upload ──
   const handleCsvUpload = (e) => {
+    if (!canEdit) return
     const file = e.target.files[0]
     if (!file) return
     setBulkFile(file)
@@ -360,10 +353,13 @@ export default function ProductsPage() {
   }
 
   const handleBulkImport = async () => {
-    if (!bulkRows.length) return
+    if (!canEdit || !bulkRows.length) return
     setBulkImporting(true)
-    let success = 0, failed = 0, failedNames = []
-    for (const row of bulkRows) {
+    let success = 0, failed = 0, failedNames = [], skipped = []
+    for (let ri = 0; ri < bulkRows.length; ri++) {
+      const row = bulkRows[ri]
+      const rowErrs = (bulkValidation[ri]?.errors || []).filter(e => !e.includes('not found'))
+      if (rowErrs.length) { skipped.push((row.name || row.product_name || ('Row ' + (ri + 1))) + ': ' + rowErrs.join('; ')); continue }
       try {
         // Resolve category — create new one if it doesn't exist
         let catId = ''
@@ -409,7 +405,7 @@ export default function ProductsPage() {
         failedNames.push(row.name || row.product_name || 'Unknown')
       }
     }
-    setBulkResult({ success, failed, failedNames })
+    setBulkResult({ success, failed, failedNames, skipped })
     setBulkStep(3)
     setBulkImporting(false)
     loadData()
@@ -438,10 +434,11 @@ export default function ProductsPage() {
       <div className="page-header" style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:8 }}>
         <div>
           <div className="page-title">Products 📦</div>
+          {!canEdit && <div style={{ fontSize:12, color:'#b45309', marginBottom:4 }}>View only. Ask the owner or a manager to change products.</div>}
           <div className="page-subtitle">{products.length} products · {categories.length} categories</div>
         </div>
         <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-          <button className="btn-secondary" onClick={() => { setShowBulk(true); setBulkStep(1) }}><Upload size={15}/> Bulk Import</button>
+          {canEdit && <button className="btn-secondary" onClick={() => { setShowBulk(true); setBulkStep(1) }}><Upload size={15}/> Bulk Import</button>}
           <button className="btn-secondary" onClick={() => {
             if (isLocked) { toast.error('🔒 Renew your subscription to share the pricelist'); return }
             if (!filtered.length) { toast.error('No products to share'); return }
@@ -477,11 +474,11 @@ export default function ProductsPage() {
               }
             }, 100)
           }}>📋 Share Pricelist</button>
-          <button
+          {canEdit && <button
             className={view === 'margin' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => setView(v => v === 'table' ? 'margin' : 'table')}
-          ><BarChart2 size={15}/> {view === 'margin' ? 'Back to Table' : 'Margin Health'}</button>
-          <button className="btn-primary" onClick={openNew}><Plus size={15}/> Add Product</button>
+          ><BarChart2 size={15}/> {view === 'margin' ? 'Back to Table' : 'Margin Health'}</button>}
+          {canEdit && <button className="btn-primary" onClick={openNew}><Plus size={15}/> Add Product</button>}
         </div>
 
         {/* Hidden pricelist card for html2canvas capture */}
@@ -518,7 +515,7 @@ export default function ProductsPage() {
       </div>
 
       {/* Margin Health View */}
-      {view === 'margin' && !loading && (
+      {view === 'margin' && canEdit && !loading && (
         <div className="card" style={{ padding: '20px 24px' }}>
           <div style={{ marginBottom: 18 }}>
             <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', fontWeight: 700, marginBottom: 4 }}>Margin Health Dashboard</div>
@@ -580,7 +577,7 @@ export default function ProductsPage() {
               <thead>
                 <tr>
                   <th>Product</th><th>Category</th><th>Barcode / SKU</th>
-                  <th>Price</th><th>Cost</th><th>Margin</th><th>Stock</th><th>Status</th><th></th>
+                  <th>Price</th>{canEdit && <th>Cost</th>}{canEdit && <th>Margin</th>}<th>Stock</th><th>Status</th>{canEdit && <th></th>}
                 </tr>
               </thead>
               <tbody>
@@ -601,12 +598,12 @@ export default function ProductsPage() {
                       <td style={{ fontWeight:600 }}>
                         {p.has_variants ? <>from {fmtKES(p.price_kes)}</> : fmtKES(p.price_kes)}
                       </td>
-                      <td style={{ color:'#9b6070' }}>{fmtKES(p.cost_price_kes)}</td>
-                      <td>
+                      {canEdit && <td style={{ color:'#9b6070' }}>{fmtKES(p.cost_price_kes)}</td>}
+                      {canEdit && <td>
                         {margin !== null
                           ? <span style={{ background: margin>50?'#f0fdf4':margin>20?'#fefce8':'#fee2e2', color: margin>50?'#059669':margin>20?'#d97706':'#dc2626', padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:700 }}>{margin}%</span>
                           : '—'}
-                      </td>
+                      </td>}
                       <td>
                         {p.track_inventory
                           ? <span style={{ fontWeight:700, color: p.stock_qty<=0?'#dc2626':p.stock_qty<=(p.reorder_point||5)?'#d97706':'#059669' }}>{r2(p.stock_qty??0)}</span>
@@ -617,18 +614,18 @@ export default function ProductsPage() {
                           {p.status}
                         </span>
                       </td>
-                      <td>
+                      {canEdit && <td>
                         <div style={{ display:'flex', gap:5 }}>
                           <button className="btn-ghost" style={{ padding:'4px 8px' }} title="Edit" onClick={()=>openEdit(p)}><Edit2 size={13}/></button>
                           <button className="btn-ghost" style={{ padding:'4px 8px', color:'#3b82f6' }} title="Duplicate" onClick={()=>duplicateProduct(p)}><Copy size={13}/></button>
                           <button className="btn-ghost" style={{ padding:'4px 8px', color:'#dc2626' }} title="Delete" onClick={()=>handleDelete(p.id)}><Trash2 size={13}/></button>
                         </div>
-                      </td>
+                      </td>}
                     </tr>
                   )
                 })}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={9} style={{ textAlign:'center', padding:'48px 0', color:'#9b6070' }}>
+                  <tr><td colSpan={canEdit ? 9 : 6} style={{ textAlign:'center', padding:'48px 0', color:'#9b6070' }}>
                     {products.length === 0 ? 'No products yet — add your first product or bulk import from CSV' : 'No products match your search'}
                   </td></tr>
                 )}
@@ -854,9 +851,9 @@ export default function ProductsPage() {
                   {/* Steps guide */}
                   <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:20 }}>
                     {[
-                      { num:1, title:'Download the template', desc:'Click the button below to get a pre-filled CSV template with instructions and sample rows.' },
-                      { num:2, title:'Open in Excel or Google Sheets', desc:'Fill in your product details. Each row = one product. Delete the sample rows before importing.' },
-                      { num:3, title:'Match your categories exactly', desc:`Your current categories: ${categories.map(c=>c.name).join(', ') || 'None yet — add categories in Settings first'}` },
+                      { num:1, title:'Download the template', desc:'Click the button below. The file has two columns to fill: name and price_kes. The rest is optional.' },
+                      { num:2, title:'Open in Excel or Google Sheets', desc:'Each row is one product. Delete the EXAMPLE row. Only name and price_kes are required.' },
+                      { num:3, title:'Categories', desc:`Your current categories: ${categories.map(c=>c.name).join(', ') || 'None yet — add categories in Settings first'}` },
                       { num:4, title:'Save as CSV and upload', desc:'File → Save As → CSV (Comma Separated Values). Then come back and upload here.' },
                     ].map(s => (
                       <div key={s.num} style={{ display:'flex', gap:12, padding:'12px 14px', background:'#fdf5f7', borderRadius:10, border:'1px solid #f0e4e8' }}>
@@ -1085,6 +1082,12 @@ export default function ProductsPage() {
                   {bulkResult.failed > 0 && (
                     <div style={{ background:'#fef2f2', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:12, color:'#991b1b', textAlign:'left' }}>
                       <strong>Failed products:</strong> {bulkResult.failedNames.join(', ')}
+                    </div>
+                  )}
+                  {bulkResult.skipped && bulkResult.skipped.length > 0 && (
+                    <div style={{ background:'#fefce8', border:'1px solid #fde68a', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:12, color:'#92400e', textAlign:'left', maxHeight:160, overflowY:'auto' }}>
+                      <strong>{bulkResult.skipped.length} row(s) skipped and not imported:</strong>
+                      {bulkResult.skipped.map((s, i) => <div key={i} style={{ marginTop:3 }}>{s}</div>)}
                     </div>
                   )}
                   <p style={{ fontSize:13, color:'#9b6070', marginBottom:20 }}>
