@@ -41,9 +41,15 @@ export default function SalesPage() {
   const [recentlyVoided, setRecentlyVoided] = useState([])
   const [exporting, setExporting] = useState(false)
   const summaryReq = useRef(0)
+  const [searchQ, setSearchQ] = useState('')
+  const [refundPick, setRefundPick] = useState('')
+  useEffect(() => {
+    const tm = setTimeout(() => { setSearchQ(search.trim()); setPage(1) }, 400)
+    return () => clearTimeout(tm)
+  }, [search])
 
-  useEffect(() => { if (shop) loadSales() }, [shop, dateFrom, dateTo, statusFilter, page])
-  useEffect(() => { if (shop) loadSummary() }, [shop, dateFrom, dateTo, statusFilter])
+  useEffect(() => { if (shop) loadSales() }, [shop, dateFrom, dateTo, statusFilter, page, searchQ])
+  useEffect(() => { if (shop) loadSummary() }, [shop, dateFrom, dateTo, statusFilter, searchQ])
 
   const refreshAll = () => { loadSales(); loadSummary() }
 
@@ -54,17 +60,19 @@ export default function SalesPage() {
   const buildFilter = () => {
     const filters = [`shop_id="${shop.id}"`]
     if (isCashier) filters.push(`served_by="${pb.authStore.model?.id}"`)
-    if (statusFilter === 'credit') filters.push(`payment_status="pending"`)
+    if (statusFilter === 'credit') filters.push('((payment_status="pending" || payment_status="partial") && status!="voided")')
     else if (statusFilter) filters.push(`status="${statusFilter}"`)
+    if (searchQ) {
+      const q = searchQ.replace(/["\\]/g, '')
+      if (q) filters.push('(receipt_no ~ "' + q + '" || customer_id.name ~ "' + q + '")')
+    }
     // Day bounds are the start and end of the picked days in local time
     if (dateFrom) filters.push(`created >= "${dayStart(dateFrom)}"`)
     if (dateTo) filters.push(`created <= "${dayEnd(dateTo)}"`)
     return filters.join(' && ')
   }
 
-  const matchesSearch = (s) =>
-    !search || s.receipt_no?.toLowerCase().includes(search.toLowerCase()) ||
-    s.expand?.customer_id?.name?.toLowerCase().includes(search.toLowerCase())
+  const matchesSearch = () => true // search is done by the server (see buildFilter)
 
   const loadPaid = async (items) => {
     const ids = items.filter(s => s.payment_status === 'pending').map(s => s.id)
@@ -91,9 +99,10 @@ export default function SalesPage() {
         sort: '-created',
         expand: 'customer_id,served_by'
       })
-      setSales(res.items)
+      const rows = res.items.map(s => s.payment_status === 'partial' ? { ...s, payment_status: 'pending' } : s) // partial credit is treated as still owed
+      setSales(rows)
       setTotal(res.totalItems)
-      await loadPaid(res.items)
+      await loadPaid(rows)
     } catch (err) {
       if (!err?.isAbort) toast.error('Could not load sales: ' + (err?.message || 'Unknown error'), { id: 'sales-load-err' })
     } finally { setLoading(false) }
@@ -114,7 +123,7 @@ export default function SalesPage() {
       all.forEach(s => {
         if (s.status === 'voided' || s.status === 'refunded') return // not real income
         count++
-        if (s.payment_status === 'pending') credit.push(s)
+        if (s.payment_status === 'pending' || s.payment_status === 'partial') credit.push(s)
         else { revenue += s.total_kes || 0; profit += s.gross_profit_kes || 0; paidCount++ }
       })
       let outstanding = 0
@@ -160,40 +169,79 @@ export default function SalesPage() {
   }
 
   const voidSale = async (sale) => {
-    if (!confirm(`Void sale ${sale.receipt_no}? This cannot be undone.`)) return
+    if (isCashier) return
+    const reason = (window.prompt('Why are you voiding ' + sale.receipt_no + '? A reason is required.\nThe items will go back on the shelf.') || '').trim()
+    if (!reason) return toast.error('A reason is needed to void a sale')
     try {
-      await pb.collection(C.SALES).update(sale.id, { status: 'voided' })
-      toast.success('Sale voided')
+      if (sale.payment_status === 'pending') {
+        const ps = await pb.collection(PAYMENTS).getList(1, 1, { filter: 'sale_id="' + sale.id + '"', '$autoCancel': false, '$cancelKey': 'void-check' })
+        if (ps.totalItems > 0) return toast.error('This credit sale already has payments recorded, so it cannot be voided here.')
+      }
+      const fresh = await pb.collection(C.SALES).getOne(sale.id)
+      if (fresh.status === 'voided') return toast.error('This sale is already voided')
+      await pb.collection(C.SALES).update(sale.id, { status: 'voided', notes: (fresh.notes || '') + '\n[VOID] ' + reason + ' on ' + format(new Date(), 'dd/MM/yyyy HH:mm') })
+      const items = await pb.collection(C.SALE_ITEMS).getFullList({ filter: 'sale_id="' + sale.id + '"', '$autoCancel': false, '$cancelKey': 'void-items' })
+      let back = 0, skipped = 0, noRecord = 0
+      for (const item of items) {
+        try {
+          if (!item.product_id) { skipped++; continue }
+          const prod = await pb.collection(C.PRODUCTS).getOne(item.product_id)
+          if (!prod.track_inventory) continue
+          if (prod.has_variants) { skipped++; continue }
+          const q = Number(item.qty || 0)
+          if (q <= 0) continue
+          const before = Number(prod.stock_qty || 0)
+          const after = r2(before + q)
+          await pb.collection(C.PRODUCTS).update(prod.id, { stock_qty: after })
+          try {
+            await pb.collection(C.INV_MOVEMENTS).create({
+              shop_id: shop.id, product_id: prod.id, type: 'return', qty: q,
+              before_qty: before, after_qty: after,
+              reference: 'Void ' + sale.receipt_no, notes: 'Sale voided: ' + reason,
+              created_by: pb.authStore.model?.id
+            })
+          } catch { noRecord++ }
+          back++
+        } catch { skipped++ }
+      }
+      toast.success('Sale voided. ' + back + ' item line(s) put back on the shelf.')
+      if (skipped > 0) toast.error(skipped + ' item line(s) could not be put back (variants or errors). Check Inventory.', { duration: 7000 })
+      if (noRecord > 0) toast.error(noRecord + ' stock record(s) were not written. Stock is correct but Movements lacks the row.', { duration: 7000 })
       refreshAll()
-    } catch { toast.error('Failed to void sale') }
+    } catch (err) { toast.error('Failed to void sale: ' + (err?.message || 'Unknown error')) }
   }
 
   const markPaid = async (sale) => {
     if (isCashier) return // the bs_sales update rule only allows owner/manager
     const due = balanceOf(sale)
-    if (!confirm(`Mark ${sale.receipt_no} as paid? This records ${fmtKES(due)} received in cash.`)) return
+    const ans = (window.prompt('How was ' + fmtKES(due) + ' for ' + sale.receipt_no + ' paid?\nType 1 for Cash or 2 for M-Pesa.', '1') || '').trim()
+    if (!ans) return
+    if (ans !== '1' && ans !== '2') return toast.error('Type 1 for Cash or 2 for M-Pesa')
+    const method = ans === '2' ? 'mpesa' : 'cash'
+    const ref = method === 'mpesa' ? (window.prompt('M-Pesa code (optional)') || '').trim() : ''
     try {
       const customerId = sale.customer_id || sale.expand?.customer_id?.id || null
       // Record the remaining balance as a payment (re-read first so nothing is counted twice)
       if (customerId) {
-        const existing = await pb.collection(PAYMENTS).getFullList({ filter: `sale_id="${sale.id}"`, '$autoCancel': false, '$cancelKey': 'mark-paid-existing' })
+        const existing = await pb.collection(PAYMENTS).getFullList({ filter: 'sale_id="' + sale.id + '"', '$autoCancel': false, '$cancelKey': 'mark-paid-existing' })
         const already = existing.reduce((s, p) => s + (Number(p.amount_kes) || 0), 0)
         const remaining = r2((sale.total_kes || 0) - already)
         if (remaining > 0.005) {
           await pb.collection(PAYMENTS).create({
             shop_id: shop.id, customer_id: customerId, sale_id: sale.id,
-            amount_kes: remaining, method: 'cash', paid_on: new Date().toISOString(),
+            amount_kes: remaining, method: method, paid_on: new Date().toISOString(),
+            ...(ref ? { payment_ref: ref } : {}),
             created_by: pb.authStore.model?.id || null,
           })
         }
       }
-      await pb.collection(C.SALES).update(sale.id, { payment_status: 'paid', payment_method: 'cash', notes: (sale.notes || '') + ' | PAID ' + new Date().toLocaleDateString('en-KE') })
+      await pb.collection(C.SALES).update(sale.id, { payment_status: 'paid', payment_method: method, notes: (sale.notes || '') + ' | PAID ' + new Date().toLocaleDateString('en-KE') })
       // Add to customer total paid (fresh read so an older screen cannot overwrite a newer total)
       if (customerId) {
         const c = await pb.collection(C.CUSTOMERS).getOne(customerId)
         await pb.collection(C.CUSTOMERS).update(c.id, { total_spent_kes: (c.total_spent_kes || 0) + (sale.total_kes || 0) })
       }
-      toast.success('✅ Marked as paid!')
+      toast.success('Marked as paid (' + (method === 'mpesa' ? 'M-Pesa' : 'cash') + ')')
       refreshAll()
     } catch (err) { toast.error('Failed: ' + (err?.message || 'Unknown error')) }
   }
@@ -405,7 +453,7 @@ export default function SalesPage() {
         ))}
       </div>
       <div style={{ fontSize: 11, color: '#9b6070', marginBottom: 20 }}>
-        These cards cover all {total} records in the dates and status chosen above, not only this page. Voided and refunded sales are not counted.
+        These cards cover all {total} records in the dates and status chosen above, not only this page. Revenue and Gross Profit count paid sales only. Unpaid credit is shown under Total Outstanding, so Revenue here can be lower than the Dashboard, which counts credit sales when they are made. Voided and refunded sales are not counted (a part-refund removes the whole sale from these cards).
       </div>
 
       {/* Table */}
@@ -453,7 +501,7 @@ export default function SalesPage() {
                     </td>
                     {!isCashier && <td>
                       <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: sale.etims_status === 'success' ? '#f0fdf4' : sale.etims_status === 'failed' ? '#fee2e2' : '#fefce8', color: sale.etims_status === 'success' ? '#059669' : sale.etims_status === 'failed' ? '#dc2626' : '#d97706' }}>
-                        {sale.etims_status || 'pending'}
+                        {sale.etims_status || 'Not sent'}
                       </span>
                     </td>}
                     <td>
@@ -466,13 +514,14 @@ export default function SalesPage() {
                         <button className="btn-ghost" style={{ padding: '5px 10px' }} aria-label="View receipt" title="View receipt" onClick={() => viewSale(sale)}><Eye size={14} /></button>
                         {sale.payment_status === 'pending' && (
                           <>
+                            {!isCashier && sale.status === 'completed' && <button className="btn-ghost" style={{ padding: '5px 10px', color: '#dc2626', fontSize: 11 }} onClick={() => voidSale(sale)}>Void</button>}
                             {!isCashier && <button onClick={() => markPaid(sale)} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0fdf4', color: '#059669', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>✅ Paid</button>}
                             <button onClick={() => sendWhatsAppReminder(sale)} aria-label="Send WhatsApp reminder" title="Send WhatsApp reminder" style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0fdf4', color: '#25D366', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>📲</button>
                           </>
                         )}
                         {!isCashier && sale.status === 'completed' && sale.payment_status !== 'pending' && (
                           <>
-                            <button onClick={() => { setRefundSale(sale); setRefundAmount(String(sale.total_kes || '')); setRefundReason(''); setShowRefundModal(true) }} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}><Undo2 size={11} style={{ display: 'inline', marginRight: 3 }} /> Refund</button>
+                            <button onClick={() => { setRefundSale(sale); setRefundAmount(String(sale.total_kes || '')); setRefundReason(''); setRefundPick(''); setShowRefundModal(true) }} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}><Undo2 size={11} style={{ display: 'inline', marginRight: 3 }} /> Refund</button>
                             <button onClick={() => repeatSale(sale)} style={{ padding: '4px 10px', borderRadius: 8, border: 'none', background: '#f0f9ff', color: '#0369a1', fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}><Copy size={11} style={{ display: 'inline', marginRight: 3 }} /> Repeat</button>
                             <button className="btn-ghost" style={{ padding: '5px 10px', color: '#dc2626', fontSize: 11 }} onClick={() => voidSale(sale)}>Void</button>
                           </>
@@ -521,7 +570,7 @@ export default function SalesPage() {
 
               <div style={{ marginBottom: 14 }}>
                 <label className="label">Reason *</label>
-                <select className="input" value={refundReason} onChange={e => setRefundReason(e.target.value)} style={{ marginBottom: 8 }}>
+                <select className="input" value={refundPick} onChange={e => { setRefundPick(e.target.value); setRefundReason(e.target.value === 'Other' ? '' : e.target.value) }} style={{ marginBottom: 8 }}>
                   <option value="">Select reason…</option>
                   <option value="Customer not satisfied">Customer not satisfied</option>
                   <option value="Damaged product">Damaged product</option>
@@ -530,8 +579,8 @@ export default function SalesPage() {
                   <option value="System error">System error</option>
                   <option value="Other">Other</option>
                 </select>
-                {refundReason === 'Other' && (
-                  <input className="input" placeholder="Explain reason…" onChange={e => setRefundReason(e.target.value)} style={{ marginTop: 6 }} />
+                {refundPick === 'Other' && (
+                  <input className="input" value={refundReason} placeholder="Explain reason…" onChange={e => setRefundReason(e.target.value)} style={{ marginTop: 6 }} />
                 )}
               </div>
 
