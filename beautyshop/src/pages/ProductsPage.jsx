@@ -10,19 +10,23 @@ const EMPTY = { name:'', sku:'', barcode:'', category_id:'', description:'', uni
 // ─── CSV TEMPLATE ─────────────────────────────────────────────────
 let existingKeys = { sku: new Set(), barcode: new Set() }
 
-const CSV_HEADERS = ['name','price_kes','category','cost_price_kes','stock_qty','reorder_point','barcode','sku','brand','unit','compare_price_kes','description','track_inventory','is_taxable','tags']
-const CSV_MARKER = ['#MUST FILL','MUST FILL','optional','optional','optional','optional','optional','optional','optional','optional','optional','optional','optional','optional','optional']
+const isFalseText = (v) => String(v || '').trim().toLowerCase() === 'false'
+const stockBlankOf = (r) => !isFalseText(r.track_inventory) && !String(r.stock_qty || r.stock || '').trim()
+
+const CSV_HEADERS = ['name','price_kes','cost_price_kes','stock_qty','category','reorder_point','barcode','sku','brand','unit','compare_price_kes','description','track_inventory','is_taxable','tags']
+const CSV_MARKER = ['#MUST','MUST','SHOULD','SHOULD','SHOULD','optional','optional','optional','optional','optional','optional','optional','optional','optional','optional']
 
 function downloadTemplate(categories) {
   const catName = (categories[0] && categories[0].name) ? categories[0].name : 'General'
   const catCell = catName.includes(',') ? '"' + catName + '"' : catName
-  const example = ['EXAMPLE - delete this row','100',catCell,'60','10','5','','EX-001','','piece','','','true','true','']
+  const example = ['EXAMPLE - delete this row','100','60','10',catCell,'5','','EX-001','','piece','','','true','true','']
   const notes = [
-    '# HOW TO USE: fill the two MUST FILL columns (name and price_kes). Everything else is optional.',
-    '# Delete the EXAMPLE row. These # lines are ignored by the import so you may leave them.',
+    '# HOW TO USE: fill the MUST columns (name and price_kes). Delete the EXAMPLE row. Lines starting with # are ignored.',
+    '# SHOULD columns can be left blank but blank cost makes profit wrong and blank stock means 0 on hand.',
     '# category: type any name. New categories are created automatically.',
+    '# services: set track_inventory to false and leave stock_qty blank.',
     '# barcode: format that column as Text in Excel first or long numbers get damaged.',
-    '# stock_qty is the quantity you have now. unit: piece / ml / g / kg / litre / box / set / dozen / service',
+    '# unit: piece / ml / g / kg / litre / box / set / dozen / service',
   ]
   const content = [CSV_HEADERS.join(','), CSV_MARKER.join(','), example.join(',')].concat(notes).join('\r\n') + '\r\n'
   const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8' })
@@ -34,7 +38,7 @@ function downloadTemplate(categories) {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
-  toast.success('Template downloaded. Fill the two MUST FILL columns, save as CSV, then upload.')
+  toast.success('Template downloaded. Fill the MUST and SHOULD columns, save as CSV, then upload.')
 }
 
 // ─── PARSE CSV (handles quoted fields with commas) ─────────────────
@@ -396,8 +400,8 @@ export default function ProductsPage() {
           description: row.description || '',
           tags: row.tags || '',
           status: 'active',
-          track_inventory: row.track_inventory !== 'false',
-          is_taxable: row.is_taxable !== 'false',
+          track_inventory: !isFalseText(row.track_inventory),
+          is_taxable: !isFalseText(row.is_taxable),
         })
         success++
       } catch (err) {
@@ -851,9 +855,9 @@ export default function ProductsPage() {
                   {/* Steps guide */}
                   <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:20 }}>
                     {[
-                      { num:1, title:'Download the template', desc:'Click the button below. The file has two columns to fill: name and price_kes. The rest is optional.' },
-                      { num:2, title:'Open in Excel or Google Sheets', desc:'Each row is one product. Delete the EXAMPLE row. Only name and price_kes are required.' },
-                      { num:3, title:'Categories', desc:`Your current categories: ${categories.map(c=>c.name).join(', ') || 'None yet — add categories in Settings first'}` },
+                      { num:1, title:'Download the template', desc:'Click the button below. Row 2 of the file marks every column MUST, SHOULD or optional.' },
+                      { num:2, title:'Open in Excel or Google Sheets', desc:'Each row is one product. Delete the EXAMPLE row. Fill name and price_kes (MUST). Fill cost and stock too (SHOULD) or profit and stock will be wrong.' },
+                      { num:3, title:'Categories', desc:`Your current categories: ${categories.map(c=>c.name).join(', ') || 'None yet. New categories are created automatically'}` },
                       { num:4, title:'Save as CSV and upload', desc:'File → Save As → CSV (Comma Separated Values). Then come back and upload here.' },
                     ].map(s => (
                       <div key={s.num} style={{ display:'flex', gap:12, padding:'12px 14px', background:'#fdf5f7', borderRadius:10, border:'1px solid #f0e4e8' }}>
@@ -999,6 +1003,19 @@ export default function ProductsPage() {
                   <div style={{ fontSize:12, fontWeight:700, color:'#3d1020', marginBottom:8 }}>
                     Preview — {bulkRows.length} products from {bulkFile?.name}
                   </div>
+                  {(() => {
+                    const blankCost = bulkRows.filter(r => !String(r.cost_price_kes || r.cost || '').trim()).length
+                    const blankStock = bulkRows.filter(r => stockBlankOf(r)).length
+                    if (!blankCost && !blankStock) return null
+                    return (
+                      <div style={{ background:'#fffbeb', border:'1px solid #fde68a', borderRadius:10, padding:'10px 14px', marginBottom:12, fontSize:12, color:'#92400e' }}>
+                        <strong>Check before importing:</strong>
+                        {blankCost > 0 && <div>{blankCost} product(s) have no cost price, so their profit and margin will be wrong.</div>}
+                        {blankStock > 0 && <div>{blankStock} product(s) have no stock quantity, so they will show 0 on hand.</div>}
+                        <div style={{ marginTop:4 }}>You can still import. Fix the file and re-upload, or edit the product later.</div>
+                      </div>
+                    )
+                  })()}
                   <div className="table-wrap" style={{ maxHeight:260, overflowY:'auto', marginBottom:16, borderRadius:10, border:'1px solid #f0e4e8' }}>
                     <table>
                       <thead>
@@ -1031,8 +1048,8 @@ export default function ProductsPage() {
                                   : '—'}
                               </td>
                               <td style={{ fontSize:12 }}>KES {row.price_kes||row.price||'0'}</td>
-                              <td style={{ fontSize:12, color:'#9b6070' }}>KES {row.cost_price_kes||row.cost||'0'}</td>
-                              <td style={{ fontSize:12 }}>{row.stock_qty||row.stock||'0'}</td>
+                              <td style={{ fontSize:12, color: String(row.cost_price_kes||row.cost||'').trim() ? '#9b6070' : '#d97706', fontWeight: String(row.cost_price_kes||row.cost||'').trim() ? 400 : 700 }}>{String(row.cost_price_kes||row.cost||'').trim() ? 'KES ' + (row.cost_price_kes||row.cost) : 'blank'}</td>
+                              <td style={{ fontSize:12, color: stockBlankOf(row) ? '#d97706' : undefined, fontWeight: stockBlankOf(row) ? 700 : 400 }}>{stockBlankOf(row) ? 'blank' : (String(row.stock_qty||row.stock||'').trim() ? (row.stock_qty||row.stock) : '-')}</td>
                               <td style={{ fontSize:11, fontFamily:'monospace', color:'#9b6070' }}>{row.barcode||'—'}</td>
                             </tr>
                           )
