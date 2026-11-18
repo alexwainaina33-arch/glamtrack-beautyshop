@@ -8,13 +8,25 @@ import toast from 'react-hot-toast'
 const EMPTY_SUPPLIER = { name: '', phone: '', email: '', address: '', notes: '', payment_terms: 'net30', credit_limit: '' }
 
 export default function SuppliersPage() {
-  const { shop, loading: authLoading } = useAuth()
+  const { shop, loading: authLoading, role, isLocked } = useAuth()
+  const canPay = role === 'owner' || role === 'manager'
   const [suppliers, setSuppliers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(EMPTY_SUPPLIER)
   const [saving, setSaving] = useState(false)
+  const [moves, setMoves] = useState([])
+  const [pays, setPays] = useState([])
+  const [ledgerOk, setLedgerOk] = useState(false)
+  const [payFor, setPayFor] = useState(null)
+  const [payBal, setPayBal] = useState(0)
+  const [payAmt, setPayAmt] = useState('')
+  const [payMethod, setPayMethod] = useState('cash')
+  const [payDate, setPayDate] = useState('')
+  const [payRef, setPayRef] = useState('')
+  const [paySaving, setPaySaving] = useState(false)
+  const [histFor, setHistFor] = useState(null)
 
   // We store suppliers in bs_customers with a tag — or use a simple local state + PocketBase
   // For simplicity we use bs_customers with notes="SUPPLIER"
@@ -29,7 +41,53 @@ export default function SuppliersPage() {
         sort: 'name'
       }).then(r => r.items)
       setSuppliers(res)
+      loadLedger()
     } finally { setLoading(false) }
+  }
+
+  const loadLedger = async () => {
+    try {
+      const [mv, py] = await Promise.all([
+        pb.collection(C.INV_MOVEMENTS).getFullList({ filter: 'shop_id="' + shop.id + '" && funding_source="payable"', '$autoCancel': false }),
+        pb.collection('bs_supplier_payments').getFullList({ filter: 'shop_id="' + shop.id + '"', sort: '-paid_on', '$autoCancel': false }),
+      ])
+      setMoves(mv); setPays(py); setLedgerOk(true)
+    } catch (e) { console.warn('supplier ledger load failed', e); setLedgerOk(false) }
+  }
+
+  const openPay = (name, bal) => {
+    setPayFor(name)
+    setPayBal(bal)
+    setPayAmt(String(bal))
+    setPayMethod('cash')
+    setPayDate(new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10))
+    setPayRef('')
+  }
+
+  const savePayment = async (e) => {
+    e.preventDefault()
+    if (isLocked) return toast.error('Account locked. Renew your subscription to record payments.')
+    if (!canPay) return toast.error('Only the owner or a manager can record supplier payments')
+    const amt = Math.round(Number(payAmt) * 100) / 100
+    if (!amt || isNaN(amt) || amt <= 0) return toast.error('Enter an amount above 0')
+    if (amt > payBal + 0.005) return toast.error('That is more than the balance owed (' + fmtKES(payBal) + ')')
+    if (!payDate || payDate.length !== 10) return toast.error('Choose the payment date')
+    setPaySaving(true)
+    try {
+      await pb.collection('bs_supplier_payments').create({
+        shop_id: shop.id,
+        supplier_name: payFor,
+        amount_kes: amt,
+        method: payMethod,
+        paid_on: payDate + ' 12:00:00.000Z',
+        reference: payRef.trim(),
+        created_by: pb.authStore.model?.id,
+      })
+      toast.success('Payment recorded')
+      setPayFor(null)
+      await loadLedger()
+    } catch (err) { toast.error(err?.message || 'Payment not saved') }
+    finally { setPaySaving(false) }
   }
 
   const handleSave = async (e) => {
@@ -89,6 +147,18 @@ export default function SuppliersPage() {
     sendWhatsApp(supplier, msg)
   }
 
+  const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100
+  const norm = (t) => String(t || '').trim().toLowerCase()
+  const owedBy = {}
+  const paidBy = {}
+  moves.forEach(m => { const k = norm(m.supplier_name); owedBy[k] = (owedBy[k] || 0) + Math.abs(m.qty || 0) * (m.cost_per_unit || 0) })
+  pays.forEach(p => { const k = norm(p.supplier_name); paidBy[k] = (paidBy[k] || 0) + (Number(p.amount_kes) || 0) })
+  const cardNames = new Set(suppliers.map(s => norm(s.name)))
+  let unOwed = 0, unPaid = 0
+  Object.keys(owedBy).forEach(k => { if (!cardNames.has(k)) unOwed += owedBy[k] })
+  Object.keys(paidBy).forEach(k => { if (!cardNames.has(k)) unPaid += paidBy[k] })
+  const unassigned = r2(unOwed - unPaid)
+  const totalOwed = r2(Object.values(owedBy).reduce((a, b) => a + b, 0) - Object.values(paidBy).reduce((a, b) => a + b, 0))
   const TERMS = ['immediate', 'net7', 'net14', 'net30', 'net60', 'cod', 'prepaid']
 
   return (
@@ -102,6 +172,16 @@ export default function SuppliersPage() {
           <Plus size={16} /> Add Supplier
         </button>
       </div>
+
+      {ledgerOk && (Math.abs(totalOwed) > 0.005 || Math.abs(unassigned) > 0.005) && (
+        <div className="card" style={{ marginBottom: 16, background: '#fffbeb', border: '1px solid #fde68a' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+            <span style={{ fontWeight: 700, color: '#92400e' }}>Total owed to suppliers (same as Trade payables in Reports)</span>
+            <span style={{ fontFamily: 'Playfair Display,serif', fontSize: 22, fontWeight: 700, color: '#d97706' }}>{fmtKES(totalOwed)}</span>
+          </div>
+          {Math.abs(unassigned) > 0.005 && <div style={{ fontSize: 12, color: '#92400e', marginTop: 6 }}>Of this, {fmtKES(unassigned)} has no supplier name, or no supplier card with the same name. Add a card with the exact name used in Inventory to manage it here.</div>}
+        </div>
+      )}
 
       {suppliers.length === 0 && !loading ? (
         <div className="card" style={{ textAlign: 'center', padding: 48 }}>
@@ -146,6 +226,22 @@ export default function SuppliersPage() {
 
                 {s.email && <div style={{ fontSize: 12, color: '#9b6070', marginBottom: 8 }}>📧 {s.email}</div>}
 
+                {ledgerOk && (() => {
+                  const k = norm(s.name)
+                  const o = r2(owedBy[k] || 0), pd = r2(paidBy[k] || 0), bal = r2(o - pd)
+                  return (
+                    <div style={{ background: '#fdf5f7', borderRadius: 10, padding: '10px 12px', marginBottom: 8, fontSize: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Owed (incl. transport)</span><strong>{fmtKES(o)}</strong></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Paid</span><strong>{fmtKES(pd)}</strong></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f0e4e8', marginTop: 4, paddingTop: 4 }}><span>Balance</span><strong style={{ color: bal > 0 ? '#dc2626' : '#059669' }}>{fmtKES(bal)}</strong></div>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                        {canPay && <button type="button" className="btn-primary" style={{ flex: 1, fontSize: 12, padding: '6px 10px' }} disabled={bal <= 0.005} onClick={() => openPay(s.name, bal)}>Record payment</button>}
+                        {pd > 0 && <button type="button" className="btn-ghost" style={{ fontSize: 12 }} onClick={() => setHistFor(s.name)}>History</button>}
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 <div style={{ display: 'flex', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid #f5edf0' }}>
                   <button
                     onClick={() => sendPOWhatsApp(s)}
@@ -161,6 +257,56 @@ export default function SuppliersPage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {payFor !== null && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setPayFor(null)}>
+          <div className="modal" style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <span className="modal-title">Record payment</span>
+              <button onClick={() => setPayFor(null)} className="btn-ghost" style={{ padding: 8 }}><X size={18} /></button>
+            </div>
+            <div className="modal-body">
+              <form onSubmit={savePayment} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ background: '#fce8ed', borderRadius: 10, padding: '10px 14px', fontSize: 14 }}><strong>{payFor}</strong> - balance owed <strong>{fmtKES(payBal)}</strong></div>
+                <div><label className="label">Amount paid (KES) *</label><input className="input" type="number" min={0.01} step="0.01" inputMode="decimal" required value={payAmt} onChange={e => setPayAmt(e.target.value)} /></div>
+                <div><label className="label">Paid by *</label>
+                  <select className="input" value={payMethod} onChange={e => setPayMethod(e.target.value)}>
+                    <option value="cash">Cash</option>
+                    <option value="mpesa">M-Pesa</option>
+                    <option value="bank">Bank transfer</option>
+                  </select>
+                </div>
+                <div><label className="label">Payment date *</label><input className="input" type="date" required value={payDate} onChange={e => setPayDate(e.target.value)} /></div>
+                <div><label className="label">Reference</label><input className="input" value={payRef} onChange={e => setPayRef(e.target.value)} placeholder="e.g. M-Pesa code or invoice number" /></div>
+                <div style={{ fontSize: 11, color: '#9b6070' }}>This lowers what you owe and your cash by the same amount. A saved payment cannot be edited here.</div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setPayFor(null)}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={paySaving}>{paySaving ? 'Saving...' : 'Save payment'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {histFor !== null && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setHistFor(null)}>
+          <div className="modal" style={{ maxWidth: 460 }}>
+            <div className="modal-header">
+              <span className="modal-title">Payments to {histFor}</span>
+              <button onClick={() => setHistFor(null)} className="btn-ghost" style={{ padding: 8 }}><X size={18} /></button>
+            </div>
+            <div className="modal-body">
+              {pays.filter(p => norm(p.supplier_name) === norm(histFor)).map(p => (
+                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f5edf0', fontSize: 13 }}>
+                  <span>{String(p.paid_on || '').slice(0, 10)} - {p.method}{p.reference ? ' - ' + p.reference : ''}</span>
+                  <strong>{fmtKES(p.amount_kes)}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

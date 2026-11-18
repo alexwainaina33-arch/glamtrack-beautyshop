@@ -334,7 +334,7 @@ export default function ReportsPage() {
       cf.inflowRows.forEach(r => { inflowByMethod[r.method] = r.total })
 
       setCfData({
-        openingCash: cf.openingCash, closingCash: cf.closingCash, stockPurchases: cf.stockPurchases, expensesPaid: cf.expensesPaid, undatedCount: cf.undatedCount, undatedTotal: cf.undatedTotal,
+        openingCash: cf.openingCash, closingCash: cf.closingCash, stockPurchases: cf.stockPurchases, expensesPaid: cf.expensesPaid, supplierPaid: cf.supplierPaid || 0, undatedCount: cf.undatedCount, undatedTotal: cf.undatedTotal,
         totalInflows: cf.totalInflows,
         totalOutflows: cf.totalOutflows,
         netCashFlow: cf.netCashFlow,
@@ -887,7 +887,7 @@ export default function ReportsPage() {
               <div className="stat-grid-3" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:20 }}>
                 {[
                   {label:'Receipts from customers',value:fmtKES(cfData.totalInflows),color:'#059669',icon:'💰',sub:`${cfData.cashSalesCount} receipts received`},
-                  {label:'Payments (expenses and stock)',value:fmtKES(cfData.totalOutflows),color:'#dc2626',icon:'💸',sub:'Expenses and cash stock purchases'},
+                  {label:'Payments (expenses and stock)',value:fmtKES(cfData.totalOutflows),color:'#dc2626',icon:'💸',sub:'Expenses, cash stock and supplier payments'},
                   {label:'Net cash from operating activities',value:fmtKES(cfData.netCashFlow),color:cfData.netCashFlow>=0?'#059669':'#dc2626',icon:cfData.netCashFlow>=0?'✅':'⚠️',sub:cfData.netCashFlow>=0?'Positive cash position':'Negative cash position'},
                 ].map((kpi,i) => (
                   <div key={i} className="stat-card">
@@ -906,6 +906,7 @@ export default function ReportsPage() {
                   <PLRow label="Receipts from customers" value={cfData.totalInflows} indent/>
                   <PLRow label="Cash paid for inventories" value={cfData.stockPurchases} negative indent/>
                   <PLRow label="Payments for operating expenses" value={cfData.expensesPaid} negative indent/>
+                  {cfData.supplierPaid > 0 && <PLRow label="Payments to suppliers" value={cfData.supplierPaid} negative indent/>}
                   <PLRow label="Net cash from operating activities" value={cfData.netCashFlow} bold border color={cfData.netCashFlow>=0?'#059669':'#dc2626'}/>
                 </PLSection>
                 <div style={{ height:10 }}/>
