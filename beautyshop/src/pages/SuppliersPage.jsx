@@ -90,6 +90,8 @@ export default function SuppliersPage() {
     finally { setPaySaving(false) }
   }
 
+  const clean = (t) => String(t || '').replace(/\|/g, '/')
+
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
@@ -99,7 +101,7 @@ export default function SuppliersPage() {
         name: form.name,
         phone: form.phone,
         email: form.email,
-        notes: `__SUPPLIER__ | Terms: ${form.payment_terms} | Limit: ${form.credit_limit} | Addr: ${form.address} | ${form.notes}`,
+        notes: `__SUPPLIER__ | Terms: ${form.payment_terms} | Limit: ${form.credit_limit} | Addr: ${clean(form.address)} | ${clean(form.notes)}`,
         loyalty_points: 0,
         total_spent_kes: 0,
         visit_count: 0,
@@ -135,7 +137,7 @@ export default function SuppliersPage() {
   }
 
   const sendWhatsApp = (supplier, message) => {
-    const phone = supplier.phone?.replace(/\D/g, '')
+    let phone = (supplier.phone || '').replace(/\D/g, ''); if (phone.startsWith('0')) phone = '254' + phone.slice(1); else if (phone.length === 9 && /^[17]/.test(phone)) phone = '254' + phone
     if (!phone) return toast.error('No phone number for this supplier')
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
     window.open(url, '_blank')
@@ -228,12 +230,13 @@ export default function SuppliersPage() {
 
                 {ledgerOk && (() => {
                   const k = norm(s.name)
-                  const o = r2(owedBy[k] || 0), pd = r2(paidBy[k] || 0), bal = r2(o - pd)
+                  const o = r2(owedBy[k] || 0), pd = r2(paidBy[k] || 0), bal = r2(o - pd), lim = Number(limit) || 0, over = lim > 0 && bal > lim
                   return (
                     <div style={{ background: '#fdf5f7', borderRadius: 10, padding: '10px 12px', marginBottom: 8, fontSize: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Owed (incl. transport)</span><strong>{fmtKES(o)}</strong></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Paid</span><strong>{fmtKES(pd)}</strong></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f0e4e8', marginTop: 4, paddingTop: 4 }}><span>Balance</span><strong style={{ color: bal > 0 ? '#dc2626' : '#059669' }}>{fmtKES(bal)}</strong></div>
+                      {over && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 4, fontWeight: 700 }}>Over the credit limit of {fmtKES(lim)} by {fmtKES(r2(bal - lim))}</div>}
                       <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                         {canPay && <button type="button" className="btn-primary" style={{ flex: 1, fontSize: 12, padding: '6px 10px' }} disabled={bal <= 0.005} onClick={() => openPay(s.name, bal)}>Record payment</button>}
                         {pd > 0 && <button type="button" className="btn-ghost" style={{ fontSize: 12 }} onClick={() => setHistFor(s.name)}>History</button>}

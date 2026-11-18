@@ -49,6 +49,7 @@ export default function InventoryPage() {
   const [importFunding, setImportFunding] = useState('owner_capital')
   const [importSupplier, setImportSupplier] = useState('')
   const [importErrors, setImportErrors] = useState([])
+  const [supplierNames, setSupplierNames] = useState(null)
 
   useEffect(() => {
     if (tab !== 'valuation' || !shop || !valFrom) return
@@ -70,6 +71,15 @@ export default function InventoryPage() {
   }, [tab, valFrom, shop, repTick])
 
   useEffect(() => { if (shop && !authLoading) loadData() }, [shop, authLoading])
+
+  useEffect(() => {
+    if (!shop || authLoading) return
+    let cancelled = false
+    pb.collection(C.CUSTOMERS).getList(1, 500, { filter: 'shop_id="' + shop.id + '" && notes~"__SUPPLIER__"', sort: 'name', fields: 'id,name', requestKey: null })
+      .then(r => { if (!cancelled) setSupplierNames(r.items.map(x => x.name).filter(Boolean)) })
+      .catch(() => { if (!cancelled) setSupplierNames(null) })
+    return () => { cancelled = true }
+  }, [shop, authLoading])
 
   useEffect(() => {
     if (tab !== 'loss' || !shop || !canWriteOff || !lossFrom || !lossTo) return
@@ -114,6 +124,19 @@ export default function InventoryPage() {
     } finally { setLoading(false) }
   }
 
+  const normName = t => String(t || '').trim().toLowerCase()
+  // Stock bought on credit must name the supplier, so the debt can be paid from a supplier card.
+  const checkSupplier = (raw) => {
+    const name = String(raw || '').trim()
+    if (!name) { toast.error('Enter the supplier name. Stock bought on credit must say who you owe.'); return null }
+    if (supplierNames) {
+      const hit = supplierNames.find(x => normName(x) === normName(name))
+      if (hit) return hit
+      if (!window.confirm('There is no supplier card named "' + name + '". This debt will show as unassigned in Suppliers until a card with exactly this name is added. Save anyway?')) return null
+    }
+    return name
+  }
+
   const openAdjust = (product, type = 'stock_in') => {
     setAdjustProduct(product)
     setAdjustType(type)
@@ -133,6 +156,12 @@ export default function InventoryPage() {
     if (['stock_out', 'damage', 'adjustment'].includes(adjustType) && !canWriteOff) return toast.error('Only the owner or a manager can record stock out, damage or adjustments')
     if (['stock_out', 'damage', 'adjustment'].includes(adjustType) && !adjustNote.trim()) return toast.error('Add a reason in Notes / Reference')
     if (!adjustQty || isNaN(adjustQty) || Number(adjustQty) <= 0) return toast.error('Enter valid quantity')
+    let supplierToSave = adjustSupplier.trim()
+    if (['stock_in', 'opening_stock'].includes(adjustType) && adjustFunding === 'payable') {
+      const chosen = checkSupplier(adjustSupplier)
+      if (!chosen) return
+      supplierToSave = chosen
+    }
     setSaving(true)
     try {
       if (!adjustProduct) return toast.error('Select a product')
@@ -178,7 +207,7 @@ export default function InventoryPage() {
         after_qty: newQty,
         cost_per_unit: isInbound ? landedUnitCost : null,
         funding_source: isPurchase ? adjustFunding : null,
-        supplier_name: adjustSupplier || null,
+        supplier_name: isPurchase ? (supplierToSave || null) : null,
         notes: movementNote,
         reference: adjustNote,
         created_by: pb.authStore.model?.id
@@ -253,6 +282,12 @@ export default function InventoryPage() {
     if (isLocked) return toast.error('Account locked. Renew your subscription to import stock.')
     if (!canWriteOff) return toast.error('Only the owner or a manager can import stock')
     if (!importData.trim()) return toast.error('Paste CSV data first')
+    let importSupplierName = importSupplier.trim()
+    if (importFunding === 'payable') {
+      const chosen = checkSupplier(importSupplier)
+      if (!chosen) return
+      importSupplierName = chosen
+    }
     setImporting(true)
     setImportErrors([])
     try {
@@ -300,7 +335,7 @@ export default function InventoryPage() {
               after_qty: newQty,
               cost_per_unit: cost,
               funding_source: importFunding,
-              supplier_name: importSupplier.trim() || null,
+              supplier_name: importSupplierName || null,
               reference: 'Bulk import',
               notes: notes ? 'Bulk import: ' + notes : 'Bulk import',
               created_by: pb.authStore.model?.id
@@ -385,6 +420,7 @@ export default function InventoryPage() {
 
   return (
     <div>
+      <datalist id="su3-suppliers">{(supplierNames || []).map(x => <option key={x} value={x} />)}</datalist>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div className="page-title">Inventory 📦</div>
@@ -877,7 +913,7 @@ export default function InventoryPage() {
                     </div>
                     <div>
                       <label className="label">Supplier Name</label>
-                      <input className="input" value={adjustSupplier} onChange={e => setAdjustSupplier(e.target.value)} placeholder="e.g. Safaricom Devices, Jumia, Mr. Hassan…" />
+                      <input className="input" list="su3-suppliers" value={adjustSupplier} onChange={e => setAdjustSupplier(e.target.value)} required={adjustFunding === 'payable'} placeholder="e.g. Safaricom Devices, Jumia, Mr. Hassan…" />
                     </div>
                   </>
                 )}
@@ -923,7 +959,7 @@ export default function InventoryPage() {
               </div>
               <div style={{ marginBottom: 12 }}>
                 <label className="label">Supplier Name</label>
-                <input className="input" value={importSupplier} onChange={e => setImportSupplier(e.target.value)} placeholder="Optional" />
+                <input className="input" list="su3-suppliers" value={importSupplier} onChange={e => setImportSupplier(e.target.value)} placeholder={importFunding === 'payable' ? 'Required when on credit' : 'Optional'} />
               </div>
 
               <textarea style={{
