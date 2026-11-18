@@ -27,6 +27,12 @@ async function loadCashStock(shop) {
   })
   return rows.map(m => ({ date: moveDate(m), amount: Math.abs(m.qty || 0) * (m.cost_per_unit || 0), type: m.type, ref: m.reference || '' }))
 }
+async function loadSupplierPayments(shop) {
+  try {
+    const rows = await pb.collection('bs_supplier_payments').getFullList({ filter: 'shop_id="' + shop.id + '"', '$autoCancel': false })
+    return rows.map(p => ({ date: String(p.paid_on || p.created || '').slice(0, 10), amount: Number(p.amount_kes) || 0, method: p.method || 'cash', supplier: p.supplier_name || '', ref: p.reference || '' }))
+  } catch (e) { console.warn('supplier payments load failed', e); return [] }
+}
 function moveDate(m) {
   const t = new Date(String(m.created || '').replace(' ', 'T'))
   if (isNaN(t.getTime())) return ''
@@ -69,6 +75,7 @@ export async function buildTrialBalance(shop, asOfDate) {
 
   const allPayments = await loadPayments(shop)
   const stockCashMoves = await loadCashStock(shop)
+  const supplierPays = await loadSupplierPayments(shop)
   const [allSales, allExpenses, products, openDeposits, payableMovements] = await Promise.all([
     pb.collection(C.SALES).getFullList({
       filter: `shop_id="${shop.id}" && status="completed"`,
@@ -129,7 +136,9 @@ export async function buildTrialBalance(shop, asOfDate) {
   // Cash and cash equivalents = all receipts to date minus ALL expenses and cash-funded stock purchases to date
   const stockPaidToDate = stockCashMoves.filter(m => m.date && m.date <= asOfDate).reduce((s, m) => s + m.amount, 0)
   chan.cash -= stockPaidToDate
-  const cash = cashReceipts - expensesPaidToDate - stockPaidToDate
+  const supplierPaidToDate = supplierPays.filter(p => p.date && p.date <= asOfDate).reduce((s, p) => s + p.amount, 0)
+  supplierPays.forEach(p => { if (p.date && p.date <= asOfDate) { const k = p.method === 'cash' ? 'cash' : p.method === 'mpesa' ? 'mobile' : p.method === 'bank' ? 'bank' : 'other'; chan[k] -= p.amount } })
+  const cash = cashReceipts - expensesPaidToDate - stockPaidToDate - supplierPaidToDate
   const cashByChannel = {}
   Object.keys(chan).forEach(k => { cashByChannel[k] = Math.round(chan[k] * 100) / 100 })
 
@@ -159,9 +168,10 @@ export async function buildTrialBalance(shop, asOfDate) {
   //    a specific delivery. Good enough for "do we owe suppliers money?";
   //    not a substitute for a real accounts-payable system if the business
   //    needs invoice-level tracking later.
-  const accountsPayable = payableMovements.reduce(
+  const accountsPayableGross = payableMovements.reduce(
     (s, m) => s + (Math.abs(m.qty || 0) * (m.cost_per_unit || 0)), 0
   )
+  const accountsPayable = accountsPayableGross - supplierPaidToDate
   const totalLiabilities = depositLiability + accountsPayable
 
   // ── EQUITY ───────────────────────────────────────────────────────────
@@ -184,7 +194,7 @@ export async function buildTrialBalance(shop, asOfDate) {
   return {
     asOfDate,
     // Assets
-    cash, cashReceipts, cashByChannel, stockPaidToDate, accountsReceivable, stockAtCost, stockAtRetail, totalAssets,
+    cash, cashReceipts, cashByChannel, stockPaidToDate, supplierPaidToDate, accountsReceivable, stockAtCost, stockAtRetail, totalAssets,
     undatedCount, undatedTotal,
     // Liabilities
     depositLiability, accountsPayable, totalLiabilities,
@@ -214,6 +224,7 @@ export async function buildCashStatement(shop, dateFrom, dateTo) {
   if (!shop?.id) throw new Error('buildCashStatement: shop is required')
   const allPayments = await loadPayments(shop)
   const stockMoves = await loadCashStock(shop)
+  const supplierPays = await loadSupplierPayments(shop)
   const [allSales, allExpenses, expCats] = await Promise.all([
     pb.collection(C.SALES).getFullList({
       filter: `shop_id="${shop.id}" && status="completed"`,
@@ -280,6 +291,7 @@ export async function buildCashStatement(shop, dateFrom, dateTo) {
     sumOf(events.filter(e => isBefore(e.date)), e => e.amount)
     - sumOf(allExpenses.filter(e => isBefore(expDate(e))), e => e.amount_kes || 0)
     - sumOf(stockMoves.filter(m => isBefore(m.date)), m => m.amount)
+    - sumOf(supplierPays.filter(p => isBefore(p.date)), p => p.amount)
   )
 
   // ---- Period movements ----
@@ -289,7 +301,9 @@ export async function buildCashStatement(shop, dateFrom, dateTo) {
   const totalInflows = r2c(sumOf(rcpt, e => e.amount))
   const expensesPaid = r2c(sumOf(exps, e => e.amount_kes || 0))
   const stockPurchases = r2c(sumOf(stk, m => m.amount))
-  const totalOutflows = r2c(expensesPaid + stockPurchases)
+  const spk = supplierPays.filter(p => inWin(p.date))
+  const supplierPaid = r2c(sumOf(spk, p => p.amount))
+  const totalOutflows = r2c(expensesPaid + stockPurchases + supplierPaid)
   const netCashFlow = r2c(totalInflows - totalOutflows)
   const closingCash = r2c(openingCash + netCashFlow)
 
@@ -308,6 +322,7 @@ export async function buildCashStatement(shop, dateFrom, dateTo) {
   const uncatTotal = sumOf(uncat, e => e.amount_kes || 0)
   if (uncatTotal > 0) outflowByCat.push({ name: 'Other / Uncategorized', total: uncatTotal, count: uncat.length })
   if (stockPurchases > 0) outflowByCat.push({ name: 'Inventories paid in cash', total: stockPurchases, count: stk.length })
+  if (supplierPaid > 0) outflowByCat.push({ name: 'Payments to suppliers', total: supplierPaid, count: spk.length })
   outflowByCat.sort((a, b) => b.total - a.total)
 
   const paidBySale = {}
@@ -320,7 +335,7 @@ export async function buildCashStatement(shop, dateFrom, dateTo) {
     dateFrom, dateTo,
     openingCash, closingCash,
     totalInflows, totalOutflows, netCashFlow,
-    expensesPaid, stockPurchases,
+    expensesPaid, stockPurchases, supplierPaid,
     inflowRows, outflowByCat,
     cashSalesCount: rcpt.length,
     creditSalesTotal,
@@ -330,6 +345,7 @@ export async function buildCashStatement(shop, dateFrom, dateTo) {
     outflowTransactions: [
       ...exps.map(e => ({ date: expDate(e), description: e.description, category: e.expand?.category_id?.name || 'Uncategorized', amount: e.amount_kes, payment_method: e.payment_method || '' })),
       ...stk.map(m => ({ date: m.date, description: 'Stock purchase (' + m.type + ')' + (m.ref ? ' ' + m.ref : ''), category: 'Inventories paid in cash', amount: m.amount, payment_method: 'cash' })),
+      ...spk.map(p => ({ date: p.date, description: 'Payment to supplier ' + p.supplier + (p.ref ? ' ' + p.ref : ''), category: 'Payments to suppliers', amount: p.amount, payment_method: p.method })),
     ],
   }
 }
