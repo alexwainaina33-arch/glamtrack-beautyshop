@@ -26,6 +26,7 @@ const parseDay = (s) => {
   return isNaN(dt.getTime()) ? null : dt
 }
 const MAX_CUSTOM_DAYS = 366
+const checklistHidden = (shop) => { try { return !!localStorage.getItem('checklist_dismissed_' + shop.id) } catch (e) { return false } }
 
 // Chart axis labels: whole shillings below 1,000, then 1.2k style
 const axisTick = (v) => v >= 1000 ? String(Math.round(v / 100) / 10) + 'k' : String(Math.round(v))
@@ -44,7 +45,7 @@ const buildDailyChart = (sales, from, to) => {
     if (isNaN(d.getTime())) return
     const key = format(d, 'yyyy-MM-dd')
     const cur = byDay[key] || (byDay[key] = { revenue: 0, count: 0 })
-    cur.revenue += s.total_kes || 0
+    cur.revenue += (s.total_kes || 0) - (s.tax_amount_kes || 0)
     cur.count += 1
   })
   const bars = []
@@ -471,7 +472,7 @@ function OnboardingChecklist({ shop, onDismiss }) {
       setChecks(prev => {
         const keys = ['category','product','staff','sale']
         keys.forEach(k => {
-          if (!prev[k] && next[k]) {
+          if (false && !prev[k] && next[k]) {
             const labels = { category: 'Category added', product: 'First product live', staff: 'Staff member added', sale: 'First sale made' }
             const doneCount = Object.values(next).filter(Boolean).length
             toast.success(`🎉 ${labels[k]}! ${doneCount}/5 setup steps complete.`, { duration: 4000 })
@@ -1139,15 +1140,16 @@ export default function DashboardPage() {
         pb.collection(C.SALES).getList(1, 8, { filter: `shop_id="${shop.id}" && status="completed"`, sort: '-created', expand: 'customer_id', '$autoCancel': false, '$cancelKey': 'dash-recent' }),
       ]))
 
-      const revenue       = sales.reduce((s, x) => s + (x.total_kes || 0), 0)
-      const grossProfit   = sales.reduce((s, x) => s + (x.gross_profit_kes || 0), 0)
+      const outputVat = sales.reduce((s, x) => s + (x.tax_amount_kes || 0), 0)
+      const revenue = sales.reduce((s, x) => s + (x.total_kes || 0), 0) - outputVat
+      const grossProfit = sales.reduce((s, x) => s + (x.gross_profit_kes || 0), 0) - outputVat
       const totalExpenses = expenses.reduce((s, x) => s + (x.amount_kes || 0), 0)
-      const prevRevenue   = prevSales.reduce((s, x) => s + (x.total_kes || 0), 0)
+      const prevRevenue = prevSales.reduce((s, x) => s + (x.total_kes || 0) - (x.tax_amount_kes || 0), 0)
       const netProfit     = grossProfit - totalExpenses
       const lowStockProds = products.filter(p => p.stock_qty !== null && p.stock_qty <= (p.reorder_point || 5))
       if (seq !== loadSeq.current) return // a newer load has started; drop this one
 
-      setStats({ revenue, grossProfit, totalExpenses, netProfit, salesCount: sales.length, prevRevenue, prevLabel, totalCustomers: customers.totalItems, lowStockCount: lowStockProds.length, avgOrderValue: sales.length ? revenue / sales.length : 0 })
+      setStats({ outputVat, revenue, grossProfit, totalExpenses, netProfit, salesCount: sales.length, prevRevenue, prevLabel, totalCustomers: customers.totalItems, lowStockCount: lowStockProds.length, avgOrderValue: sales.length ? revenue / sales.length : 0 })
       setLowStock(lowStockProds.slice(0, 5))
       setRecentSales(recent.items)
 
@@ -1189,7 +1191,7 @@ export default function DashboardPage() {
           filter: `shop_id="${shop.id}" && status="completed" && created>="${toPbDate(thirtyDaysAgo)}"`,
           '$autoCancel': false, '$cancelKey': 'dash-payback'
         })
-        const totalRev30 = last30.reduce((sum, s) => sum + (s.total_kes || 0), 0)
+        const totalRev30 = last30.reduce((sum, s) => sum + (s.total_kes || 0) - (s.tax_amount_kes || 0), 0)
         setAvgDailyRevenue(totalRev30 / 30)
       } catch { setAvgDailyRevenue(0) }
 
@@ -1210,7 +1212,7 @@ export default function DashboardPage() {
           const h = i * 2
           const label = `${String(h).padStart(2,'0')}:00`
           const ds = sales.filter(s => { const hr = toDate(s.created).getHours(); return hr >= h && hr < h+2 })
-          return { label, revenue: ds.reduce((a,s) => a+s.total_kes, 0), count: ds.length }
+          return { label, revenue: ds.reduce((a,s) => a+s.total_kes-(s.tax_amount_kes||0), 0), count: ds.length }
         }))
       } else {
         setSalesChart(buildDailyChart(sales, from, to))
@@ -1274,7 +1276,7 @@ export default function DashboardPage() {
         '_' + summaryTitle + ' - ' + format(new Date(), 'dd MMM yyyy') + '_',
         '',
         '*Sales (credit sales included)*',
-        'Revenue: *' + money(s.revenue) + '*',
+        'Revenue (excl. VAT): *' + money(s.revenue) + '*',
         'Gross profit: *' + money(s.grossProfit) + '*',
         'Expenses: *' + money(s.totalExpenses) + '*',
         'Net profit: *' + money(s.netProfit) + '*',
@@ -1374,7 +1376,7 @@ export default function DashboardPage() {
         </div>
       )}
       <TomorrowsBanner shop={shop} onViewAppointments={() => { navigate('/app/appointments'); toast.success('Pre-filtered to tomorrow — hit Remind All!') }} />
-      {showChecklist && shop && <OnboardingChecklist shop={shop} onDismiss={() => setShowChecklist(false)} />}
+      {showChecklist && shop && !isLimited && !checklistHidden(shop) && <OnboardingChecklist shop={shop} onDismiss={() => { try { localStorage.setItem('checklist_dismissed_' + shop.id, '1') } catch (e) {} setShowChecklist(false) }} />}
 
       {/* Tab nav */}
       <div className="tab-nav" role="tablist" aria-label="Dashboard sections" style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
@@ -1449,6 +1451,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="card">
                     <h3 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, color: '#3d1020', margin: '0 0 20px' }}>P&L Summary</h3>
+                    {stats && stats.outputVat > 0 && <div style={{ fontSize: 11, color: '#9b6070', margin: '-12px 0 10px' }}>Excludes output VAT of {fmtKES(stats.outputVat)}.</div>}
                     {stats && [
                       { label: 'Revenue',         value: stats.revenue,                     color: '#059669' },
                       { label: '− Cost of Sales', value: stats.revenue - stats.grossProfit, color: '#dc2626' },
