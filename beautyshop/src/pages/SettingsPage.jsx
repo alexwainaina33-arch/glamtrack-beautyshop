@@ -89,7 +89,7 @@ export default function SettingsPage() {
         founded_year:        shop.founded_year        || '',
         business_hours:      (shop.business_hours && Object.keys(shop.business_hours).length > 0) ? shop.business_hours : DEFAULT_HOURS,
       })
-      setShopForm(f => ({ ...f, loyalty_off: !!shop.loyalty_off, loyalty_cap_pct: shop.loyalty_cap_pct || "", loyalty_min_points: shop.loyalty_min_points || "", loyalty_point_value_kes: shop.loyalty_point_value_kes || "", till_limit_discount: !!shop.till_limit_discount, till_cashier_max_discount_pct: shop.till_cashier_max_discount_pct || "", till_block_below_cost: !!shop.till_block_below_cost, till_credit_limit_kes: shop.till_credit_limit_kes || "" }))
+      setShopForm(f => ({ ...f, prices_include_vat: !!shop.prices_include_vat, loyalty_off: !!shop.loyalty_off, loyalty_cap_pct: shop.loyalty_cap_pct || "", loyalty_min_points: shop.loyalty_min_points || "", loyalty_point_value_kes: shop.loyalty_point_value_kes || "", till_limit_discount: !!shop.till_limit_discount, till_cashier_max_discount_pct: shop.till_cashier_max_discount_pct || "", till_block_below_cost: !!shop.till_block_below_cost, till_credit_limit_kes: shop.till_credit_limit_kes || "" }))
       setCustomColor(shop.brand_color || '#c8456a')
       loadStaff()
       loadCategories()
@@ -327,6 +327,13 @@ export default function SettingsPage() {
               <div>
                 <label className="label">VAT Rate (%)</label>
                 <input className="input" type="number" min={0} max={100} step={0.5} value={shopForm.tax_rate||0} onChange={e=>setShopForm(f=>({...f,tax_rate:e.target.value}))} placeholder="16 for standard VAT" />
+              </div>
+              <div style={{ gridColumn:'1/-1' }}>
+                <label htmlFor="inc-vat" style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'#3d1020', fontWeight:700 }}>
+                  <input id="inc-vat" type="checkbox" checked={!!shopForm.prices_include_vat} disabled={!shopForm.prices_include_vat && !(Number(shopForm.tax_rate) > 0)} onChange={e=>setShopForm(f=>({...f,prices_include_vat:e.target.checked}))} />
+                  Prices include VAT
+                </label>
+                <div style={{ fontSize:11, color:'#9b6070', marginTop:4 }}>Switch on if the selling prices on your products already include VAT. Past sales never change. Takes effect at the till in the next update. Needs a VAT rate above 0.</div>
               </div>
               <div style={{ gridColumn:'1/-1' }}>
                 <label className="label">Opening Capital (KES)</label>

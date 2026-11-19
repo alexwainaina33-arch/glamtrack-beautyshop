@@ -5,7 +5,7 @@ import { fmtKES, r2 } from '../lib/utils'
 import { Plus, Search, Upload, Edit2, Trash2, X, FileUp, Download, CheckCircle2, AlertCircle, ChevronRight, Copy, BarChart2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const EMPTY = { name:'', sku:'', barcode:'', category_id:'', description:'', unit:'piece', price_kes:'', cost_price_kes:'', compare_price_kes:'', stock_qty:'', reorder_point:5, track_inventory:true, is_service:false, is_taxable:true, brand:'', tags:'', status:'active' }
+const EMPTY = { name:'', sku:'', barcode:'', category_id:'', description:'', unit:'piece', price_kes:'', cost_price_kes:'', compare_price_kes:'', stock_qty:'', reorder_point:5, track_inventory:true, is_service:false, is_taxable:true, vat_class:'', vat_rate_custom:'', brand:'', tags:'', status:'active' }
 
 // ─── CSV TEMPLATE ─────────────────────────────────────────────────
 let existingKeys = { sku: new Set(), barcode: new Set() }
@@ -269,6 +269,10 @@ export default function ProductsPage() {
       if (bad) { toast.error('Every variant needs a name and a price greater than 0'); return }
     }
 
+    if (form.vat_class === 'custom') {
+      const vr = Number(form.vat_rate_custom)
+      if (form.vat_rate_custom === '' || form.vat_rate_custom === null || !isFinite(vr) || vr < 0 || vr > 100) { toast.error('Custom VAT rate must be a number from 0 to 100'); return }
+    }
     setSaving(true)
     try {
       // When variants are on, the product's own price/stock become computed fallbacks —
@@ -283,8 +287,10 @@ export default function ProductsPage() {
       if (editing && !form.has_variants) delete formToSave.stock_qty
 
       const data = new FormData()
-      Object.entries(formToSave).forEach(([k,v]) => { if (k !== 'images' && v !== undefined && v !== null && v !== '') data.append(k, v) })
+      Object.entries(formToSave).forEach(([k,v]) => { if (k !== 'images' && k !== 'vat_class' && k !== 'vat_rate_custom' && v !== undefined && v !== null && v !== '') data.append(k, v) })
       data.append('shop_id', shop.id)
+      data.append('vat_class', form.vat_class || '')
+      data.append('vat_rate_custom', form.vat_class === 'custom' ? String(form.vat_rate_custom) : '')
       imageFiles.forEach(f => data.append('images', f))
       removedImages.forEach(filename => data.append('images-', filename))
 
@@ -823,6 +829,32 @@ export default function ProductsPage() {
                       Has Variants (size, colour, storage…)
                     </label>
                   </div>
+
+                  {(() => {
+                    const vatOn = Number(shop?.tax_rate) > 0
+                    return (
+                      <div style={{ gridColumn:'1/-1', background:'#fdf5f7', border:'1px solid #f0e4e8', borderRadius:10, padding:'10px 12px' }}>
+                        <label className="label">VAT treatment</label>
+                        <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
+                          <select className="input" style={{ maxWidth:260 }} disabled={!vatOn} value={form.vat_class || ''} onChange={e=>setForm(f=>({...f,vat_class:e.target.value}))}>
+                            <option value="">Not set (charged as Standard)</option>
+                            <option value="standard">Standard (shop VAT rate)</option>
+                            <option value="zero_rated">Zero-rated (0%)</option>
+                            <option value="exempt">Exempt (0%)</option>
+                            <option value="custom">Custom rate</option>
+                          </select>
+                          {form.vat_class === 'custom' && (
+                            <input className="input" style={{ maxWidth:140 }} type="number" min={0} max={100} step="0.01" disabled={!vatOn} placeholder="Rate %" value={form.vat_rate_custom ?? ''} onChange={e=>setForm(f=>({...f,vat_rate_custom:e.target.value}))} />
+                          )}
+                        </div>
+                        {!vatOn && <div style={{ fontSize:11, color:'#b45309', marginTop:5 }}>Set your VAT rate in Settings first.</div>}
+                        {editing && vatOn && !form.vat_class && !form.is_taxable && (
+                          <div style={{ fontSize:11, color:'#b45309', marginTop:5 }}>This was marked not taxable before, but the till has been charging VAT on it. Choose Exempt or Zero-rated if that is right.</div>
+                        )}
+                        <div style={{ fontSize:11, color:'#9b6070', marginTop:5 }}>Takes effect at the till in the next update. Until then the till charges your shop VAT rate on every product.</div>
+                      </div>
+                    )
+                  })()}
 
                   {form.has_variants && (
                     <div style={{ gridColumn:'1/-1' }}>
