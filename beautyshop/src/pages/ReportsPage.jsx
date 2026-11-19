@@ -49,6 +49,21 @@ function PeriodPicker({ dateFrom, dateTo, setDateFrom, setDateTo, style, initial
   )
 }
 
+// Debt service coverage view: the band uses the full-precision value; rounding is for display only.
+function dscrView(dscr) {
+  const band = dscr < 1 ? { label: 'Insufficient coverage', color: '#dc2626', bg: '#fee2e2' }
+    : dscr < 1.25 ? { label: 'Weak coverage', color: '#d97706', bg: '#fefce8' }
+    : dscr < 1.5 ? { label: 'Acceptable coverage', color: '#059669', bg: '#f0fdf4' }
+    : { label: 'Strong coverage', color: '#059669', bg: '#f0fdf4' }
+  const two = dscr.toFixed(2)
+  const crosses = [1, 1.25, 1.5].some(t => dscr < t && Number(two) >= t)
+  let text
+  if (crosses) text = (Math.floor(dscr * 1000) / 1000).toFixed(3) + 'x'
+  else if (Math.abs(dscr) < 0.005) text = dscr > 0 ? '<0.01x' : '0.00x'
+  else text = two + 'x'
+  return { ...band, text }
+}
+
 export default function ReportsPage() {
   const { shop } = useAuth()
   const [tab, setTab] = useState(0)
@@ -497,7 +512,7 @@ export default function ReportsPage() {
         const grossProfit=revenue-cogs
         const expenses=mExp.reduce((s,x)=>s+(x.amount_kes||0),0)
         const netProfit=grossProfit-expenses
-        return { label:format(month,'MMMM yyyy'), short:format(month,'MMM yy'), revenue, cogs, grossProfit, expenses, netProfit, txCount:mSales.length, netMargin:revenue?((netProfit/revenue)*100).toFixed(1):'0.0' }
+        return { label:format(month,'MMMM yyyy'), short:format(month,'MMM yy'), revenue, cogs, grossProfit, expenses, netProfit, txCount:mSales.length, vat:mSales.reduce((s,x)=>s+(x.tax_amount_kes||0),0), netMargin:revenue?((netProfit/revenue)*100).toFixed(1):'0.0' }
       }))
       const totalRevenue6m=monthlyPL.reduce((s,m)=>s+m.revenue,0)
       const totalNetProfit6m=monthlyPL.reduce((s,m)=>s+m.netProfit,0)
@@ -526,11 +541,11 @@ export default function ReportsPage() {
 
   const calcDSCR = () => {
     if(!lenderData||!dscrLoan||!dscrTerm||!dscrRate) return null
-    const principal=parseFloat(dscrLoan), months=parseInt(dscrTerm), annualRate=parseFloat(dscrRate)
-    if(!principal||!months||!annualRate) return null
+    const principal=Number(dscrLoan), months=Number(dscrTerm), annualRate=Number(dscrRate)
+    if(!isFinite(principal)||principal<=0||!Number.isInteger(months)||months<1||months>120||!isFinite(annualRate)||annualRate<0||annualRate>100) return null
     const r=annualRate/100/12
     const monthlyPmt=r===0?principal/months:(principal*r*Math.pow(1+r,months))/(Math.pow(1+r,months)-1)
-    const dscr=lenderData.avgMonthlyNet>0?lenderData.avgMonthlyNet/monthlyPmt:0
+    const dscr=lenderData.avgMonthlyNet/monthlyPmt
     return{monthlyPmt,dscr}
   }
 
@@ -540,16 +555,16 @@ export default function ReportsPage() {
     pb.collection(C.REPORT_SHARES).create({
       shop_id: shop.id, report_type: 'lender_pack', shared_at: new Date().toISOString().replace('T',' ').replace('Z','.000Z'),
     }).catch(() => {}) // silent fail — this is a nice-to-have log, never block the actual share
-    const d=lenderData, calc=calcDSCR()
+    const d=lenderData, calc=calcDSCR(), dv=calc?dscrView(calc.dscr):null
     const lines=[
       `🏦 *Business Credit Summary*`,`*${shop?.name||''}*`,``,
       `Business Active`,`*${d.monthsActive} months*`,``,
-      `6-Month Total Revenue`,`*${fmtKES(d.totalRevenue6m)}*`,``,
+      `Months with recorded sales`,`*${d.activeMonths} of 6*`,``, `6-Month Total Revenue`,`*${fmtKES(d.totalRevenue6m)}*`,``,
       `Average Monthly Revenue`,`*${fmtKES(d.avgMonthlyRevenue)}*`,``,
       `Average Monthly Net Profit`,`*${fmtKES(d.avgMonthlyNet)}*`,``,
       `Revenue Consistency`,`*${d.profitableMonths}/${d.spanMonths} months profitable (${d.consistencyScore}%)*`,
       ...(d.growthRate!==null?[``,`Revenue Growth (6 months)`,`*${d.growthRate>0?'+':''}${d.growthRate}%*`]:[]),
-      ...(calc?[``,`Debt Service Coverage Ratio`,`*${calc.dscr.toFixed(2)}x* ${calc.dscr>=1.25?'✅ Bankable':calc.dscr>=1.0?'⚠️ Borderline':'❌ High Risk'}`]:[]),
+      ...(dv?[``,`Profit-based indicative DSCR`,`*${dv.text}* (${dv.label})`,`_Illustrative benchmark only. Not a loan approval or guarantee._`]:[]),
       ``,`_Figures are generated from SalesTrack records. Please confirm key figures against M-Pesa or bank statements._`,
       `_Entries are timestamped. Authorised shop users can correct records._`,
       `_Report ID: ${d.reportId}_`,`_${shop?.name} · Powered by SalesTrack_`,
@@ -1269,7 +1284,7 @@ export default function ReportsPage() {
           <div className="page-header no-print" style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:8, marginBottom:20 }}>
             <div>
               <div style={{ fontFamily:'Playfair Display,serif', fontSize:22, color:'#3d1020', fontWeight:700 }}>🏦 Lender Pack</div>
-              <div style={{ fontSize:13, color:'#9b6070', marginTop:2 }}>Bank-grade credit document · {shop?.name} · Generated from your SalesTrack records</div>
+              <div style={{ fontSize:13, color:'#9b6070', marginTop:2 }}>Indicative credit summary · {shop?.name} · Generated from your SalesTrack records</div>
             </div>
             <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
               <button onClick={shareLenderWhatsApp} style={{ padding:'9px 16px', borderRadius:10, border:'none', background:'#25D366', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>📲 Share Summary</button>
@@ -1282,9 +1297,10 @@ export default function ReportsPage() {
               <div style={{ textAlign:'center' }}><div className="spinner" style={{ margin:'0 auto 12px' }}/><div style={{ fontSize:13, color:'#9b6070' }}>Loading financial data…</div></div>
             </div>
           ) : lenderData ? (() => {
-            const calc=calcDSCR(), d=lenderData
+            const calc=calcDSCR(), d=lenderData, dv=calc?dscrView(calc.dscr):null
             return (
               <div className="lender-pack-root">
+                {d.activeMonths<3&&(<div className="lender-section" style={{ marginBottom:16, background:'#fef3c7', border:'1px solid #fde68a', borderRadius:10, padding:'10px 14px', fontSize:12, color:'#92400e' }}>Only {d.activeMonths} of the last 6 months {d.activeMonths===1?'has':'have'} recorded sales. Months with no recorded sales are shown as not recorded, not as poor performance, and a result from so few months is not a reliable trend.</div>)}
                 <div className="lender-section card" style={{ marginBottom:20, background:'linear-gradient(135deg,#3d1020,#8b2550)', color:'#fff', borderRadius:16 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:16 }}>
                     <div>
@@ -1322,7 +1338,7 @@ export default function ReportsPage() {
                       <div style={{ fontSize:12, color:'#9b6070' }}>Month-by-month revenue, costs and profit — the core lending assessment table</div>
                     </div>
                     <button className="btn-secondary no-print" style={{ fontSize:12 }} onClick={() => {
-                      const rows=[...d.monthlyPL.map(m=>({Month:m.label,Revenue_KES:m.revenue,Cost_of_Sales_KES:m.cogs,Gross_Profit_KES:m.grossProfit,Expenses_KES:m.expenses,Net_Profit_KES:m.netProfit,Net_Margin_Pct:m.netMargin,Transactions:m.txCount})),{Month:'TOTAL / AVERAGE',Revenue_KES:d.totalRevenue6m,Cost_of_Sales_KES:d.monthlyPL.reduce((s,m)=>s+m.cogs,0),Gross_Profit_KES:d.monthlyPL.reduce((s,m)=>s+m.grossProfit,0),Expenses_KES:d.monthlyPL.reduce((s,m)=>s+m.expenses,0),Net_Profit_KES:d.totalNetProfit6m,Net_Margin_Pct:d.totalRevenue6m?((d.totalNetProfit6m/d.totalRevenue6m)*100).toFixed(1):'0.0',Transactions:d.monthlyPL.reduce((s,m)=>s+m.txCount,0)}]
+                      const rows=[...d.monthlyPL.map(m=>({Month:m.label,Revenue_KES:m.revenue,Cost_of_Sales_KES:m.cogs,Gross_Profit_KES:m.grossProfit,Expenses_KES:m.expenses,Net_Profit_KES:m.netProfit,Net_Margin_Pct:m.netMargin,Transactions:m.txCount,Recorded_Activity:(m.txCount>0||m.expenses>0)?$Yes$:$No$})),{Month:'TOTAL / AVERAGE',Revenue_KES:d.totalRevenue6m,Cost_of_Sales_KES:d.monthlyPL.reduce((s,m)=>s+m.cogs,0),Gross_Profit_KES:d.monthlyPL.reduce((s,m)=>s+m.grossProfit,0),Expenses_KES:d.monthlyPL.reduce((s,m)=>s+m.expenses,0),Net_Profit_KES:d.totalNetProfit6m,Net_Margin_Pct:d.totalRevenue6m?((d.totalNetProfit6m/d.totalRevenue6m)*100).toFixed(1):'0.0',Transactions:d.monthlyPL.reduce((s,m)=>s+m.txCount,0)}]
                       exportCSV(rows, `${shop?.name?.replace(/\s+/g,'-')}-6month-pl.csv`)
                     }}>⬇️ Download CSV</button>
                   </div>
@@ -1330,7 +1346,9 @@ export default function ReportsPage() {
                     <table>
                       <thead><tr><th>Month</th><th style={{ textAlign:'right' }}>Revenue</th><th style={{ textAlign:'right' }}>Cost of sales</th><th style={{ textAlign:'right' }}>Gross Profit</th><th style={{ textAlign:'right' }}>Expenses</th><th style={{ textAlign:'right' }}>Net Profit</th><th style={{ textAlign:'right' }}>Margin</th><th style={{ textAlign:'right' }}>Txns</th></tr></thead>
                       <tbody>
-                        {d.monthlyPL.map((m,i) => (
+                        {d.monthlyPL.map((m,i) => (m.txCount===0&&m.expenses===0) ? (
+                          <tr key={i} style={{ background:'#faf7f8' }}><td style={{ fontWeight:600, fontSize:13, whiteSpace:'nowrap' }}>{m.label}</td><td colSpan={7} style={{ color:'#9b6070', fontSize:12 }}>No sales or expenses recorded (not verified as poor performance)</td></tr>
+                        ) : (
                           <tr key={i} style={{ background:m.netProfit<0?'#fff5f5':'transparent' }}>
                             <td style={{ fontWeight:600, fontSize:13, whiteSpace:'nowrap' }}>{m.label}</td>
                             <td style={{ textAlign:'right', fontWeight:600 }}>{fmtKES(m.revenue)}</td>
@@ -1380,7 +1398,7 @@ export default function ReportsPage() {
                 </div>
                 <div className="lender-section card" style={{ marginBottom:20 }}>
                   <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:18, color:'#3d1020', margin:'0 0 4px' }}>Debt Service Coverage Ratio (DSCR)</h2>
-                  <div style={{ fontSize:12, color:'#9b6070', marginBottom:20 }}>DSCR = Average Monthly Net Profit ÷ Monthly Loan Repayment. Banks require ≥1.25x to approve a loan.</div>
+                  <div style={{ fontSize:12, color:'#9b6070', marginBottom:20 }}>Profit-based indicative DSCR = average monthly net profit divided by the monthly loan repayment. 1.25x is an illustrative lending benchmark. Actual lender requirements vary.</div>
                   <div className="mobile-stack" style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:20 }}>
                     <div><label className="label">Loan Amount (KES)</label><input className="input" type="number" min={0} placeholder="e.g. 500000" value={dscrLoan} onChange={e=>setDscrLoan(e.target.value)}/></div>
                     <div><label className="label">Loan Term (months)</label><input className="input" type="number" min={1} max={120} placeholder="e.g. 12" value={dscrTerm} onChange={e=>setDscrTerm(e.target.value)}/></div>
@@ -1390,15 +1408,19 @@ export default function ReportsPage() {
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
                       <div style={{ background:'#fdf5f7', borderRadius:12, padding:'16px', textAlign:'center' }}><div style={{ fontSize:12, color:'#9b6070', marginBottom:4 }}>Monthly Repayment</div><div style={{ fontFamily:'Playfair Display,serif', fontSize:22, fontWeight:700, color:'#c8456a' }}>{fmtKES(calc.monthlyPmt)}</div></div>
                       <div style={{ background:'#fdf5f7', borderRadius:12, padding:'16px', textAlign:'center' }}><div style={{ fontSize:12, color:'#9b6070', marginBottom:4 }}>Avg Monthly Net Profit</div><div style={{ fontFamily:'Playfair Display,serif', fontSize:22, fontWeight:700, color:d.avgMonthlyNet>=0?'#059669':'#dc2626' }}>{fmtKES(d.avgMonthlyNet)}</div></div>
-                      <div style={{ background:calc.dscr>=1.25?'#f0fdf4':calc.dscr>=1.0?'#fefce8':'#fee2e2', borderRadius:12, padding:'16px', textAlign:'center', border:`2px solid ${calc.dscr>=1.25?'#059669':calc.dscr>=1.0?'#d97706':'#dc2626'}` }}>
-                        <div style={{ fontSize:12, color:'#9b6070', marginBottom:4 }}>DSCR</div>
-                        <div style={{ fontFamily:'Playfair Display,serif', fontSize:32, fontWeight:700, color:calc.dscr>=1.25?'#059669':calc.dscr>=1.0?'#d97706':'#dc2626' }}>{calc.dscr.toFixed(2)}x</div>
-                        <div style={{ fontSize:13, fontWeight:700, color:calc.dscr>=1.25?'#059669':calc.dscr>=1.0?'#d97706':'#dc2626', marginTop:4 }}>{calc.dscr>=1.25?'✅ Bankable':calc.dscr>=1.0?'⚠️ Borderline':'❌ High Risk'}</div>
+                      <div style={{ background:dv.bg, borderRadius:12, padding:'16px', textAlign:'center', border:'2px solid '+dv.color }}>
+                        <div style={{ fontSize:12, color:'#9b6070', marginBottom:4 }}>Profit-based indicative DSCR</div>
+                        <div style={{ fontFamily:'Playfair Display,serif', fontSize:32, fontWeight:700, color:dv.color }}>{dv.text}</div>
+                        <div style={{ fontSize:13, fontWeight:700, color:dv.color, marginTop:4 }}>{dv.label}</div>
                       </div>
                     </div>
                   ) : (
-                    <div style={{ background:'#fdf5f7', borderRadius:12, padding:'20px', textAlign:'center', color:'#9b6070', fontSize:13 }}>Enter loan details above to calculate borrowing capacity</div>
+                    <div style={{ background:'#fdf5f7', borderRadius:12, padding:'20px', textAlign:'center', color:'#9b6070', fontSize:13 }}>Enter a loan amount above 0, a term of 1 to 120 months and an interest rate from 0% to 100% to see coverage.</div>
                   )}
+                  <div style={{ marginTop:12, fontSize:11, color:'#9b6070', lineHeight:1.6 }}>
+                    <div style={{ fontWeight:700, color:'#6b4050' }}>This is an indicative financial assessment, not a loan approval or guarantee.</div>
+                    <div>This is a profit-based indicative DSCR. It uses average monthly net profit as a stand-in for cash available to repay a loan. It does not adjust for tax, working capital movements or non-cash items, and it uses only SalesTrack records. Coverage bands: below 1.00x insufficient, 1.00x to 1.24x weak, 1.25x to 1.49x acceptable, 1.50x and above strong.</div>
+                  </div>
                 </div>
                 <div className="lender-section card" style={{ marginBottom:20 }}>
                   <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:18, color:'#3d1020', margin:'0 0 4px' }}>Trade receivables ageing</h2>
@@ -1432,9 +1454,9 @@ export default function ReportsPage() {
                     <div style={{ fontSize:24, flexShrink:0 }}>🔒</div>
                     <div>
                       <div style={{ fontWeight:800, fontSize:14, color:'#fff', marginBottom:6 }}>Data Source and Reliability</div>
-                      <div style={{ fontSize:12, color:'rgba(255,255,255,0.65)', lineHeight:1.7 }}>Figures in this report are generated from the business's SalesTrack sales, payment and expense records as at the time shown. Entries are timestamped and each shop's data is kept separate from other shops. Authorised shop users can correct records, so lenders should confirm key figures against M-Pesa or bank statements.</div>
+                      <div style={{ fontSize:12, color:'rgba(255,255,255,0.65)', lineHeight:1.7 }}>Figures in this report are generated from the business's SalesTrack sales, payment and expense records as at the time shown. They are management information, not audited financial statements, and have not been reconciled to bank or M-Pesa statements. Authorised shop users can correct records, so lenders should independently verify key figures against bank and M-Pesa statements.</div>
                       <div style={{ marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                        {[{label:'Report ID',value:d.reportId},{label:'Generated',value:d.generatedAt},{label:'Business',value:shop?.name},{label:'Data Source',value:'SalesTrack POS — Sales and Payment Records'}].map((r,i) => (
+                        {[{label:'Report ID',value:d.reportId},{label:'Generated',value:d.generatedAt},{label:'Business',value:shop?.name},{label:'Data Source',value:'SalesTrack POS - sales, payment and expense records'},{label:'Reporting period',value:d.monthlyPL[0].label+' to '+d.monthlyPL[d.monthlyPL.length-1].label},{label:'Months with recorded sales',value:d.activeMonths+' of '+d.monthlyPL.length},{label:'Transactions in period',value:d.monthlyPL.reduce((s,m)=>s+m.txCount,0)},{label:'Average monthly net profit',value:fmtKES(d.avgMonthlyNet*d.spanMonths)+' over '+d.spanMonths+' month(s), from the first month with sales'},{label:'Completeness',value:'Not verified. Based on recorded transactions only.'},{label:'Reconciled to bank or M-Pesa',value:'No'},...(d.monthlyPL.reduce((s,m)=>s+(m.vat||0),0)>0?[{label:'Output VAT recorded in sales',value:fmtKES(d.monthlyPL.reduce((s,m)=>s+(m.vat||0),0))+' (included in revenue, not business income)'}]:[])].map((r,i) => (
                           <div key={i} style={{ fontSize:11 }}><span style={{ color:'rgba(255,255,255,0.4)' }}>{r.label}: </span><span style={{ color:'rgba(255,255,255,0.8)', fontWeight:600 }}>{r.value}</span></div>
                         ))}
                       </div>
