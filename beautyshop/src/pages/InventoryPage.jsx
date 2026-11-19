@@ -5,6 +5,39 @@ import { fmtKES, fmtDateTime, r2 } from '../lib/utils'
 import { Plus, AlertTriangle, ArrowUp, ArrowDown, RefreshCw, X, Filter, Upload, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+// Search-as-you-type picker used for the product and supplier boxes (list stays in the page flow).
+function SearchPick({ items, value, onText, onPick, placeholder, required, emptyText, autoFocus }) {
+  const [open, setOpen] = useState(false)
+  const q = String(value || '').trim().toLowerCase()
+  const shown = items.filter(it => !q || it.search.indexOf(q) !== -1).slice(0, 40)
+  const exact = q ? items.find(it => it.exact && it.exact.indexOf(q) !== -1) : null
+  const choose = it => { onPick(it); setOpen(false) }
+  return (
+    <div>
+      <input className="input" value={value} placeholder={placeholder} required={required} autoFocus={autoFocus} autoComplete="off"
+        onChange={e => { onText(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={e => {
+          if (e.key !== 'Enter' || !open || !q) return
+          const hit = exact || (shown.length === 1 ? shown[0] : null)
+          if (hit) { e.preventDefault(); choose(hit) }
+        }} />
+      {open && shown.length > 0 && (
+        <div style={{ marginTop: 4, maxHeight: 200, overflowY: 'auto', border: '1px solid #f0e4e8', borderRadius: 10, background: '#fff' }}>
+          {shown.map(it => (
+            <div key={it.key} onMouseDown={e => { e.preventDefault(); choose(it) }} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f5edf0', fontSize: 13 }}>
+              <div style={{ fontWeight: 600 }}>{it.label}</div>
+              {it.sub && <div style={{ fontSize: 11, color: '#9b6070' }}>{it.sub}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+      {open && shown.length === 0 && q && emptyText && <div style={{ marginTop: 4, fontSize: 12, color: '#9b6070' }}>{emptyText}</div>}
+    </div>
+  )
+}
+
 export default function InventoryPage() {
   const { shop, loading: authLoading, isLocked, role } = useAuth()
   const canWriteOff = role === 'owner' || role === 'manager'
@@ -50,6 +83,8 @@ export default function InventoryPage() {
   const [importSupplier, setImportSupplier] = useState('')
   const [importErrors, setImportErrors] = useState([])
   const [supplierNames, setSupplierNames] = useState(null)
+  const [prodQuery, setProdQuery] = useState('')
+  const [adjustPicked, setAdjustPicked] = useState(false)
 
   useEffect(() => {
     if (tab !== 'valuation' || !shop || !valFrom) return
@@ -146,6 +181,8 @@ export default function InventoryPage() {
     setAdjustExtraCost('')
     setAdjustSupplier('')
     setAdjustFunding('cash')
+    setProdQuery('')
+    setAdjustPicked(false)
     setShowAdjust(true)
   }
 
@@ -379,6 +416,14 @@ export default function InventoryPage() {
     return Math.ceil((product.stock_qty || 0) / avgDaily)
   }
 
+  const productItems = products.map(p => ({
+    key: p.id,
+    label: p.name,
+    sub: r2(p.stock_qty || 0) + ' ' + (p.unit || 'pcs') + ' in stock' + ((p.barcode || p.sku) ? ' - ' + (p.barcode || p.sku) : ''),
+    search: [p.name, p.sku, p.barcode, p.brand].filter(Boolean).join(' ').toLowerCase(),
+    exact: [p.barcode, p.sku].filter(Boolean).map(x => String(x).toLowerCase())
+  }))
+  const supplierItems = (supplierNames || []).map(nm => ({ key: nm, label: nm, sub: '', search: nm.toLowerCase() }))
   const totalStockValue = products.reduce((s, p) => s + ((p.stock_qty || 0) * (p.cost_price_kes || 0)), 0)
   const totalRetailValue = products.reduce((s, p) => s + ((p.stock_qty || 0) * (p.price_kes || 0)), 0)
   const lowCount = products.filter(p => p.stock_qty <= (p.reorder_point || 5)).length
@@ -420,7 +465,6 @@ export default function InventoryPage() {
 
   return (
     <div>
-      <datalist id="su3-suppliers">{(supplierNames || []).map(x => <option key={x} value={x} />)}</datalist>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div className="page-title">Inventory 📦</div>
@@ -862,13 +906,12 @@ export default function InventoryPage() {
                 {!adjustProduct && (
                   <div>
                     <label className="label">Product *</label>
-                    <select className="input" onChange={e => setAdjustProduct(products.find(p => p.id === e.target.value))} required>
-                      <option value="">Select product</option>
-                      {products.map(p => <option key={p.id} value={p.id}>{p.name} (Stock: {r2(p.stock_qty || 0)} {p.unit || 'pcs'})</option>)}
-                    </select>
+                    <SearchPick autoFocus items={productItems} value={prodQuery} onText={setProdQuery} placeholder="Type a name, SKU or barcode" emptyText="No product matches"
+                      onPick={it => { const p = products.find(x => x.id === it.key); if (p) { setAdjustProduct(p); setAdjustPicked(true); setAdjustCost(p.cost_price_kes || '') } }} />
                   </div>
                 )}
                 {adjustProduct && <div style={{ background: '#fce8ed', borderRadius: 10, padding: '10px 14px', fontSize: 14 }}>
+                  {adjustPicked && <button type="button" className="btn-ghost" style={{ float: 'right', fontSize: 12, padding: '2px 8px' }} onClick={() => { setAdjustProduct(null); setAdjustPicked(false); setProdQuery('') }}>Change</button>}
                   <strong>{adjustProduct.name}</strong> · Current stock: <strong>{r2(adjustProduct.stock_qty || 0)} {adjustProduct.unit || 'pcs'}</strong>
                 </div>}
                 <div>
@@ -901,6 +944,13 @@ export default function InventoryPage() {
                       <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '10px 12px', color: '#166534', fontSize: 12 }}>
                         <strong>Landed cost:</strong> {fmtKES(((Number(adjustCost) || 0) * Number(adjustQty) + (Number(adjustExtraCost) || 0)) / Number(adjustQty))} / {adjustProduct?.unit || 'unit'}
                         <div style={{ marginTop: 3, color: '#4b7a5b' }}>Used as the inventory cost for profit calculations.</div>
+                        {adjustProduct && Number(adjustProduct.cost_price_kes) > 0 && Number(adjustCost) > 0 && (() => {
+                          const curCost = Number(adjustProduct.cost_price_kes)
+                          const landed = ((Number(adjustCost) || 0) * Number(adjustQty) + (Number(adjustExtraCost) || 0)) / Number(adjustQty)
+                          const pct = (landed - curCost) / curCost * 100
+                          if (Math.abs(pct) <= 20) return null
+                          return <div style={{ marginTop: 8, background: '#fefce8', border: '1px solid #fde68a', borderRadius: 8, padding: '6px 10px', color: '#92400e', fontWeight: 700 }}>Check the cost: the current cost is {fmtKES(curCost)}, this batch is {Math.abs(Math.round(pct))}% {pct > 0 ? 'higher' : 'lower'}.</div>
+                        })()}
                       </div>
                     )}
                     <div>
@@ -913,7 +963,7 @@ export default function InventoryPage() {
                     </div>
                     <div>
                       <label className="label">Supplier Name</label>
-                      <input className="input" list="su3-suppliers" value={adjustSupplier} onChange={e => setAdjustSupplier(e.target.value)} required={adjustFunding === 'payable'} placeholder="e.g. Safaricom Devices, Jumia, Mr. Hassan…" />
+                      <SearchPick items={supplierItems} value={adjustSupplier} onText={setAdjustSupplier} onPick={it => setAdjustSupplier(it.label)} required={adjustFunding === 'payable'} placeholder="Type to find a supplier card, or a new name" />
                     </div>
                   </>
                 )}
@@ -959,7 +1009,7 @@ export default function InventoryPage() {
               </div>
               <div style={{ marginBottom: 12 }}>
                 <label className="label">Supplier Name</label>
-                <input className="input" list="su3-suppliers" value={importSupplier} onChange={e => setImportSupplier(e.target.value)} placeholder={importFunding === 'payable' ? 'Required when on credit' : 'Optional'} />
+                <SearchPick items={supplierItems} value={importSupplier} onText={setImportSupplier} onPick={it => setImportSupplier(it.label)} placeholder={importFunding === 'payable' ? 'Required when on credit' : 'Optional'} />
               </div>
 
               <textarea style={{
