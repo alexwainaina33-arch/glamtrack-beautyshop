@@ -173,7 +173,8 @@ export default function ReportsPage() {
         allExpP.then(all => all.filter(e => inRange(e, plFrom, plTo))),
         pb.collection(C.EXPENSE_CATS).getList(1, 200, { filter: `shop_id="${shop.id}"`, '$autoCancel': false, '$cancelKey': 'pl-expcats' }).then(r => r.items),
       ])
-      const revenue      = salesAll.reduce((s,x) => s+(x.total_kes||0), 0)
+      const outputVat    = salesAll.reduce((s,x) => s+(x.tax_amount_kes||0), 0)
+      const revenue      = salesAll.reduce((s,x) => s+(x.total_kes||0), 0) - outputVat
       const costOfSales  = salesAll.reduce((s,x) => s+(x.total_cost_kes||0), 0)
       const grossProfit  = revenue - costOfSales
       const grossMargin  = revenue ? (grossProfit/revenue)*100 : 0
@@ -208,7 +209,7 @@ export default function ReportsPage() {
         const mT = format(endOfMonth(month),'yyyy-MM-dd')
         const mS = allCompleted.filter(x=>{const d=rDate(x);return d&&d>=mF&&d<=mT})
         const mE = (await allExpP).filter(e => inRange(e, mF, mT))
-        const rev=mS.reduce((s,x)=>s+x.total_kes,0)
+        const rev=mS.reduce((s,x)=>s+x.total_kes-(x.tax_amount_kes||0),0)
         const cost=mS.reduce((s,x)=>s+(x.total_cost_kes||0),0)
         const exp=mE.reduce((s,x)=>s+x.amount_kes,0)
         return { label:format(month,'MMM yy'), revenue:rev, grossProfit:rev-cost, netProfit:rev-cost-exp, expenses:exp }
@@ -216,7 +217,7 @@ export default function ReportsPage() {
 
       if (seq !== plSeq.current) return
       setPlData({
-        revenue, costOfSales, grossProfit, grossMargin,
+        outputVat, revenue, costOfSales, grossProfit, grossMargin,
         totalExpenses, netProfit, netMargin,
         expByCat, payBreakdown, monthlyTrend,
         salesCount: salesAll.length, undatedCount: allCompleted.filter(x => !rDate(x)).length,
@@ -266,6 +267,7 @@ export default function ReportsPage() {
         // Liabilities
         depositLiability: tb.depositLiability,
         accountsPayable: tb.accountsPayable,
+        outputVat: tb.outputVat,
         totalLiabilities: tb.totalLiabilities,
         openDepositsCount: tb.openDeposits?.length || 0,
         // Equity
@@ -302,6 +304,7 @@ export default function ReportsPage() {
       `LIABILITIES`,``,
       `Customer deposits (contract liabilities)`,`*${fmtKES(d.depositLiability)}*`,
       `Trade payables`,`*${fmtKES(d.accountsPayable)}*`,
+      ...(d.outputVat>0?[`Output VAT payable`,`*${fmtKES(d.outputVat)}*`]:[]),
       `Total Liabilities`,`*${fmtKES(d.totalLiabilities)}*`,``,
       `EQUITY`,``,
       `Owner's capital`,`*${fmtKES(d.openingCapital)}*`,
@@ -398,7 +401,7 @@ export default function ReportsPage() {
         if(!mm) return
         const cc=mm[1]
         const day=format(new Date(`20${cc.slice(0,2)}-${cc.slice(2,4)}-${cc.slice(4,6)}`),'dd MMM')
-        salesByDay[day]=(salesByDay[day]||0)+s.total_kes
+        salesByDay[day]=(salesByDay[day]||0)+s.total_kes-(s.tax_amount_kes||0)
       })
       const salesChart=Object.entries(salesByDay).map(([label,revenue])=>({label,revenue})).slice(-30)
       const idList = salesAll.map(s => s.id); const idChunks = []; for (let i = 0; i < idList.length; i += 40) idChunks.push(idList.slice(i, i + 40))
@@ -416,18 +419,19 @@ export default function ReportsPage() {
       salesAll.forEach(s=>{
         if(!s.created) return
         const h=new Date(s.created.replace(' ','T')).getHours()
-        if(!isNaN(h)) hourTally[h]+=s.total_kes
+        if(!isNaN(h)) hourTally[h]+=s.total_kes-(s.tax_amount_kes||0)
       })
       const peakHours=Array.from({length:12},(_,i)=>{const h=i*2;return{label:`${String(h).padStart(2,'0')}:00`,revenue:hourTally[h]+hourTally[h+1]}})
       const payMethods={}
       salesAll.forEach(s=>{payMethods[s.payment_method]=(payMethods[s.payment_method]||0)+s.total_kes})
       const payBreakdown=Object.entries(payMethods).map(([method,total])=>({method,total})).sort((a,b)=>b.total-a.total)
-      const revenue=salesAll.reduce((s,x)=>s+(x.total_kes||0),0)
+      const srVat=salesAll.reduce((s,x)=>s+(x.tax_amount_kes||0),0)
+      const revenue=salesAll.reduce((s,x)=>s+(x.total_kes||0),0)-srVat
       const customerSales={}
       salesAll.forEach(s=>{if(s.customer_id){if(!customerSales[s.customer_id])customerSales[s.customer_id]={count:0,total:0};customerSales[s.customer_id].count++;customerSales[s.customer_id].total+=s.total_kes}})
       if (seq !== srSeq.current) return
       setSrData({
-        salesChart,topProducts,peakHours,payBreakdown,revenue,undatedCount:srUndated,
+        salesChart,topProducts,peakHours,payBreakdown,revenue,vat:srVat,undatedCount:srUndated,
         salesCount:salesAll.length,
         returningCount:Object.keys(customerSales).length,
         walkInCount:salesAll.filter(s=>!s.customer_id).length,
@@ -485,7 +489,7 @@ export default function ReportsPage() {
       })
       const lenderPay = await loadPayMap(); const lenderExp = loadAllExpenses(); const shopCreated = shop.created ? new Date(shop.created) : new Date()
       const monthsActive = Math.max(1, Math.round((new Date() - shopCreated) / (1000*60*60*24*30.44)))
-      const lifetimeRevenue = lifetimeSales.reduce((s,x) => s+(x.total_kes||0), 0)
+      const lifetimeRevenue = lifetimeSales.reduce((s,x) => s+(x.total_kes||0), 0) - lifetimeSales.reduce((s,x) => s+(x.tax_amount_kes||0), 0)
       const avgMonthlyRevenue = lifetimeRevenue / monthsActive
       const pendingSales = lifetimeSales.filter(s => s.payment_status==='pending'||s.payment_status==='partial').filter(s => owed(s,lenderPay)>0)
       const today = new Date()
@@ -507,7 +511,7 @@ export default function ReportsPage() {
         const mTo=format(endOfMonth(month),'yyyy-MM-dd')
         const mSales=lifetimeSales.filter(x=>{const d=rDate(x);return d&&d>=mFrom&&d<=mTo})
         const mExp=(await lenderExp).filter(e=>inRange(e,mFrom,mTo))
-        const revenue=mSales.reduce((s,x)=>s+(x.total_kes||0),0)
+        const revenue=mSales.reduce((s,x)=>s+(x.total_kes||0),0)-mSales.reduce((s,x)=>s+(x.tax_amount_kes||0),0)
         const cogs=mSales.reduce((s,x)=>s+(x.total_cost_kes||0),0)
         const grossProfit=revenue-cogs
         const expenses=mExp.reduce((s,x)=>s+(x.amount_kes||0),0)
@@ -620,6 +624,7 @@ export default function ReportsPage() {
                 {plData.undatedCount > 0 && <div style={{ fontSize:11, color:'#92400e', background:'#fef3c7', borderRadius:8, padding:'6px 10px', marginBottom:8 }}>{plData.undatedCount} completed sale(s) have no date in the receipt number, so they are not included in any period.</div>}
                 <PLSection title="REVENUE" color="#059669">
                   <PLRow label="Revenue" value={plData.revenue} bold/>
+                  {plData.outputVat>0&&<div style={{ fontSize:11, color:'#9b6070', margin:'2px 0 6px' }}>Excludes output VAT of {fmtKES(plData.outputVat)} charged on these sales.</div>}
                   <PLRow label="No. of Transactions" value={plData.salesCount} isCurrency={false} color="#3b82f6"/>
                 </PLSection>
                 <PLSection title="COST OF SALES" color="#dc2626">
@@ -687,7 +692,7 @@ export default function ReportsPage() {
                           <span style={{ color:'#c8456a', fontWeight:700 }}>{fmtKES(pm.total)}</span>
                         </div>
                         <div style={{ background:'#f5edf0', borderRadius:4, height:6 }}>
-                          <div style={{ background:'linear-gradient(90deg,#c8456a,#8b2550)', height:6, borderRadius:4, width:`${Math.min(100,(pm.total/plData.revenue)*100)}%` }}/>
+                          <div style={{ background:'linear-gradient(90deg,#c8456a,#8b2550)', height:6, borderRadius:4, width:`${Math.min(100,(pm.total/(plData.revenue+plData.outputVat))*100)}%` }}/>
                         </div>
                       </div>
                     ))}
@@ -767,7 +772,7 @@ export default function ReportsPage() {
                         {Section:'ASSETS',Item:'Inventories (at cost)',Amount_KES:bsData.stockAtCost},
                         {Section:'ASSETS',Item:'TOTAL ASSETS',Amount_KES:bsData.totalAssets},
                         {Section:'LIABILITIES',Item:'Customer deposits (contract liabilities)',Amount_KES:bsData.depositLiability},
-                        {Section:'LIABILITIES',Item:'Trade payables',Amount_KES:bsData.accountsPayable},
+                        {Section:'LIABILITIES',Item:'Trade payables',Amount_KES:bsData.accountsPayable},{Section:'LIABILITIES',Item:'Output VAT payable',Amount_KES:bsData.outputVat||0},
                         {Section:'LIABILITIES',Item:'TOTAL LIABILITIES',Amount_KES:bsData.totalLiabilities},
                         {Section:'EQUITY',Item:"Owner's capital",Amount_KES:bsData.openingCapital},
                         {Section:'EQUITY',Item:'Retained Earnings (cumulative net profit)',Amount_KES:bsData.retainedEarnings},
@@ -796,6 +801,7 @@ export default function ReportsPage() {
                   <PLSection title="LIABILITIES" color="#dc2626">
                     <PLRow label="Customer deposits (contract liabilities)" value={bsData.depositLiability} indent color="#dc2626" sub={bsData.openDepositsCount ? `${bsData.openDepositsCount} unfulfilled booking${bsData.openDepositsCount===1?'':'s'}` : 'No open deposits'}/>
                     <PLRow label="Trade payables" value={bsData.accountsPayable} indent color="#dc2626" sub="Stock taken on credit, not yet paid"/>
+                    {bsData.outputVat>0&&<PLRow label="Output VAT payable" value={bsData.outputVat} indent color="#dc2626" sub="VAT charged on sales. Payments of VAT to the tax authority are not recorded in SalesTrack yet."/>}
                     <PLRow label="TOTAL LIABILITIES" value={bsData.totalLiabilities} bold border color="#dc2626"/>
                   </PLSection>
 
@@ -829,7 +835,7 @@ export default function ReportsPage() {
 
                   {/* Retained earnings breakdown */}
                   <PLSection title="RETAINED EARNINGS BREAKDOWN" color="#8b5cf6">
-                    <PLRow label="Lifetime Revenue" value={bsData.lifetimeRevenue} indent/>
+                    <PLRow label="Lifetime Revenue (excluding VAT)" value={bsData.lifetimeRevenue} indent/>
                     <PLRow label="Lifetime cost of sales" value={bsData.lifetimeCOGS} negative indent/>
                     <PLRow label="Lifetime Gross Profit" value={bsData.lifetimeGP} indent bold/>
                     <PLRow label="Total Expenses Paid" value={bsData.totalExpensesPaid} negative indent/>
@@ -930,7 +936,7 @@ export default function ReportsPage() {
                   <PLRow label="Net increase/(decrease) in cash" value={cfData.netCashFlow} indent/>
                   <PLRow label="At end of period" value={cfData.closingCash} bold big border color={cfData.closingCash>=0?'#059669':'#dc2626'}/>
                 </PLSection>
-                <div style={{ fontSize:11, color:'#9b6070', lineHeight:1.5, marginTop:8 }}>Closing cash equals Cash and cash equivalents on the Statement of Financial Position at the end date. Credit sales count when the customer pays. Stock purchases count on the day they were entered in Inventory and only when tagged as paid from cash. Owner contributions, drawings, loans and asset purchases are not recorded in SalesTrack, so no investing or financing activities are shown.</div>
+                <div style={{ fontSize:11, color:'#9b6070', lineHeight:1.5, marginTop:8 }}>Closing cash equals Cash and cash equivalents on the Statement of Financial Position at the end date. Receipts include any VAT charged on sales. Credit sales count when the customer pays. Stock purchases count on the day they were entered in Inventory and only when tagged as paid from cash. Owner contributions, drawings, loans and asset purchases are not recorded in SalesTrack, so no investing or financing activities are shown.</div>
                 {(cfData.inflowByMethod.mixed || 0) > 0 && <div style={{ fontSize:11, color:'#92400e', background:'#fef3c7', borderRadius:8, padding:'6px 10px', marginTop:8 }}>Some Split sales have no valid cash part recorded, so {fmtKES(cfData.inflowByMethod.mixed)} is shown as Split (cash and M-Pesa not separated).</div>}
                 {cfData.undatedCount > 0 && <div style={{ fontSize:11, color:'#92400e', background:'#fef3c7', borderRadius:8, padding:'6px 10px', marginTop:8 }}>{cfData.undatedCount} completed sale(s) worth {fmtKES(cfData.undatedTotal)} have no date in the receipt number and are left out.</div>}
               </div>
@@ -1050,7 +1056,7 @@ export default function ReportsPage() {
           </div>
           {srLoad ? <Spinner/> : srData ? (
             <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-              {srData.undatedCount > 0 && <div style={{ fontSize:11, color:'#92400e', background:'#fef3c7', borderRadius:8, padding:'6px 10px' }}>{srData.undatedCount} completed sale(s) have no date in the receipt number, so they are not included in this report.</div>}<div style={{ display:'flex', justifyContent:'flex-end' }}>
+              {srData.undatedCount > 0 && <div style={{ fontSize:11, color:'#92400e', background:'#fef3c7', borderRadius:8, padding:'6px 10px' }}>{srData.undatedCount} completed sale(s) have no date in the receipt number, so they are not included in this report.</div>}{srData.vat>0&&<div style={{ fontSize:11, color:'#6b4050', background:'#fdf5f7', borderRadius:8, padding:'6px 10px' }}>Sales figures exclude output VAT of {fmtKES(srData.vat)}.</div>}<div style={{ display:'flex', justifyContent:'flex-end' }}>
                 <button className="btn-secondary" onClick={() => exportCSV(srData.topProducts.map(p=>({Product:p.name,Qty_Sold:p.qty,Revenue_KES:p.revenue.toFixed(2),Profit_KES:p.profit.toFixed(2)})),'sales-report.csv')}><Download size={14}/> Export CSV</button>
               </div>
               <div className="mobile-stack" style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:20 }}>
@@ -1456,7 +1462,7 @@ export default function ReportsPage() {
                       <div style={{ fontWeight:800, fontSize:14, color:'#fff', marginBottom:6 }}>Data Source and Reliability</div>
                       <div style={{ fontSize:12, color:'rgba(255,255,255,0.65)', lineHeight:1.7 }}>Figures in this report are generated from the business's SalesTrack sales, payment and expense records as at the time shown. They are management information, not audited financial statements, and have not been reconciled to bank or M-Pesa statements. Authorised shop users can correct records, so lenders should independently verify key figures against bank and M-Pesa statements.</div>
                       <div style={{ marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                        {[{label:'Report ID',value:d.reportId},{label:'Generated',value:d.generatedAt},{label:'Business',value:shop?.name},{label:'Data Source',value:'SalesTrack POS - sales, payment and expense records'},{label:'Reporting period',value:d.monthlyPL[0].label+' to '+d.monthlyPL[d.monthlyPL.length-1].label},{label:'Months with recorded sales',value:d.activeMonths+' of '+d.monthlyPL.length},{label:'Transactions in period',value:d.monthlyPL.reduce((s,m)=>s+m.txCount,0)},{label:'Average monthly net profit',value:fmtKES(d.avgMonthlyNet*d.spanMonths)+' over '+d.spanMonths+' month(s), from the first month with sales'},{label:'Completeness',value:'Not verified. Based on recorded transactions only.'},{label:'Reconciled to bank or M-Pesa',value:'No'},...(d.monthlyPL.reduce((s,m)=>s+(m.vat||0),0)>0?[{label:'Output VAT recorded in sales',value:fmtKES(d.monthlyPL.reduce((s,m)=>s+(m.vat||0),0))+' (included in revenue, not business income)'}]:[])].map((r,i) => (
+                        {[{label:'Report ID',value:d.reportId},{label:'Generated',value:d.generatedAt},{label:'Business',value:shop?.name},{label:'Data Source',value:'SalesTrack POS - sales, payment and expense records'},{label:'Reporting period',value:d.monthlyPL[0].label+' to '+d.monthlyPL[d.monthlyPL.length-1].label},{label:'Months with recorded sales',value:d.activeMonths+' of '+d.monthlyPL.length},{label:'Transactions in period',value:d.monthlyPL.reduce((s,m)=>s+m.txCount,0)},{label:'Average monthly net profit',value:fmtKES(d.avgMonthlyNet*d.spanMonths)+' over '+d.spanMonths+' month(s), from the first month with sales'},{label:'Completeness',value:'Not verified. Based on recorded transactions only.'},{label:'Reconciled to bank or M-Pesa',value:'No'},...(d.monthlyPL.reduce((s,m)=>s+(m.vat||0),0)>0?[{label:'Output VAT recorded in sales',value:fmtKES(d.monthlyPL.reduce((s,m)=>s+(m.vat||0),0))+' (excluded from the revenue and profit shown)'}]:[])].map((r,i) => (
                           <div key={i} style={{ fontSize:11 }}><span style={{ color:'rgba(255,255,255,0.4)' }}>{r.label}: </span><span style={{ color:'rgba(255,255,255,0.8)', fontWeight:600 }}>{r.value}</span></div>
                         ))}
                       </div>

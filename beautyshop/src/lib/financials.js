@@ -172,12 +172,15 @@ export async function buildTrialBalance(shop, asOfDate) {
     (s, m) => s + (Math.abs(m.qty || 0) * (m.cost_per_unit || 0)), 0
   )
   const accountsPayable = accountsPayableGross - supplierPaidToDate
-  const totalLiabilities = depositLiability + accountsPayable
+  // Output VAT charged on completed sales is owed to the tax authority until paid over. Payments of VAT are not recorded in SalesTrack yet.
+  const outputVat = salesToDate.reduce((s, x) => s + (x.tax_amount_kes || 0), 0)
+  const totalLiabilities = depositLiability + accountsPayable + outputVat
 
   // ── EQUITY ───────────────────────────────────────────────────────────
   const openingCapital = shop.opening_capital_kes || 0
 
-  const revenue = salesToDate.reduce((s, x) => s + (x.total_kes || 0), 0)
+  const revenueGross = salesToDate.reduce((s, x) => s + (x.total_kes || 0), 0)
+  const revenue = revenueGross - outputVat
   const cogs = salesToDate.reduce((s, x) => s + (x.total_cost_kes || 0), 0)
   const grossProfit = revenue - cogs
   const totalExpenses = expensesToDate.reduce((s, e) => s + (e.amount_kes || 0), 0)
@@ -197,9 +200,9 @@ export async function buildTrialBalance(shop, asOfDate) {
     cash, cashReceipts, cashByChannel, stockPaidToDate, supplierPaidToDate, accountsReceivable, stockAtCost, stockAtRetail, totalAssets,
     undatedCount, undatedTotal,
     // Liabilities
-    depositLiability, accountsPayable, totalLiabilities,
+    depositLiability, accountsPayable, outputVat, totalLiabilities,
     // Equity
-    openingCapital, revenue, cogs, grossProfit, totalExpenses, retainedEarnings, totalEquity,
+    openingCapital, revenue, revenueGross, cogs, grossProfit, totalExpenses, retainedEarnings, totalEquity,
     // Check
     variance, isBalanced: Math.abs(variance) < 1,
     // Raw data for downstream reports (Sales Report, Expense Report reuse this)
