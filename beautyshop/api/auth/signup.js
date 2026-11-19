@@ -79,7 +79,7 @@ export default async function handler(req, res) {
     const bizEmail = clean(q.bizEmail, 120).toLowerCase()
     const currency = /^[A-Z]{3}$/.test(String(q.currency || '')) ? String(q.currency) : 'KES'
     const taxNum = Number(q.taxRate)
-    const taxRate = Number.isFinite(taxNum) ? Math.min(100, Math.max(0, taxNum)) : 16
+    const taxRate = Number.isFinite(taxNum) ? Math.min(100, Math.max(0, taxNum)) : 0
     const brandColor = /^#[0-9a-fA-F]{6}$/.test(String(q.brandColor || '')) ? String(q.brandColor) : '#c8456a'
     const receiptFooter = clean(q.receiptFooter, 200) || `Thank you for visiting ${bizName}!`
     const referralUsed = String(q.referralCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20)

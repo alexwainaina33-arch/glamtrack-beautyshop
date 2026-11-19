@@ -461,7 +461,7 @@ export default function LoginPage() {
   const [brandColor, setBrandColor] = useState('#c8456a')
   const [customColor, setCustomColor] = useState('#c8456a')
   const [currency, setCurrency] = useState('KES')
-  const [taxRate, setTaxRate] = useState(16)
+  const [taxRate, setTaxRate] = useState(0)
   const [receiptFooter, setReceiptFooter] = useState('')
   // After registration
   const [newAdminName, setNewAdminName] = useState('')

@@ -357,7 +357,7 @@ function ShopSetupWizard() {
   const { admin, completeShopSetup } = useAuth()
   const [step, setStep] = useState(1)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ name: '', phone: '', address: '', email: '', currency: 'KES', tax_rate: 16 })
+  const [form, setForm] = useState({ name: '', phone: '', address: '', email: '', currency: 'KES', tax_rate: 0 })
 
   const handleCreate = async (e) => {
     e.preventDefault()

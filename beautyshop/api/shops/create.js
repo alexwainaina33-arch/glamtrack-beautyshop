@@ -96,7 +96,7 @@ export default async function handler(req, res) {
     const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailIn) ? emailIn : clean(caller.email, 120).toLowerCase()
     const currency = /^[A-Z]{3}$/.test(String(q.currency || '')) ? String(q.currency) : 'KES'
     const taxNum = Number(q.tax_rate)
-    const taxRate = Number.isFinite(taxNum) ? Math.min(100, Math.max(0, taxNum)) : 16
+    const taxRate = Number.isFinite(taxNum) ? Math.min(100, Math.max(0, taxNum)) : 0
 
     // ---- 3. Only an owner with ZERO shops may create one ----
     token = await adminToken()
