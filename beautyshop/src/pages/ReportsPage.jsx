@@ -562,7 +562,7 @@ export default function ReportsPage() {
       `Months with recorded sales`,`*${d.activeMonths} of 6*`,``, `6-Month Total Revenue`,`*${fmtKES(d.totalRevenue6m)}*`,``,
       `Average Monthly Revenue`,`*${fmtKES(d.avgMonthlyRevenue)}*`,``,
       `Average Monthly Net Profit`,`*${fmtKES(d.avgMonthlyNet)}*`,``,
-      `Revenue Consistency`,`*${d.profitableMonths}/${d.spanMonths} months profitable (${d.consistencyScore}%)*`,
+      `Revenue Consistency`,`*${d.profitableMonths}/${d.spanMonths} months profitable${d.spanMonths<3?' (too few months to show a trend)':' ('+d.consistencyScore+'%)'}*`,
       ...(d.growthRate!==null?[``,`Revenue Growth (6 months)`,`*${d.growthRate>0?'+':''}${d.growthRate}%*`]:[]),
       ...(dv?[``,`Profit-based indicative DSCR`,`*${dv.text}* (${dv.label})`,`_Illustrative benchmark only. Not a loan approval or guarantee._`]:[]),
       ``,`_Figures are generated from SalesTrack records. Please confirm key figures against M-Pesa or bank statements._`,
@@ -1338,7 +1338,7 @@ export default function ReportsPage() {
                       <div style={{ fontSize:12, color:'#9b6070' }}>Month-by-month revenue, costs and profit — the core lending assessment table</div>
                     </div>
                     <button className="btn-secondary no-print" style={{ fontSize:12 }} onClick={() => {
-                      const rows=[...d.monthlyPL.map(m=>({Month:m.label,Revenue_KES:m.revenue,Cost_of_Sales_KES:m.cogs,Gross_Profit_KES:m.grossProfit,Expenses_KES:m.expenses,Net_Profit_KES:m.netProfit,Net_Margin_Pct:m.netMargin,Transactions:m.txCount,Recorded_Activity:(m.txCount>0||m.expenses>0)?$Yes$:$No$})),{Month:'TOTAL / AVERAGE',Revenue_KES:d.totalRevenue6m,Cost_of_Sales_KES:d.monthlyPL.reduce((s,m)=>s+m.cogs,0),Gross_Profit_KES:d.monthlyPL.reduce((s,m)=>s+m.grossProfit,0),Expenses_KES:d.monthlyPL.reduce((s,m)=>s+m.expenses,0),Net_Profit_KES:d.totalNetProfit6m,Net_Margin_Pct:d.totalRevenue6m?((d.totalNetProfit6m/d.totalRevenue6m)*100).toFixed(1):'0.0',Transactions:d.monthlyPL.reduce((s,m)=>s+m.txCount,0)}]
+                      const rows=[...d.monthlyPL.map(m=>({Month:m.label,Revenue_KES:m.revenue,Cost_of_Sales_KES:m.cogs,Gross_Profit_KES:m.grossProfit,Expenses_KES:m.expenses,Net_Profit_KES:m.netProfit,Net_Margin_Pct:m.netMargin,Transactions:m.txCount,Recorded_Activity:(m.txCount>0||m.expenses>0)?"Yes":"No"})),{Month:'TOTAL / AVERAGE',Revenue_KES:d.totalRevenue6m,Cost_of_Sales_KES:d.monthlyPL.reduce((s,m)=>s+m.cogs,0),Gross_Profit_KES:d.monthlyPL.reduce((s,m)=>s+m.grossProfit,0),Expenses_KES:d.monthlyPL.reduce((s,m)=>s+m.expenses,0),Net_Profit_KES:d.totalNetProfit6m,Net_Margin_Pct:d.totalRevenue6m?((d.totalNetProfit6m/d.totalRevenue6m)*100).toFixed(1):'0.0',Transactions:d.monthlyPL.reduce((s,m)=>s+m.txCount,0)}]
                       exportCSV(rows, `${shop?.name?.replace(/\s+/g,'-')}-6month-pl.csv`)
                     }}>⬇️ Download CSV</button>
                   </div>
@@ -1382,7 +1382,7 @@ export default function ReportsPage() {
                     </div>
                     <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
                       {d.growthRate!==null&&(<div style={{ textAlign:'center', background:parseFloat(d.growthRate)>=0?'#f0fdf4':'#fff5f5', borderRadius:10, padding:'8px 14px' }}><div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700, color:parseFloat(d.growthRate)>=0?'#059669':'#dc2626' }}>{parseFloat(d.growthRate)>=0?'↑':'↓'} {Math.abs(parseFloat(d.growthRate))}%</div><div style={{ fontSize:11, color:'#9b6070' }}>Revenue growth</div></div>)}
-                      <div style={{ textAlign:'center', background:d.consistencyScore>=67?'#f0fdf4':d.consistencyScore>=34?'#fefce8':'#fff5f5', borderRadius:10, padding:'8px 14px' }}><div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700, color:d.consistencyScore>=67?'#059669':d.consistencyScore>=34?'#d97706':'#dc2626' }}>{d.profitableMonths}/{d.spanMonths}</div><div style={{ fontSize:11, color:'#9b6070' }}>Profitable months</div></div>
+                      <div style={{ textAlign:'center', background:d.consistencyScore>=67?'#f0fdf4':d.consistencyScore>=34?'#fefce8':'#fff5f5', borderRadius:10, padding:'8px 14px' }}><div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700, color:d.consistencyScore>=67?'#059669':d.consistencyScore>=34?'#d97706':'#dc2626' }}>{d.profitableMonths}/{d.spanMonths}</div><div style={{ fontSize:11, color:'#9b6070' }}>Profitable months{d.spanMonths<3?' (too few for a trend)':''}</div></div>
                     </div>
                   </div>
                   <ResponsiveContainer width="100%" height={200}>
