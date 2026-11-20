@@ -851,7 +851,7 @@ export default function ProductsPage() {
                         {editing && vatOn && !form.vat_class && !form.is_taxable && (
                           <div style={{ fontSize:11, color:'#b45309', marginTop:5 }}>This was marked not taxable before, but the till has been charging VAT on it. Choose Exempt or Zero-rated if that is right.</div>
                         )}
-                        <div style={{ fontSize:11, color:'#9b6070', marginTop:5 }}>Takes effect at the till in the next update. Until then the till charges your shop VAT rate on every product.</div>
+                        <div style={{ fontSize:11, color:'#9b6070', marginTop:5 }}>The till uses this on new sales. Past sales never change. Products with no choice are charged your shop VAT rate.</div>
                       </div>
                     )
                   })()}

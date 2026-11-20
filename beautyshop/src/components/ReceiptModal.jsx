@@ -16,6 +16,15 @@ export default function ReceiptModal({ sale, shop, onClose }) {
   }))
   const subtotal = items.reduce((s, i) => s + i.unit_price * i.qty, 0)
 
+  // FIN1d-2a: one VAT row per rate. Older sales have no line rate and keep one plain VAT row.
+  const vatByRate = {}
+  items.forEach(i => {
+    if (i.vat_rate !== undefined && i.vat_rate !== null && Number(i.vat_amount_kes) > 0) vatByRate[Number(i.vat_rate)] = (vatByRate[Number(i.vat_rate)] || 0) + Number(i.vat_amount_kes)
+  })
+  const vatRows = Object.keys(vatByRate).map(k => ({ rate: Number(k), vat: vatByRate[k] })).sort((a, b) => a.rate - b.rate)
+  const taxAmt = Number(sale.tax_amount_kes) || 0
+  const vatIncluded = taxAmt > 0 && Math.abs((Number(sale.total_kes) || 0) - (subtotal - (Number(sale.discount_kes) || 0))) < 0.02
+
   // Logo: shown when the shop has one and has not switched it off (receipt_show_logo === false hides it)
   let logoUrl = null
   try {
@@ -134,11 +143,15 @@ export default function ReceiptModal({ sale, shop, onClose }) {
                   <span>Discount</span><span>- KES {sale.discount_kes.toLocaleString()}</span>
                 </div>
               )}
-              {sale.tax_amount_kes > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>VAT ({shop?.tax_rate}%)</span><span>KES {sale.tax_amount_kes.toLocaleString()}</span>
+              {vatRows.length > 0 ? vatRows.map(r => (
+                <div key={r.rate} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{vatIncluded ? 'Includes VAT ' : 'VAT '}{r.rate}%</span><span>KES {r.vat.toLocaleString()}</span>
                 </div>
-              )}
+              )) : (taxAmt > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{vatIncluded ? 'Includes VAT' : 'VAT'}</span><span>KES {taxAmt.toLocaleString()}</span>
+                </div>
+              ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 15, borderTop: '1px dashed #ccc', paddingTop: 6, marginTop: 4 }}>
                 <span>TOTAL</span><span>KES {sale.total_kes?.toLocaleString()}</span>
               </div>

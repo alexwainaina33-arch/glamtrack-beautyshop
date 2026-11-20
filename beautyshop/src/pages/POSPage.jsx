@@ -31,6 +31,45 @@ async function refreshCartStock(cart, done) {
   }))
 }
 
+// FIN1d-2a: pick the VAT fields saved on a sale line (nothing for old queued lines that have none)
+function vatFields(l) {
+  if (!l || l.vat_rate === undefined || l.net_kes === undefined) return {}
+  return { vat_class: l.vat_class, vat_rate: l.vat_rate, net_kes: l.net_kes, vat_amount_kes: l.vat_amount_kes, discount_kes: l.line_discount_kes }
+}
+
+// FIN1d-2a: VAT per line. Empty class = Standard (shop rate). A shop at 0% charges no VAT at all.
+// Discount and loyalty are shared across lines by value. Each line's VAT is rounded to 2dp and the sale takes the sum.
+function calcVat(cart, shop, discountTotal) {
+  const shopRate = Math.max(0, Math.min(100, Number(shop && shop.tax_rate) || 0))
+  const incl = !!(shop && shop.prices_include_vat)
+  const gross = cart.map(i => r2((Number(i.unit_price) || 0) * (Number(i.qty) || 0)))
+  const sub = gross.reduce((a, b) => a + b, 0)
+  const disc = Math.min(Math.max(Number(discountTotal) || 0, 0), sub)
+  let used = 0
+  let tax = 0
+  let total = 0
+  const byRate = {}
+  const lines = cart.map((item, idx) => {
+    let share = idx === cart.length - 1 ? r2(disc - used) : (sub > 0 ? r2(disc * gross[idx] / sub) : 0)
+    share = Math.min(Math.max(share, 0), gross[idx])
+    used = r2(used + share)
+    const cls = item.vat_class || 'standard'
+    let lr = shopRate
+    if (shopRate <= 0 || cls === 'zero_rated' || cls === 'exempt') lr = 0
+    else if (cls === 'custom') lr = Math.max(0, Math.min(100, Number(item.vat_rate_custom) || 0))
+    const base = r2(gross[idx] - share)
+    let vat, net, lineTotal
+    if (incl) { vat = r2(base * lr / (100 + lr)); net = r2(base - vat); lineTotal = base }
+    else { net = base; vat = r2(base * lr / 100); lineTotal = r2(base + vat) }
+    tax = r2(tax + vat)
+    total = r2(total + lineTotal)
+    if (lr > 0 && vat > 0) byRate[lr] = r2((byRate[lr] || 0) + vat)
+    return { vat_class: cls, vat_rate: lr, net_kes: net, vat_amount_kes: vat, line_discount_kes: share }
+  })
+  const rows = Object.keys(byRate).map(k => ({ rate: Number(k), vat: byRate[k] })).sort((a, b) => a.rate - b.rate)
+  return { lines, tax, total, rows, incl }
+}
+
 export default function POSPage() {
   const { shop, admin, role, loading: authLoading, isLocked } = useAuth()
   const [products, setProducts]     = useState([])
@@ -243,7 +282,7 @@ export default function POSPage() {
           const items = s.items || []
           await Promise.all(items.map((item, idx) =>
             pb.collection(C.SALE_ITEMS).create({
-              sale_id: sale.id, product_id: item.id, product_name: item.name,
+              sale_id: sale.id, ...vatFields(item), product_id: item.id, product_name: item.name,
               qty: item.qty, unit_price_kes: item.unit_price, unit_cost_kes: item.cost_price_kes || 0,
               total_kes: item.unit_price * item.qty,
             }, { '$autoCancel': false, '$cancelKey': `sync-item-${s.id}-${idx}` })
@@ -502,8 +541,9 @@ export default function POSPage() {
   const loyaltyCalc     = customer ? calcRedeemWithConfig(customer.loyalty_points || 0, subtotal - discountAmt, loyaltyCfg) : { points: 0, kes: 0 }
   const loyaltyDiscount = redeemPoints ? loyaltyCalc.kes : 0
   const afterDiscount   = Math.max(0, subtotal - discountAmt - loyaltyDiscount)
-  const tax             = shop?.tax_rate ? afterDiscount * (shop.tax_rate / 100) : 0
-  const total           = afterDiscount + tax
+  const vatCalc         = calcVat(cart, shop, subtotal - afterDiscount)
+  const tax             = vatCalc.tax
+  const total           = vatCalc.total
   const totalCost       = cart.reduce((s, i) => s + (i.cost_price_kes || 0) * i.qty, 0)
   const grossProfit     = total - totalCost
   const pointsEarned    = customer && loyaltyCfg.enabled ? calcPointsEarned(total) : 0
@@ -518,8 +558,9 @@ export default function POSPage() {
   // Credit (Pay Later) sales never apply loyalty points: no points are deducted for them,
   // so the credit total is calculated WITHOUT the loyalty discount.
   const creditAfterDiscount = Math.max(0, subtotal - discountAmt)
-  const creditTax           = shop?.tax_rate ? creditAfterDiscount * (shop.tax_rate / 100) : 0
-  const creditTotal         = creditAfterDiscount + creditTax
+  const creditCalc          = calcVat(cart, shop, subtotal - creditAfterDiscount)
+  const creditTax           = creditCalc.tax
+  const creditTotal         = creditCalc.total
   const creditProfit        = creditTotal - totalCost
   const loyaltyIgnoredForCredit = redeemPoints && loyaltyDiscount > 0
 
@@ -604,7 +645,7 @@ export default function POSPage() {
       })
       attempt.sale = sale
       await allDone(cart.map((item, idx) => attempt.items[idx] ? null : pb.collection(C.SALE_ITEMS).create({
-        sale_id: sale.id,
+        sale_id: sale.id, ...vatFields(creditCalc.lines[idx]),
         product_id: item.id, product_name: item.name,
         qty: item.qty, unit_price_kes: item.unit_price, unit_cost_kes: item.cost_price_kes || 0,
         total_kes: item.unit_price * item.qty,
@@ -673,7 +714,7 @@ export default function POSPage() {
         notes: redeemPoints && loyaltyDiscount > 0 ? ('Loyalty: ' + pointsRedeemed + ' pts = ' + fmtKES(loyaltyDiscount)) : '',
         points_redeemed: pointsRedeemed,
         points_earned: pointsEarned,
-        items: cart,
+        items: cart.map((it, i) => ({ ...it, ...vatCalc.lines[i] })),
         customer,
       })
       // Small delay to let Dexie finish writing before reading count
@@ -707,7 +748,7 @@ export default function POSPage() {
       attempt.sale = sale
       await allDone(cart.map((item, idx) => attempt.items[idx] ? null : pb.collection(C.SALE_ITEMS).create({
         sale_id: sale.id, product_id: item.id,
-        product_name: item.variant_name ? `${item.name}` : item.name,
+        ...vatFields(vatCalc.lines[idx]), product_name: item.variant_name ? `${item.name}` : item.name,
         qty: item.qty, unit_price_kes: item.unit_price, unit_cost_kes: item.cost_price_kes || 0,
         total_kes: item.unit_price * item.qty,
       }, { '$autoCancel': false, '$cancelKey': `sale-item-${idx}` }).then(() => { attempt.items[idx] = true })))
@@ -731,7 +772,7 @@ export default function POSPage() {
       }
 
       attemptRef.current = null
-      setCompletedSale({ ...sale, items: cart, customer, change, pointsEarned })
+      setCompletedSale({ ...sale, items: cart.map((it, i) => ({ ...it, ...vatCalc.lines[i] })), customer, change, pointsEarned })
       setShowReceipt(true); clearCart(); loadData()
       toast.success(`Sale done! ${receiptNo}`, { icon: '🎉', duration: 4000 })
 
@@ -1072,7 +1113,7 @@ export default function POSPage() {
               { label: 'Subtotal', value: subtotal },
               ...(discountAmt > 0 ? [{ label: '− Discount', value: -discountAmt, red: true }] : []),
               ...(loyaltyDiscount > 0 ? [{ label: '− Loyalty', value: -loyaltyDiscount, gold: true }] : []),
-              ...(tax > 0 ? [{ label: `VAT ${shop?.tax_rate}%`, value: tax }] : []),
+              ...vatCalc.rows.map(r => ({ label: (vatCalc.incl ? 'incl. VAT ' : 'VAT ') + r.rate + '%', value: r.vat })),
             ].map((r, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 2 }}>
                 <span style={{ color: '#6b4050' }}>{r.label}</span>
@@ -1252,7 +1293,7 @@ export default function POSPage() {
                   )}
                   {tax > 0 && (
                     <div>
-                      <div style={{ color: '#9b6070', fontSize: 11 }}>Tax</div>
+                      <div style={{ color: '#9b6070', fontSize: 11 }}>{vatCalc.incl ? 'VAT (included)' : 'Tax'}</div>
                       <div style={{ fontWeight: 700, fontSize: 14, color: '#3d1020' }}>{fmtKES(tax)}</div>
                     </div>
                   )}

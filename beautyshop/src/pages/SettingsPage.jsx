@@ -333,7 +333,7 @@ export default function SettingsPage() {
                   <input id="inc-vat" type="checkbox" checked={!!shopForm.prices_include_vat} disabled={!shopForm.prices_include_vat && !(Number(shopForm.tax_rate) > 0)} onChange={e=>setShopForm(f=>({...f,prices_include_vat:e.target.checked}))} />
                   Prices include VAT
                 </label>
-                <div style={{ fontSize:11, color:'#9b6070', marginTop:4 }}>Switch on if the selling prices on your products already include VAT. Past sales never change. Takes effect at the till in the next update. Needs a VAT rate above 0.</div>
+                <div style={{ fontSize:11, color:'#9b6070', marginTop:4 }}>Switch on if the selling prices on your products already include VAT. Past sales never change. The till uses this on new sales. Needs a VAT rate above 0.</div>
               </div>
               <div style={{ gridColumn:'1/-1' }}>
                 <label className="label">Opening Capital (KES)</label>
