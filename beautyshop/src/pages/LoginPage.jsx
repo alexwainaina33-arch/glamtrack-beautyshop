@@ -322,7 +322,7 @@ function CelebrationScreen({ bizName, adminName, seeded, onDone }) {
     return () => clearTimeout(t)
   }, [])
 
-  const msg = `🎉 My shop *${bizName}* is now live on SalesTrack!\n\nI can now manage sales, inventory & staff right from my phone 📱\n\nTry it free for 7 days 👉 https://getsalestrack.vercel.app`
+  const msg = `🎉 My shop *${bizName}* is now live on SalesTrack!\n\nI can now manage sales, inventory & staff right from my phone 📱\n\nTry it free for 7 days 👉 https://salestrack.doublexsoftware.com`
 
   return (
     <div style={{ ...card, textAlign: 'center', padding: '40px 24px', animation: 'st-fade-up 0.5s ease' }}>

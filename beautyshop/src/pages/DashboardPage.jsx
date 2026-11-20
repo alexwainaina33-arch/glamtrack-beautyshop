@@ -963,7 +963,7 @@ function DailyShareCard({ stats, shop, period }) {
     ctx.fillText('Powered by SalesTrack · Run your business from your phone', W / 2, 680)
     ctx.fillStyle = 'rgba(255,255,255,0.2)'
     ctx.font = 'bold 18px Nunito, Arial, sans-serif'
-    ctx.fillText('getsalestrack.vercel.app', W / 2, 720)
+    ctx.fillText('salestrack.doublexsoftware.com', W / 2, 720)
 
     return canvas
   }, [stats, shop, period])
