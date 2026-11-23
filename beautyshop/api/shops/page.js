@@ -29,6 +29,7 @@ export default async function handler(req, res) {
   const send = (h, ok) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
     res.setHeader('Cache-Control', ok ? 'public, s-maxage=60, stale-while-revalidate=300' : 'public, s-maxage=10')
+    if (!ok) res.setHeader('X-Robots-Tag', 'noindex')
     return res.status(200).send(h)
   }
 
