@@ -26,10 +26,10 @@ export default async function handler(req, res) {
     return res.status(500).send('Temporarily unavailable')
   }
 
-  const send = (h, ok) => {
+  const send = (h, ok, indexable = ok) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
     res.setHeader('Cache-Control', ok ? 'public, s-maxage=60, stale-while-revalidate=300' : 'public, s-maxage=10')
-    if (!ok) res.setHeader('X-Robots-Tag', 'noindex')
+    if (!indexable) res.setHeader('X-Robots-Tag', 'noindex')
     return res.status(200).send(h)
   }
 
@@ -87,7 +87,7 @@ export default async function handler(req, res) {
     out = out.replace(/<meta\s+(?:name="description"|property="og:[^"]*"|name="twitter:[^"]*")[^>]*>\s*/g, '')
     out = out.replace('</head>', head + '</head>')
     out = out.replace('<div id="root"></div>', '<div id="root">' + body + '</div>')
-    return send(out, true)
+    return send(out, true, shop.public_on_google === true)
   } catch (e) {
     return send(html, false)
   }

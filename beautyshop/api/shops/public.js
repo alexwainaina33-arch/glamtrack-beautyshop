@@ -1,7 +1,7 @@
 // api/shops/public.js - public, read-only. Returns ONLY the fields the public pages need.
 const PB_URL = process.env.PB_URL || 'https://fieldtrack-kenya.fly.dev'
 
-const SHOP_FIELDS = ['id', 'collectionId', 'collectionName', 'name', 'slug', 'logo', 'cover_image', 'tagline', 'about_text', 'address', 'phone', 'email', 'website', 'instagram', 'business_type', 'business_hours', 'brand_color', 'currency', 'founded_year']
+const SHOP_FIELDS = ['id', 'collectionId', 'collectionName', 'name', 'slug', 'logo', 'cover_image', 'tagline', 'about_text', 'address', 'phone', 'email', 'website', 'instagram', 'business_type', 'business_hours', 'brand_color', 'currency', 'founded_year', 'public_on_google']
 const RECEIPT_FIELDS = ['id', 'collectionId', 'collectionName', 'name', 'logo', 'address', 'phone', 'currency', 'tax_rate', 'receipt_header', 'receipt_footer', 'receipt_show_logo', 'receipt_show_tax']
 
 const PRODUCT_FIELDS = ['id', 'collectionId', 'collectionName', 'shop_id', 'name', 'category_id', 'description', 'unit', 'price_kes', 'compare_price_kes', 'images', 'stock_qty', 'track_inventory', 'is_service', 'has_variants', 'is_taxable', 'status', 'brand', 'tags']
