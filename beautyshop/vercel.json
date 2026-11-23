@@ -17,6 +17,7 @@
     }
   ],
   "rewrites": [
+    { "source": "/shop/:slug", "destination": "/api/shops/page?slug=:slug" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "crons": [
