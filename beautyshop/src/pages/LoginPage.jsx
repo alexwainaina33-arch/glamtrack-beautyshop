@@ -628,30 +628,7 @@ export default function LoginPage() {
         } catch { /* non-critical */ }
       }
 
-      // 5. Sample products so the dashboard isn't empty
-      let productsAdded = 0
-      for (const prod of DEMO_PRODUCTS[bizType] || DEMO_PRODUCTS.other) {
-        try {
-          const prodName = prod.name.toLowerCase()
-          const catMatch = createdCats.find(c => prodName.includes(c.name.toLowerCase().split(' ')[0]))
-          const payload = {
-            shop_id: shopId,
-            name: prod.name,
-            price_kes: prod.selling_price_kes,
-            cost_price_kes: prod.cost_price_kes,
-            stock_qty: prod.stock_qty,
-            unit: UNIT_MAP[prod.unit] || 'piece',
-            track_inventory: true,
-            status: 'active',
-          }
-          const catId = catMatch?.id || createdCats[0]?.id
-          if (catId) payload.category_id = catId
-          await pb.collection(C.PRODUCTS).create(payload)
-          productsAdded++
-        } catch (err) {
-          console.error('Demo product failed:', prod.name, err?.data || err?.message || err)
-        }
-      }
+      const productsAdded = 0
 
       await loadShop(pb.authStore.model.id)
 
