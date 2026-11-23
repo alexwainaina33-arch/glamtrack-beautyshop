@@ -80,6 +80,7 @@ export default async function handler(req, res) {
     }
     if (!shop || !shop.id) return res.status(404).json({ error: 'Not found' })
     if (slug && String(q.catalog || '') === '1') {
+      if (isLocked(shop)) { res.setHeader('Cache-Control', 'public, s-maxage=30'); return res.status(200).json({ products: [], staff: [] }) }
       const fp = encodeURIComponent('shop_id="' + shop.id + '" && status="active"')
       const fs = encodeURIComponent('shop_id="' + shop.id + '" && is_active=true')
       const p = await pbGet(t, '/api/collections/bs_products/records?filter=' + fp + '&perPage=200&sort=name&expand=category_id')
