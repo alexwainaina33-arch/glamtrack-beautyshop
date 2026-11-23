@@ -305,8 +305,8 @@ export default function SettingsPage() {
                 <input className="input" value={shopForm.website||''} onChange={e=>setShopForm(f=>({...f,website:e.target.value}))} placeholder="https://yourbusiness.com" />
               </div>
               <div style={{ gridColumn:'1/-1' }}>
-                <label className="label">Physical Address</label>
-                <textarea className="input" rows={2} value={shopForm.address||''} onChange={e=>setShopForm(f=>({...f,address:e.target.value}))} style={{ resize:'vertical' }} placeholder="Address for receipts" />
+                <label className="label">Address (shown on your public page)</label>
+                <textarea className="input" rows={2} value={shopForm.address||''} onChange={e=>setShopForm(f=>({...f,address:e.target.value}))} style={{ resize:'vertical' }} placeholder="Area is enough, e.g. Juja, Kiambu. This appears on your public shop page and on Google." />
               </div>
               <div>
                 <label className="label">Instagram Handle</label>
