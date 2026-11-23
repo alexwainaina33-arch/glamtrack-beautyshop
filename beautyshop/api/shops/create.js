@@ -60,6 +60,16 @@ async function countLinks(token, adminId) {
   return Number(r.totalItems) || 0
 }
 
+async function makeUniqueSlug(token, name) {
+  const base = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50).replace(/-+$/g, '') || 'shop'
+  for (let i = 1; i <= 20; i++) {
+    const cand = i === 1 ? base : base + '-' + i
+    const f = encodeURIComponent('slug="' + cand + '"')
+    const d = await pb(token, 'GET', '/api/collections/bs_shops/records?filter=' + f + '&perPage=1&fields=id')
+    if (!(d && d.items && d.items.length)) return cand
+  }
+  return base + '-' + Date.now()
+}
 async function makeUniqueReferralCode(token, bizName) {
   const initials = bizName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'SHOP'
   for (let i = 0; i < 6; i++) {
@@ -105,7 +115,7 @@ export default async function handler(req, res) {
     }
 
     // ---- 4. Create the shop (slug, trial dates, referral code all set here) ----
-    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') + '-' + Date.now()
+    const slug = await makeUniqueSlug(token, name)
     const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().replace('T', ' ')
     const referralCode = await makeUniqueReferralCode(token, name)
     made.shop = await pb(token, 'POST', '/api/collections/bs_shops/records', {
