@@ -141,6 +141,14 @@ export default function SettingsPage() {
     r.readAsDataURL(file)
   }
 
+  const setPublicOnGoogle = async (on) => {
+    try {
+      const updated = await pb.collection(C.SHOPS).update(shop.id, { public_on_google: on })
+      switchShop(updated)
+      toast.success(on ? "Saved. Google may now list your page." : "Saved. Your page is hidden from Google.")
+    } catch (err) { toast.error("Could not save. Only the shop owner can change this.") }
+  }
+
   const saveShop = async (e) => {
     e?.preventDefault()
     setSaving(true)
@@ -615,6 +623,16 @@ export default function SettingsPage() {
                 <div style={{ fontSize:12, color:'#9b6070' }}>QR code hidden — renew your subscription to print or share</div>
               </div>
             )}
+          </div>
+
+          <div className="card" style={{ marginBottom: 16 }}>
+            <label style={{ display:"flex", gap:10, alignItems:"flex-start", cursor: isLocked ? "not-allowed" : "pointer" }}>
+              <input type="checkbox" checked={shop?.public_on_google === true} disabled={isLocked} onChange={e => setPublicOnGoogle(e.target.checked)} style={{ marginTop:4 }} />
+              <span>
+                <span style={{ display:"block", fontFamily:"Playfair Display,serif", fontSize:17, color:"#3d1020", fontWeight:700 }}>Let Google list my shop page</span>
+                <span style={{ display:"block", fontSize:12, color:"#9b6070", marginTop:4 }}>Off by default. When on, Google may list your shop page and show what is on it, such as your shop name, about text, address, and product names and prices. No ranking is promised and it can take weeks to appear. You can turn it off any time.</span>
+              </span>
+            </label>
           </div>
 
           {/* Booking-only page — secondary */}
