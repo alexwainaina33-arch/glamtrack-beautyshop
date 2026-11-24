@@ -713,11 +713,6 @@ export default function ShopPage() {
 
           {/* Tagline + Est. badge overlaid on photo — bottom right */}
           <div style={{ position: 'absolute', bottom: 14, right: 14, zIndex: 4, textAlign: 'right' }}>
-            {shop.tagline && (
-              <div style={{ fontSize: 13, fontStyle: 'italic', color: 'rgba(255,255,255,.92)', fontFamily: 'Playfair Display,serif', marginBottom: shop.founded_year ? 5 : 0, textShadow: '0 1px 6px rgba(0,0,0,.6)', maxWidth: 200 }}>
-                "{shop.tagline}"
-              </div>
-            )}
             {shop.founded_year && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(0,0,0,.42)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', borderRadius: 12, padding: '3px 10px', border: `1px solid ${brand}66` }}>
                 <span style={{ fontSize: 12 }}>🏆</span>
@@ -733,6 +728,7 @@ export default function ShopPage() {
           <div style={{ paddingLeft: 100, paddingTop: 8, paddingBottom: 4, minHeight: 48 }}>
             <h1 style={{ fontFamily: 'Playfair Display,serif', color: '#1a1a1f', fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{shop.name}</h1>
             {shop.business_type && <p style={{ color: '#9b6070', fontSize: 11, margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '.06em' }}>{shop.business_type}</p>}
+            {shop.tagline && <p style={{ color: '#3d1020', fontSize: 14, margin: '4px 0 0', lineHeight: 1.35 }}>{shop.tagline}</p>}
           </div>
 
           {/* Info row */}
@@ -759,9 +755,9 @@ export default function ShopPage() {
 
           {/* CTA buttons */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-            <a href={bookingUrl} className="book-btn"
+            <a href={(services.length > 0 || !hasProducts) ? bookingUrl : '#'} onClick={(services.length > 0 || !hasProducts) ? undefined : (e) => { e.preventDefault(); goTab('products'); setTimeout(() => window.scrollTo({ top: 420, behavior: 'smooth' }), 60) }} className="book-btn"
               style={{ padding: '11px 20px', borderRadius: 12, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7, boxShadow: `0 4px 16px ${brand}44` }}>
-              📅 Book Appointment
+              📅 {(services.length > 0 || !hasProducts) ? 'Book Appointment' : 'Shop Now'}
             </a>
             {waPhone && (
               <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${shop.name}! I saw your shop page and would like to enquire 😊`)}`}
