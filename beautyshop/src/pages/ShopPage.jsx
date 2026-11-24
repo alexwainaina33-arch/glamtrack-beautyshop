@@ -591,6 +591,7 @@ export default function ShopPage() {
   }, {})
 
   const hasProducts = products.length > 0
+  const canBook = services.length > 0
   const hasAbout    = !!(shop.about_text || shop.founded_year || staff.length > 0 || reviews.length > 0)
   const hasHours    = !!(shop.business_hours && Object.keys(shop.business_hours).length > 0)
 
@@ -713,7 +714,7 @@ export default function ShopPage() {
 
           {/* Tagline + Est. badge overlaid on photo — bottom right */}
           <div style={{ position: 'absolute', bottom: 14, right: 14, zIndex: 4, textAlign: 'right' }}>
-            {shop.founded_year && (
+            {Number(shop.founded_year) > 0 && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(0,0,0,.42)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', borderRadius: 12, padding: '3px 10px', border: `1px solid ${brand}66` }}>
                 <span style={{ fontSize: 12 }}>🏆</span>
                 <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', letterSpacing: '.04em' }}>Est. {shop.founded_year}</span>
@@ -778,7 +779,7 @@ export default function ShopPage() {
 
       {/* ══ SOCIAL PROOF BAR ═════════════════════════════════════════════ */}
       <div style={{ maxWidth: 640, margin: '18px auto 0', padding: '0 16px' }}>
-        {(services.length > 0 || shop.founded_year) && (
+        {(services.length > 0 || Number(shop.founded_year) > 0) && (
           <div className="fade-up reveal" style={{ display: 'flex', background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8', overflow: 'hidden', boxShadow: '0 2px 12px rgba(200,69,106,.07)' }}>
             {[
               services.length > 0 && { icon: '💅', value: services.length, label: 'Services' },
@@ -1032,7 +1033,7 @@ export default function ShopPage() {
               <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8', padding: '20px 20px' }}>
                 <div style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', color: brand, marginBottom: 12 }}>Our Story</div>
                 <p style={{ fontSize: 14, color: '#3d1020', lineHeight: 1.8, margin: 0 }}>{shop.about_text}</p>
-                {shop.founded_year && (
+                {Number(shop.founded_year) > 0 && (
                   <div style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 8, background: `${brand}11`, padding: '8px 14px', borderRadius: 10 }}>
                     <span style={{ fontSize: 18 }}>🏆</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: brand }}>Serving customers since {shop.founded_year} · {new Date().getFullYear() - shop.founded_year} years of excellence</span>
@@ -1301,7 +1302,7 @@ export default function ShopPage() {
                           Request This Look
                         </a>
                       )}
-                      {!featuredImg.serviceName && (
+                      {!featuredImg.serviceName && canBook && (
                         <a href={bookingUrl}
                           style={{ padding: '7px 14px', borderRadius: 10, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 700, fontSize: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                           Book Now →
@@ -1467,10 +1468,10 @@ export default function ShopPage() {
       <div style={{ maxWidth: 640, margin: '32px auto 0', padding: '0 16px' }}>
         <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8', padding: '20px', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center' }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <a href={bookingUrl}
+            {canBook && (<a href={bookingUrl}
               style={{ padding: '9px 18px', borderRadius: 10, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
               📅 Book Now
-            </a>
+            </a>)}
             {waPhone && (
               <a href={`https://wa.me/${waPhone}`} target="_blank" rel="noopener noreferrer"
                 style={{ padding: '9px 18px', borderRadius: 10, background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
@@ -1512,7 +1513,7 @@ export default function ShopPage() {
           {/* Tagline */}
           <div style={{ position: 'absolute', bottom: 14, right: 14, textAlign: 'right' }}>
             {shop.tagline && <div style={{ fontSize: 11, fontStyle: 'italic', color: 'rgba(255,255,255,.9)', fontFamily: 'Playfair Display,serif', textShadow: '0 1px 4px rgba(0,0,0,.6)', maxWidth: 160 }}>"{shop.tagline}"</div>}
-            {shop.founded_year && <div style={{ fontSize: 10, fontWeight: 800, color: '#fff', marginTop: 3 }}>🏆 Est. {shop.founded_year}</div>}
+            {Number(shop.founded_year) > 0 && <div style={{ fontSize: 10, fontWeight: 800, color: '#fff', marginTop: 3 }}>🏆 Est. {shop.founded_year}</div>}
           </div>
         </div>
         {/* Body */}
@@ -1583,7 +1584,7 @@ export default function ShopPage() {
       {(waPhone || shop.phone) && (
         <div style={{
           position: 'fixed',
-          bottom: 'calc(74px + env(safe-area-inset-bottom,0px))',
+          bottom: (canBook || cart.length > 0) ? 'calc(74px + env(safe-area-inset-bottom,0px))' : 'calc(20px + env(safe-area-inset-bottom,0px))',
           right: 16,
           zIndex: 190,
           display: 'flex',
@@ -1608,7 +1609,7 @@ export default function ShopPage() {
       )}
 
       {/* ══ STICKY BOTTOM BAR (mobile) ════════════════════════════════════ */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #f0e4e8', padding: '10px 16px', zIndex: 200, paddingBottom: 'calc(10px + env(safe-area-inset-bottom,0px))' }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, display: (canBook || cart.length > 0) ? 'block' : 'none', background: '#fff', borderTop: '1px solid #f0e4e8', padding: '10px 16px', zIndex: 200, paddingBottom: 'calc(10px + env(safe-area-inset-bottom,0px))' }}>
         <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', gap: 8 }}>
           {cart.length > 0 ? (
             <button onClick={() => setCartOpen(true)}
@@ -1917,10 +1918,10 @@ export default function ShopPage() {
                   💬 Request This Look
                 </a>
               ) : null}
-              <a href={bookingUrl}
+              {canBook && (<a href={bookingUrl}
                 style={{ flex: 1, padding: '11px', borderRadius: 12, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 14, textDecoration: 'none', textAlign: 'center' }}>
                 📅 Book Now
-              </a>
+              </a>)}
             </div>
           </div>
         </div>
