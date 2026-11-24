@@ -250,6 +250,13 @@ export default function ShopPage() {
     }
   }, [shop, searchParams])
 
+  // Retail shops (products, no services) open on the Shop tab unless the link names a tab
+  useEffect(() => {
+    if (loading) return
+    if (searchParams.get('tab')) return
+    if (services.length === 0 && products.length > 0) setTab('products')
+  }, [loading])
+
   const goTab = (key) => {
     setTab(key)
     setSearchParams(prev => {
@@ -620,7 +627,7 @@ export default function ShopPage() {
   const hasGallery = galleryImages.length > 0
 
   const tabs = [
-    { key: 'services', label: `💅 Services`, count: services.length },
+    (services.length > 0 || !hasProducts) && { key: 'services', label: `💅 Services`, count: services.length },
     hasProducts && { key: 'products', label: `🛍️ Shop`,     count: products.length },
     hasGallery  && { key: 'gallery',  label: `🖼️ Gallery`,  count: galleryImages.length },
     hasAbout    && { key: 'about',    label: `ℹ️ About`,     count: null },
