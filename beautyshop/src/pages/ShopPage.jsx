@@ -108,7 +108,7 @@ function Skeleton({ w = '100%', h = 16, r = 8, mb = 0 }) {
   return (
     <div style={{
       width: w, height: h, borderRadius: r, marginBottom: mb,
-      background: 'linear-gradient(90deg,#E8E0CF 25%,#F3ECD9 50%,#E8E0CF 75%)',
+      background: 'linear-gradient(90deg,#D5DEDA 25%,#E4EEEA 50%,#D5DEDA 75%)',
       backgroundSize: '200% 100%',
       animation: 'shimmer 1.4s infinite',
     }} />
@@ -525,9 +525,9 @@ export default function ShopPage() {
 
   // ── loading skeleton ──────────────────────────────────────────────────────
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: '#FBF7EE', fontFamily: 'Nunito,sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#FAFAF8', fontFamily: 'Nunito,sans-serif' }}>
       <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
-      <div style={{ height: 220, background: 'linear-gradient(90deg,#E8E0CF 25%,#F3ECD9 50%,#E8E0CF 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+      <div style={{ height: 220, background: 'linear-gradient(90deg,#D5DEDA 25%,#E4EEEA 50%,#D5DEDA 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
         <div style={{ display: 'flex', gap: 14, marginBottom: 24, alignItems: 'center' }}>
           <Skeleton w={72} h={72} r={36} />
@@ -542,11 +542,11 @@ export default function ShopPage() {
   )
 
   if (notFound) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FBF7EE', fontFamily: 'Nunito,sans-serif', padding: 24 }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FAFAF8', fontFamily: 'Nunito,sans-serif', padding: 24 }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 64, marginBottom: 16 }}>🔍</div>
-        <h2 style={{ fontFamily: 'Playfair Display,serif', color: '#1F2A26', margin: '0 0 8px' }}>Shop not found</h2>
-        <p style={{ color: '#6B655A', margin: 0 }}>This link may be incorrect or the shop may have moved.</p>
+        <h2 style={{ fontFamily: 'Playfair Display,serif', color: '#10201C', margin: '0 0 8px' }}>Shop not found</h2>
+        <p style={{ color: '#52635E', margin: 0 }}>This link may be incorrect or the shop may have moved.</p>
       </div>
     </div>
   )
@@ -554,11 +554,11 @@ export default function ShopPage() {
   // AUTOLOCK — public shop page must respect the same lock state as the
   // owner-facing app. See computeIsLocked() in AuthContext.jsx for the rule.
   if (computeIsLocked(shop)) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FBF7EE', fontFamily: 'Nunito,sans-serif', padding: 24 }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FAFAF8', fontFamily: 'Nunito,sans-serif', padding: 24 }}>
       <div style={{ textAlign: 'center', maxWidth: 360 }}>
         <div style={{ fontSize: 56, marginBottom: 16 }}>🛍️</div>
-        <h2 style={{ fontFamily: 'Playfair Display,serif', color: '#1F2A26', margin: '0 0 8px' }}>This shop's page is temporarily unavailable</h2>
-        <p style={{ color: '#6B655A', margin: 0 }}>Please check back soon, or contact the business directly if you need to reach them.</p>
+        <h2 style={{ fontFamily: 'Playfair Display,serif', color: '#10201C', margin: '0 0 8px' }}>This shop's page is temporarily unavailable</h2>
+        <p style={{ color: '#52635E', margin: 0 }}>Please check back soon, or contact the business directly if you need to reach them.</p>
       </div>
     </div>
   )
@@ -637,7 +637,7 @@ export default function ShopPage() {
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100vh', background: '#FBF7EE', fontFamily: 'Nunito,sans-serif', paddingBottom: 120 }}>
+    <div style={{ minHeight: '100vh', background: '#FAFAF8', fontFamily: 'Nunito,sans-serif', paddingBottom: 120 }}>
       <style>{`
         @keyframes fadeUp    { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
         @keyframes shimmer   { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
@@ -672,7 +672,7 @@ export default function ShopPage() {
         .svc-card-inner::before { content:''; position:absolute; left:0; top:4px; bottom:4px; width:3px; border-radius:2px; }
 
         ::-webkit-scrollbar { width:4px; height:4px; }
-        ::-webkit-scrollbar-thumb { background:#C9BFA8; border-radius:4px; }
+        ::-webkit-scrollbar-thumb { background:#D5DEDA; border-radius:4px; }
       `}</style>
 
       {/* ══ HERO ══════════════════════════════════════════════════════════ */}
@@ -683,7 +683,7 @@ export default function ShopPage() {
           height: coverUrl ? 260 : 180,
           background: coverUrl
             ? `url(${coverUrl}) center/cover no-repeat`
-            : `linear-gradient(135deg, ${brand} 0%, ${brand}99 60%, #FBF7EE 100%)`,
+            : `linear-gradient(135deg, ${brand} 0%, ${brand}99 60%, #FAFAF8 100%)`,
           position: 'relative',
           overflow: 'hidden',
         }}>
@@ -728,27 +728,27 @@ export default function ShopPage() {
           {/* Name row: padded left to clear the overlapping logo */}
           <div style={{ paddingLeft: 100, paddingTop: 8, paddingBottom: 4, minHeight: 48 }}>
             <h1 style={{ fontFamily: 'Playfair Display,serif', color: '#1a1a1f', fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{shop.name}</h1>
-            {shop.business_type && <p style={{ color: '#6B655A', fontSize: 11, margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '.06em' }}>{shop.business_type}</p>}
-            {shop.tagline && <p style={{ color: '#1F2A26', fontSize: 14, margin: '4px 0 0', lineHeight: 1.35 }}>{shop.tagline}</p>}
+            {shop.business_type && <p style={{ color: '#52635E', fontSize: 11, margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '.06em' }}>{shop.business_type}</p>}
+            {shop.tagline && <p style={{ color: '#10201C', fontSize: 14, margin: '4px 0 0', lineHeight: 1.35 }}>{shop.tagline}</p>}
           </div>
 
           {/* Info row */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
             {shop.address && (
               <a href={`https://maps.google.com/?q=${mapQuery}`} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#4B514B', textDecoration: 'none', background: '#fff', border: '1px solid #E8E0CF', borderRadius: 8, padding: '4px 10px' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#52635E', textDecoration: 'none', background: '#fff', border: '1px solid #D5DEDA', borderRadius: 8, padding: '4px 10px' }}>
                 📍 {shop.address.length > 38 ? shop.address.slice(0, 38) + '…' : shop.address}
               </a>
             )}
             {shop.instagram && (
               <a href={`https://instagram.com/${shop.instagram.replace('@','')}`} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#4B514B', textDecoration: 'none', background: '#fff', border: '1px solid #E8E0CF', borderRadius: 8, padding: '4px 10px' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#52635E', textDecoration: 'none', background: '#fff', border: '1px solid #D5DEDA', borderRadius: 8, padding: '4px 10px' }}>
                 📸 {shop.instagram}
               </a>
             )}
             {shop.website && (
               <a href={shop.website} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: brand, textDecoration: 'none', background: '#fff', border: '1px solid #E8E0CF', borderRadius: 8, padding: '4px 10px', fontWeight: 700 }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: brand, textDecoration: 'none', background: '#fff', border: '1px solid #D5DEDA', borderRadius: 8, padding: '4px 10px', fontWeight: 700 }}>
                 🌐 Website
               </a>
             )}
@@ -769,7 +769,7 @@ export default function ShopPage() {
             )}
             {shop.phone && (
               <a href={`tel:${shop.phone}`}
-                style={{ padding: '11px 14px', borderRadius: 12, border: '1.5px solid #E8E0CF', background: '#fff', color: '#1F2A26', fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                style={{ padding: '11px 14px', borderRadius: 12, border: '1.5px solid #D5DEDA', background: '#fff', color: '#10201C', fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 📞 Call
               </a>
             )}
@@ -780,15 +780,15 @@ export default function ShopPage() {
       {/* ══ SOCIAL PROOF BAR ═════════════════════════════════════════════ */}
       <div style={{ maxWidth: 640, margin: '18px auto 0', padding: '0 16px' }}>
         {(services.length > 0 || Number(shop.founded_year) > 0) && (
-          <div className="fade-up reveal" style={{ display: 'flex', background: '#fff', borderRadius: 16, border: '1.5px solid #E8E0CF', overflow: 'hidden', boxShadow: '0 2px 12px rgba(200,69,106,.07)' }}>
+          <div className="fade-up reveal" style={{ display: 'flex', background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA', overflow: 'hidden', boxShadow: '0 2px 12px rgba(200,69,106,.07)' }}>
             {[
               services.length > 0 && { icon: '💅', value: services.length, label: 'Services' },
               shop.founded_year   && { icon: '🏆', value: `Est. ${shop.founded_year}`, label: 'Founded' },
             ].filter(Boolean).map((s, i, arr) => (
-              <div key={i} style={{ flex: 1, textAlign: 'center', padding: '12px 6px', borderRight: i < arr.length - 1 ? '1px solid #E8E0CF' : 'none' }}>
+              <div key={i} style={{ flex: 1, textAlign: 'center', padding: '12px 6px', borderRight: i < arr.length - 1 ? '1px solid #D5DEDA' : 'none' }}>
                 <div style={{ fontSize: 18 }}>{s.icon}</div>
                 <div style={{ fontWeight: 800, fontSize: 15, color: brand, fontFamily: 'Playfair Display,serif', lineHeight: 1.1 }}>{s.value}</div>
-                <div style={{ fontSize: 10, color: '#6B655A', fontWeight: 600, marginTop: 1 }}>{s.label}</div>
+                <div style={{ fontSize: 10, color: '#52635E', fontWeight: 600, marginTop: 1 }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -800,7 +800,7 @@ export default function ShopPage() {
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
           {tabs.map(t => (
             <button key={t.key} onClick={() => goTab(t.key)} className="tab-pill"
-              style={{ padding: '9px 16px', borderRadius: 24, background: tab === t.key ? `linear-gradient(135deg,${brand},${brand}cc)` : '#fff', color: tab === t.key ? '#fff' : '#4B514B', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', boxShadow: tab === t.key ? `0 3px 12px ${brand}44` : '0 1px 4px rgba(0,0,0,.06)', border: tab !== t.key ? '1.5px solid #E8E0CF' : 'none', flexShrink: 0 }}>
+              style={{ padding: '9px 16px', borderRadius: 24, background: tab === t.key ? `linear-gradient(135deg,${brand},${brand}cc)` : '#fff', color: tab === t.key ? '#fff' : '#52635E', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', boxShadow: tab === t.key ? `0 3px 12px ${brand}44` : '0 1px 4px rgba(0,0,0,.06)', border: tab !== t.key ? '1.5px solid #D5DEDA' : 'none', flexShrink: 0 }}>
               {t.label}{t.count !== null ? ` (${t.count})` : ''}
             </button>
           ))}
@@ -814,32 +814,32 @@ export default function ShopPage() {
         {tab === 'services' && (
           <div className="fade-up">
             {services.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '48px 24px', background: '#fff', borderRadius: 16, border: '1.5px solid #E8E0CF' }}>
+              <div style={{ textAlign: 'center', padding: '48px 24px', background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA' }}>
                 <div style={{ fontSize: 48, marginBottom: 12 }}>💅</div>
-                <p style={{ color: '#6B655A', margin: 0 }}>No services listed yet.</p>
+                <p style={{ color: '#52635E', margin: 0 }}>No services listed yet.</p>
                 {shop.phone && <a href={`tel:${shop.phone}`} style={{ color: brand, fontWeight: 700 }}>{shop.phone}</a>}
               </div>
             ) : (
               <>
                 <div style={{ marginBottom: 18 }}>
                   <div style={{ position: 'relative', marginBottom: serviceCategories.length > 0 ? 10 : 0 }}>
-                    <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 15, color: '#6B655A' }}>🔍</span>
+                    <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 15, color: '#52635E' }}>🔍</span>
                     <input
                       value={serviceSearch}
                       onChange={e => setServiceSearch(e.target.value)}
                       placeholder="Search services…"
-                      style={{ width: '100%', padding: '11px 14px 11px 38px', borderRadius: 12, border: '1.5px solid #E8E0CF', fontSize: 14, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none', background: '#fff' }}
+                      style={{ width: '100%', padding: '11px 14px 11px 38px', borderRadius: 12, border: '1.5px solid #D5DEDA', fontSize: 14, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none', background: '#fff' }}
                     />
                   </div>
                   {serviceCategories.length > 0 && (
                     <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
                       <button onClick={() => setServiceCat('')}
-                        style={{ padding: '6px 14px', borderRadius: 20, border: serviceCatFilter === '' ? 'none' : '1.5px solid #E8E0CF', background: serviceCatFilter === '' ? brand : '#fff', color: serviceCatFilter === '' ? '#fff' : '#4B514B', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
+                        style={{ padding: '6px 14px', borderRadius: 20, border: serviceCatFilter === '' ? 'none' : '1.5px solid #D5DEDA', background: serviceCatFilter === '' ? brand : '#fff', color: serviceCatFilter === '' ? '#fff' : '#52635E', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
                         All
                       </button>
                       {serviceCategories.map(cat => (
                         <button key={cat} onClick={() => setServiceCat(cat)}
-                          style={{ padding: '6px 14px', borderRadius: 20, border: serviceCatFilter === cat ? 'none' : '1.5px solid #E8E0CF', background: serviceCatFilter === cat ? brand : '#fff', color: serviceCatFilter === cat ? '#fff' : '#4B514B', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
+                          style={{ padding: '6px 14px', borderRadius: 20, border: serviceCatFilter === cat ? 'none' : '1.5px solid #D5DEDA', background: serviceCatFilter === cat ? brand : '#fff', color: serviceCatFilter === cat ? '#fff' : '#52635E', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
                           {getCatEmoji(cat)} {cat}
                         </button>
                       ))}
@@ -848,9 +848,9 @@ export default function ShopPage() {
                 </div>
 
                 {filteredServices.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fff', borderRadius: 16, border: '1.5px solid #E8E0CF' }}>
+                  <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA' }}>
                     <div style={{ fontSize: 40, marginBottom: 10 }}>🔍</div>
-                    <p style={{ color: '#6B655A', margin: 0 }}>No services match your search.</p>
+                    <p style={{ color: '#52635E', margin: 0 }}>No services match your search.</p>
                   </div>
                 ) : (
               Object.entries(groupedServices).map(([cat, svcs]) => (
@@ -860,23 +860,23 @@ export default function ShopPage() {
                     <div style={{ width: 32, height: 32, borderRadius: 10, background: `linear-gradient(135deg,${brand}22,${brand}44)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
                       {getCatEmoji(cat)}
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', color: '#4B514B' }}>{cat}</span>
-                    <div style={{ flex: 1, height: 1, background: '#E8E0CF' }} />
-                    <span style={{ fontSize: 11, color: '#6B655A' }}>{svcs.length} service{svcs.length !== 1 ? 's' : ''}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', color: '#52635E' }}>{cat}</span>
+                    <div style={{ flex: 1, height: 1, background: '#D5DEDA' }} />
+                    <span style={{ fontSize: 11, color: '#52635E' }}>{svcs.length} service{svcs.length !== 1 ? 's' : ''}</span>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {svcs.map(svc => (
                       <div key={svc.id} className="svc-card reveal" onClick={() => openDetail('service', svc)}
-                        style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #E8E0CF', display: 'flex', alignItems: 'stretch', gap: 0, cursor: 'pointer', overflow: 'hidden' }}>
+                        style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA', display: 'flex', alignItems: 'stretch', gap: 0, cursor: 'pointer', overflow: 'hidden' }}>
                         {/* Left color accent strip */}
                         <div style={{ width: 4, flexShrink: 0, background: `linear-gradient(to bottom, ${brand}, ${brand}66)`, borderRadius: '0 0 0 0' }} />
                         <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '15px 16px' }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1f', marginBottom: 2 }}>{svc.name}</div>
-                            {svc.description && <div style={{ fontSize: 12, color: '#6B655A', marginBottom: 5, lineHeight: 1.4 }}>{svc.description}</div>}
+                            {svc.description && <div style={{ fontSize: 12, color: '#52635E', marginBottom: 5, lineHeight: 1.4 }}>{svc.description}</div>}
                             {/* Duration · Price on one line */}
-                            <div style={{ fontSize: 12, color: '#6B655A', fontWeight: 600 }}>
+                            <div style={{ fontSize: 12, color: '#52635E', fontWeight: 600 }}>
                               ⏱ {svc.duration_minutes} min
                               <span style={{ margin: '0 6px', opacity: .4 }}>·</span>
                               <span style={{ color: brand, fontWeight: 800, fontFamily: 'Playfair Display,serif', fontSize: 13 }}>{fmtPrice(svc.price_kes, shop.currency)}</span>
@@ -899,8 +899,8 @@ export default function ShopPage() {
             {/* Book all CTA */}
             {services.length > 3 && (
               <div style={{ background: `linear-gradient(135deg,${brand}11,${brand}22)`, border: `1.5px solid ${brand}33`, borderRadius: 16, padding: '20px', textAlign: 'center', marginTop: 8 }}>
-                <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 16, color: '#1F2A26', marginBottom: 6 }}>Ready to book?</div>
-                <p style={{ fontSize: 13, color: '#4B514B', margin: '0 0 14px' }}>Pick your service, choose your stylist and confirm in under 60 seconds.</p>
+                <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 16, color: '#10201C', marginBottom: 6 }}>Ready to book?</div>
+                <p style={{ fontSize: 13, color: '#52635E', margin: '0 0 14px' }}>Pick your service, choose your stylist and confirm in under 60 seconds.</p>
                 <a href={bookingUrl}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '12px 28px', borderRadius: 12, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 14, textDecoration: 'none', boxShadow: `0 4px 16px ${brand}44` }}>
                   📅 Book an Appointment
@@ -925,23 +925,23 @@ export default function ShopPage() {
             {/* Search + category filter */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ position: 'relative', marginBottom: productCategories.length > 0 ? 10 : 0 }}>
-                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 15, color: '#6B655A' }}>🔍</span>
+                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 15, color: '#52635E' }}>🔍</span>
                 <input
                   value={productSearch}
                   onChange={e => setProductSearch(e.target.value)}
                   placeholder="Search products…"
-                  style={{ width: '100%', padding: '11px 14px 11px 38px', borderRadius: 12, border: '1.5px solid #E8E0CF', fontSize: 14, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none', background: '#fff' }}
+                  style={{ width: '100%', padding: '11px 14px 11px 38px', borderRadius: 12, border: '1.5px solid #D5DEDA', fontSize: 14, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none', background: '#fff' }}
                 />
               </div>
               {productCategories.length > 0 && (
                 <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
                   <button onClick={() => setProductCat('')}
-                    style={{ padding: '6px 14px', borderRadius: 20, border: productCatFilter === '' ? 'none' : '1.5px solid #E8E0CF', background: productCatFilter === '' ? brand : '#fff', color: productCatFilter === '' ? '#fff' : '#4B514B', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
+                    style={{ padding: '6px 14px', borderRadius: 20, border: productCatFilter === '' ? 'none' : '1.5px solid #D5DEDA', background: productCatFilter === '' ? brand : '#fff', color: productCatFilter === '' ? '#fff' : '#52635E', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
                     All
                   </button>
                   {productCategories.map(cat => (
                     <button key={cat} onClick={() => setProductCat(cat)}
-                      style={{ padding: '6px 14px', borderRadius: 20, border: productCatFilter === cat ? 'none' : '1.5px solid #E8E0CF', background: productCatFilter === cat ? brand : '#fff', color: productCatFilter === cat ? '#fff' : '#4B514B', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
+                      style={{ padding: '6px 14px', borderRadius: 20, border: productCatFilter === cat ? 'none' : '1.5px solid #D5DEDA', background: productCatFilter === cat ? brand : '#fff', color: productCatFilter === cat ? '#fff' : '#52635E', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Nunito,sans-serif' }}>
                       {cat}
                     </button>
                   ))}
@@ -950,9 +950,9 @@ export default function ShopPage() {
             </div>
 
             {filteredProducts.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fff', borderRadius: 16, border: '1.5px solid #E8E0CF' }}>
+              <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA' }}>
                 <div style={{ fontSize: 40, marginBottom: 10 }}>🔍</div>
-                <p style={{ color: '#6B655A', margin: 0 }}>No products match your search.</p>
+                <p style={{ color: '#52635E', margin: 0 }}>No products match your search.</p>
               </div>
             ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
@@ -965,7 +965,7 @@ export default function ShopPage() {
 
                 return (
                   <div key={p.id} className="prod-card reveal" onClick={() => openDetail('product', p)}
-                    style={{ background: '#fff', borderRadius: 16, border: `1.5px solid ${inCart ? brand : '#E8E0CF'}`, overflow: 'hidden', opacity: outOfStock ? 0.55 : 1, position: 'relative' }}>
+                    style={{ background: '#fff', borderRadius: 16, border: `1.5px solid ${inCart ? brand : '#D5DEDA'}`, overflow: 'hidden', opacity: outOfStock ? 0.55 : 1, position: 'relative' }}>
 
                     {/* Product image */}
                     <div onClick={e => { e.stopPropagation(); imgUrl && setImgModal(imgUrl) }}
@@ -992,12 +992,12 @@ export default function ShopPage() {
 
                     <div style={{ padding: '10px 12px 12px' }}>
                       <div style={{ fontWeight: 700, fontSize: 13, color: '#1a1a1f', marginBottom: 2, lineHeight: 1.3 }}>{p.name}</div>
-                      {p.brand && <div style={{ fontSize: 11, color: '#6B655A', marginBottom: 4 }}>{p.brand}</div>}
+                      {p.brand && <div style={{ fontSize: 11, color: '#52635E', marginBottom: 4 }}>{p.brand}</div>}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, gap: 6 }}>
                         <div>
                           <div style={{ fontWeight: 800, fontSize: 14, color: brand, fontFamily: 'Playfair Display,serif' }}>{fmtPrice(p.price_kes, shop.currency)}</div>
                           {p.compare_price_kes > p.price_kes && (
-                            <div style={{ fontSize: 11, color: '#6B655A', textDecoration: 'line-through' }}>{fmtPrice(p.compare_price_kes, shop.currency)}</div>
+                            <div style={{ fontSize: 11, color: '#52635E', textDecoration: 'line-through' }}>{fmtPrice(p.compare_price_kes, shop.currency)}</div>
                           )}
                         </div>
                         {!outOfStock && (
@@ -1030,9 +1030,9 @@ export default function ShopPage() {
 
             {/* Story card */}
             {shop.about_text && (
-              <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #E8E0CF', padding: '20px 20px' }}>
+              <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA', padding: '20px 20px' }}>
                 <div style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', color: brand, marginBottom: 12 }}>Our Story</div>
-                <p style={{ fontSize: 14, color: '#1F2A26', lineHeight: 1.8, margin: 0 }}>{shop.about_text}</p>
+                <p style={{ fontSize: 14, color: '#10201C', lineHeight: 1.8, margin: 0 }}>{shop.about_text}</p>
                 {Number(shop.founded_year) > 0 && (
                   <div style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 8, background: `${brand}11`, padding: '8px 14px', borderRadius: 10 }}>
                     <span style={{ fontSize: 18 }}>🏆</span>
@@ -1043,13 +1043,13 @@ export default function ShopPage() {
             )}
 
             {/* Contact card */}
-            <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #E8E0CF', padding: '20px' }}>
+            <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA', padding: '20px' }}>
               <div style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', color: brand, marginBottom: 14 }}>Get in Touch</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {shop.phone && (
-                  <a href={`tel:${shop.phone}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#FBF7EE', borderRadius: 10, textDecoration: 'none', color: '#1F2A26' }}>
+                  <a href={`tel:${shop.phone}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#FAFAF8', borderRadius: 10, textDecoration: 'none', color: '#10201C' }}>
                     <span style={{ fontSize: 20, width: 32, textAlign: 'center' }}>📞</span>
-                    <div><div style={{ fontSize: 11, color: '#6B655A', fontWeight: 700 }}>PHONE</div><div style={{ fontSize: 14, fontWeight: 600 }}>{shop.phone}</div></div>
+                    <div><div style={{ fontSize: 11, color: '#52635E', fontWeight: 700 }}>PHONE</div><div style={{ fontSize: 14, fontWeight: 600 }}>{shop.phone}</div></div>
                   </a>
                 )}
                 {waPhone && (
@@ -1060,23 +1060,23 @@ export default function ShopPage() {
                   </a>
                 )}
                 {shop.email && (
-                  <a href={`mailto:${shop.email}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#FBF7EE', borderRadius: 10, textDecoration: 'none', color: '#1F2A26' }}>
+                  <a href={`mailto:${shop.email}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#FAFAF8', borderRadius: 10, textDecoration: 'none', color: '#10201C' }}>
                     <span style={{ fontSize: 20, width: 32, textAlign: 'center' }}>✉️</span>
-                    <div><div style={{ fontSize: 11, color: '#6B655A', fontWeight: 700 }}>EMAIL</div><div style={{ fontSize: 14, fontWeight: 600 }}>{shop.email}</div></div>
+                    <div><div style={{ fontSize: 11, color: '#52635E', fontWeight: 700 }}>EMAIL</div><div style={{ fontSize: 14, fontWeight: 600 }}>{shop.email}</div></div>
                   </a>
                 )}
                 {shop.address && (
                   <a href={`https://maps.google.com/?q=${mapQuery}`} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#FBF7EE', borderRadius: 10, textDecoration: 'none', color: '#1F2A26' }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#FAFAF8', borderRadius: 10, textDecoration: 'none', color: '#10201C' }}>
                     <span style={{ fontSize: 20, width: 32, textAlign: 'center' }}>📍</span>
-                    <div><div style={{ fontSize: 11, color: '#6B655A', fontWeight: 700 }}>LOCATION</div><div style={{ fontSize: 14, fontWeight: 600 }}>{shop.address}</div></div>
+                    <div><div style={{ fontSize: 11, color: '#52635E', fontWeight: 700 }}>LOCATION</div><div style={{ fontSize: 14, fontWeight: 600 }}>{shop.address}</div></div>
                   </a>
                 )}
                 {shop.instagram && (
                   <a href={`https://instagram.com/${shop.instagram.replace('@','')}`} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#FBF7EE', borderRadius: 10, textDecoration: 'none', color: '#1F2A26' }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#FAFAF8', borderRadius: 10, textDecoration: 'none', color: '#10201C' }}>
                     <span style={{ fontSize: 20, width: 32, textAlign: 'center' }}>📸</span>
-                    <div><div style={{ fontSize: 11, color: '#6B655A', fontWeight: 700 }}>INSTAGRAM</div><div style={{ fontSize: 14, fontWeight: 600 }}>{shop.instagram}</div></div>
+                    <div><div style={{ fontSize: 11, color: '#52635E', fontWeight: 700 }}>INSTAGRAM</div><div style={{ fontSize: 14, fontWeight: 600 }}>{shop.instagram}</div></div>
                   </a>
                 )}
               </div>
@@ -1084,7 +1084,7 @@ export default function ShopPage() {
 
             {/* Meet the Team */}
             {staff.length > 0 && (
-              <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #E8E0CF', padding: '20px' }}>
+              <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA', padding: '20px' }}>
                 <div style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', color: brand, marginBottom: 14 }}>Meet the Team</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(84px,1fr))', gap: 14 }}>
                   {staff.map(s => {
@@ -1098,7 +1098,7 @@ export default function ShopPage() {
                           : <div style={{ width: 64, height: 64, borderRadius: '50%', background: getAvatarColor(s.name), color: '#fff', fontWeight: 800, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px', textTransform: 'uppercase' }}>{getInitials(s.name)}</div>
                         }
                         <div style={{ fontWeight: 700, fontSize: 12, color: '#1a1a1f', lineHeight: 1.3 }}>{s.name}</div>
-                        {s.role && <div style={{ fontSize: 10, color: '#6B655A', marginTop: 1 }}>{STAFF_ROLE_LABEL[s.role] || s.role}</div>}
+                        {s.role && <div style={{ fontSize: 10, color: '#52635E', marginTop: 1 }}>{STAFF_ROLE_LABEL[s.role] || s.role}</div>}
                       </div>
                     )
                   })}
@@ -1107,10 +1107,10 @@ export default function ShopPage() {
             )}
 
            {/* Leave a Review */}
-            <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #E8E0CF', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
               <div>
                 <div style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', color: brand, marginBottom: 4 }}>Share Your Experience</div>
-                <div style={{ fontSize: 12, color: '#6B655A' }}>Visited {shop.name}? Let others know how it went.</div>
+                <div style={{ fontSize: 12, color: '#52635E' }}>Visited {shop.name}? Let others know how it went.</div>
               </div>
               <button onClick={() => setReviewModalOpen(true)}
                 style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
@@ -1123,18 +1123,18 @@ export default function ShopPage() {
               const avgRating = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
               const dist = [5,4,3,2,1].map(n => ({ star: n, count: reviews.filter(r => r.rating === n).length }))
               return (
-              <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #E8E0CF', padding: '20px' }}>
+              <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA', padding: '20px' }}>
                 <div style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', color: brand, marginBottom: 14 }}>Customer Reviews</div>
 
                 {/* ── Rating summary header ── */}
-                <div style={{ display: 'flex', gap: 18, alignItems: 'center', background: '#FBF7EE', borderRadius: 14, padding: '16px', marginBottom: 18 }}>
+                <div style={{ display: 'flex', gap: 18, alignItems: 'center', background: '#FAFAF8', borderRadius: 14, padding: '16px', marginBottom: 18 }}>
                   {/* Big average */}
                   <div style={{ textAlign: 'center', flexShrink: 0 }}>
                     <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 40, fontWeight: 800, color: brand, lineHeight: 1 }}>{avgRating.toFixed(1)}</div>
                     <div style={{ fontSize: 16, color: '#d97706', letterSpacing: 1, marginTop: 3 }}>
                       {'★'.repeat(Math.round(avgRating))}{'☆'.repeat(5 - Math.round(avgRating))}
                     </div>
-                    <div style={{ fontSize: 11, color: '#6B655A', fontWeight: 600, marginTop: 4 }}>{reviews.length} review{reviews.length !== 1 ? 's' : ''}</div>
+                    <div style={{ fontSize: 11, color: '#52635E', fontWeight: 600, marginTop: 4 }}>{reviews.length} review{reviews.length !== 1 ? 's' : ''}</div>
                   </div>
                   {/* Distribution bars */}
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -1142,12 +1142,12 @@ export default function ShopPage() {
                       const pct = reviews.length > 0 ? (count / reviews.length) * 100 : 0
                       return (
                         <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: '#6B655A', minWidth: 8, textAlign: 'right' }}>{star}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#52635E', minWidth: 8, textAlign: 'right' }}>{star}</span>
                           <span style={{ fontSize: 10, color: '#d97706' }}>★</span>
-                          <div style={{ flex: 1, height: 6, borderRadius: 4, background: '#E8E0CF', overflow: 'hidden' }}>
+                          <div style={{ flex: 1, height: 6, borderRadius: 4, background: '#D5DEDA', overflow: 'hidden' }}>
                             <div style={{ width: `${pct}%`, height: '100%', background: pct > 0 ? `linear-gradient(90deg,${brand},${brand}cc)` : 'transparent', borderRadius: 4, transition: 'width .4s ease' }} />
                           </div>
-                          <span style={{ fontSize: 10, color: '#6B655A', minWidth: 14, textAlign: 'right' }}>{count}</span>
+                          <span style={{ fontSize: 10, color: '#52635E', minWidth: 14, textAlign: 'right' }}>{count}</span>
                         </div>
                       )
                     })}
@@ -1156,16 +1156,16 @@ export default function ShopPage() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {reviews.map(r => (
-                    <div key={r.id} style={{ background: '#FBF7EE', borderRadius: 12, padding: '14px 16px' }}>
+                    <div key={r.id} style={{ background: '#FAFAF8', borderRadius: 12, padding: '14px 16px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                         <span style={{ fontWeight: 700, fontSize: 13, color: '#1a1a1f' }}>{r.customer_name}</span>
                         <span style={{ fontSize: 13, color: '#d97706' }}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
                       </div>
-                      <p style={{ fontSize: 13, color: '#1F2A26', lineHeight: 1.6, margin: 0 }}>{r.review_text}</p>
+                      <p style={{ fontSize: 13, color: '#10201C', lineHeight: 1.6, margin: 0 }}>{r.review_text}</p>
                       {r.owner_reply && (
                         <div style={{ marginTop: 10, background: '#fff', borderRadius: 8, padding: '8px 12px', borderLeft: `3px solid ${brand}` }}>
                           <div style={{ fontSize: 11, fontWeight: 700, color: brand, marginBottom: 3 }}>💬 {shop.name} responded</div>
-                          <div style={{ fontSize: 12, color: '#1F2A26', lineHeight: 1.5 }}>{r.owner_reply}</div>
+                          <div style={{ fontSize: 12, color: '#10201C', lineHeight: 1.5 }}>{r.owner_reply}</div>
                         </div>
                       )}
                     </div>
@@ -1177,7 +1177,7 @@ export default function ShopPage() {
 
             {/* Map embed */}
             {shop.address && (
-              <div style={{ borderRadius: 16, overflow: 'hidden', border: '1.5px solid #E8E0CF' }}>
+              <div style={{ borderRadius: 16, overflow: 'hidden', border: '1.5px solid #D5DEDA' }}>
                 <iframe
                   title="map"
                   width="100%" height="200"
@@ -1186,7 +1186,7 @@ export default function ShopPage() {
                   src={`https://maps.google.com/maps?q=${mapQuery}&output=embed&z=15`}
                 />
                 <div style={{ background: '#fff', padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, color: '#1F2A26', fontWeight: 600 }}>📍 {shop.address}</span>
+                  <span style={{ fontSize: 13, color: '#10201C', fontWeight: 600 }}>📍 {shop.address}</span>
                   <a href={`https://maps.google.com/?q=${mapQuery}`} target="_blank" rel="noopener noreferrer"
                     style={{ fontSize: 12, color: brand, fontWeight: 700, textDecoration: 'none' }}>
                     Directions →
@@ -1228,12 +1228,12 @@ export default function ShopPage() {
                         background: (cat === 'All' ? galleryCatFilter === '' : galleryCatFilter === cat)
                           ? brand : '#fff',
                         color: (cat === 'All' ? galleryCatFilter === '' : galleryCatFilter === cat)
-                          ? '#fff' : '#4B514B',
+                          ? '#fff' : '#52635E',
                         fontWeight: 700, fontSize: 12, cursor: 'pointer',
                         whiteSpace: 'nowrap', flexShrink: 0,
                         fontFamily: 'Nunito,sans-serif',
                         border: (cat === 'All' ? galleryCatFilter === '' : galleryCatFilter === cat)
-                          ? 'none' : '1.5px solid #E8E0CF',
+                          ? 'none' : '1.5px solid #D5DEDA',
                         boxShadow: (cat === 'All' ? galleryCatFilter === '' : galleryCatFilter === cat)
                           ? `0 2px 8px ${brand}44` : 'none',
                       }}>
@@ -1245,7 +1245,7 @@ export default function ShopPage() {
 
               {/* ── HERO / FEATURED photo — full width ── */}
               {featuredImg && (
-                <div className="reveal" style={{ marginBottom: 12, borderRadius: 18, overflow: 'hidden', position: 'relative', border: '2px solid #E8E0CF', boxShadow: `0 8px 32px ${brand}22` }}>
+                <div className="reveal" style={{ marginBottom: 12, borderRadius: 18, overflow: 'hidden', position: 'relative', border: '2px solid #D5DEDA', boxShadow: `0 8px 32px ${brand}22` }}>
 
                   {featuredImg.isFeatured && (
                     <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 20, letterSpacing: '.04em' }}>
@@ -1318,7 +1318,7 @@ export default function ShopPage() {
                 <div style={{ columns: 2, columnGap: 10 }}>
                   {gridImages.map((img) => (
                     <div key={img.id} className="reveal"
-                      style={{ breakInside: 'avoid', marginBottom: 10, borderRadius: 14, overflow: 'hidden', border: '1.5px solid #E8E0CF', background: `${brand}10`, position: 'relative', display: 'block' }}>
+                      style={{ breakInside: 'avoid', marginBottom: 10, borderRadius: 14, overflow: 'hidden', border: '1.5px solid #D5DEDA', background: `${brand}10`, position: 'relative', display: 'block' }}>
 
                       {/* Before/after on grid item */}
                       {img.beforeUrl ? (
@@ -1391,9 +1391,9 @@ export default function ShopPage() {
               )}
 
               {filteredGallery.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '48px 20px', background: '#fff', borderRadius: 16, border: '1.5px solid #E8E0CF' }}>
+                <div style={{ textAlign: 'center', padding: '48px 20px', background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA' }}>
                   <div style={{ fontSize: 40, marginBottom: 10 }}>🖼️</div>
-                  <p style={{ color: '#6B655A', margin: 0 }}>No photos in this category yet.</p>
+                  <p style={{ color: '#52635E', margin: 0 }}>No photos in this category yet.</p>
                 </div>
               )}
 
@@ -1401,8 +1401,8 @@ export default function ShopPage() {
               <div style={{ background: `linear-gradient(135deg,${brand}11,${brand}22)`, border: `1px solid ${brand}33`, borderRadius: 16, padding: '18px', display: 'flex', gap: 14, alignItems: 'center', marginTop: 10 }}>
                 <span style={{ fontSize: 32, flexShrink: 0 }}>📅</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: '#1F2A26', marginBottom: 3, fontFamily: 'Playfair Display,serif' }}>Like what you see?</div>
-                  <div style={{ fontSize: 12, color: '#4B514B' }}>Book your appointment with {shop.name} today — takes under 60 seconds.</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: '#10201C', marginBottom: 3, fontFamily: 'Playfair Display,serif' }}>Like what you see?</div>
+                  <div style={{ fontSize: 12, color: '#52635E' }}>Book your appointment with {shop.name} today — takes under 60 seconds.</div>
                 </div>
                 <a href={bookingUrl}
                   style={{ padding: '10px 18px', borderRadius: 12, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap', boxShadow: `0 3px 12px ${brand}44`, flexShrink: 0 }}>
@@ -1416,7 +1416,7 @@ export default function ShopPage() {
         {/* ── HOURS TAB ── */}
         {tab === 'hours' && hasHours && (
           <div className="fade-up">
-            <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #E8E0CF', padding: '20px', marginBottom: 16 }}>
+            <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA', padding: '20px', marginBottom: 16 }}>
               <div style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', color: brand, marginBottom: 14 }}>Opening Hours</div>
 
               {openStatus && (
@@ -1434,11 +1434,11 @@ export default function ShopPage() {
                   const todayKey = DAYS[dowJS === 0 ? 6 : dowJS - 1]
                   const isToday  = todayKey === day
                   return (
-                    <div key={day} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: idx < DAYS.length - 1 ? '1px solid #FBF7EE' : 'none', background: isToday ? `${brand}08` : 'transparent', margin: isToday ? '0 -4px' : 0, padding: isToday ? '11px 4px' : '11px 0', borderRadius: isToday ? 8 : 0 }}>
-                      <span style={{ fontSize: 14, fontWeight: isToday ? 800 : 500, color: isToday ? brand : '#1F2A26' }}>
+                    <div key={day} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: idx < DAYS.length - 1 ? '1px solid #FAFAF8' : 'none', background: isToday ? `${brand}08` : 'transparent', margin: isToday ? '0 -4px' : 0, padding: isToday ? '11px 4px' : '11px 0', borderRadius: isToday ? 8 : 0 }}>
+                      <span style={{ fontSize: 14, fontWeight: isToday ? 800 : 500, color: isToday ? brand : '#10201C' }}>
                         {day}{isToday ? ' · Today' : ''}
                       </span>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: hrs.closed ? '#6B655A' : isToday ? brand : '#1F2A26' }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: hrs.closed ? '#52635E' : isToday ? brand : '#10201C' }}>
                         {hrs.closed ? '🔴 Closed' : `${hrs.open} – ${hrs.close}`}
                       </span>
                     </div>
@@ -1451,8 +1451,8 @@ export default function ShopPage() {
             <div style={{ background: `linear-gradient(135deg,${brand}11,${brand}22)`, border: `1px solid ${brand}33`, borderRadius: 14, padding: '16px 18px', display: 'flex', gap: 12, alignItems: 'center' }}>
               <span style={{ fontSize: 28, flexShrink: 0 }}>📅</span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#1F2A26', marginBottom: 4 }}>Book your appointment online</div>
-                <div style={{ fontSize: 12, color: '#4B514B' }}>Skip the call — pick your time and confirm in under 60 seconds.</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#10201C', marginBottom: 4 }}>Book your appointment online</div>
+                <div style={{ fontSize: 12, color: '#52635E' }}>Skip the call — pick your time and confirm in under 60 seconds.</div>
               </div>
               <a href={bookingUrl}
                 style={{ padding: '9px 16px', borderRadius: 10, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap', boxShadow: `0 2px 8px ${brand}33`, flexShrink: 0 }}>
@@ -1466,7 +1466,7 @@ export default function ShopPage() {
 
       {/* ══ FOOTER ════════════════════════════════════════════════════════ */}
       <div style={{ maxWidth: 640, margin: '32px auto 0', padding: '0 16px' }}>
-        <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #E8E0CF', padding: '20px', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center' }}>
+        <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA', padding: '20px', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center' }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
             {canBook && (<a href={bookingUrl}
               style={{ padding: '9px 18px', borderRadius: 10, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
@@ -1479,21 +1479,21 @@ export default function ShopPage() {
               </a>
             )}
             <button onClick={shareShopLink}
-              style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #E8E0CF', background: '#fff', color: '#1F2A26', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+              style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #D5DEDA', background: '#fff', color: '#10201C', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
               {copied ? '✅ Copied!' : '🔗 Share link'}
             </button>
             <button onClick={shareStoryCard} disabled={sharing}
-              style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #E8E0CF', background: sharing ? '#F3EEDF' : '#fff', color: '#1F2A26', fontWeight: 700, fontSize: 13, cursor: sharing ? 'wait' : 'pointer', fontFamily: 'Nunito,sans-serif', opacity: sharing ? .7 : 1 }}>
+              style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #D5DEDA', background: sharing ? '#E4EEEA' : '#fff', color: '#10201C', fontWeight: 700, fontSize: 13, cursor: sharing ? 'wait' : 'pointer', fontFamily: 'Nunito,sans-serif', opacity: sharing ? .7 : 1 }}>
               {sharing ? '⏳ Generating…' : '📲 Share as Story'}
             </button>
             {services.length > 0 && (
               <button onClick={downloadPriceList} disabled={downloadingPriceList}
-                style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #E8E0CF', background: downloadingPriceList ? '#F3EEDF' : '#fff', color: '#1F2A26', fontWeight: 700, fontSize: 13, cursor: downloadingPriceList ? 'wait' : 'pointer', fontFamily: 'Nunito,sans-serif', opacity: downloadingPriceList ? .7 : 1 }}>
+                style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #D5DEDA', background: downloadingPriceList ? '#E4EEEA' : '#fff', color: '#10201C', fontWeight: 700, fontSize: 13, cursor: downloadingPriceList ? 'wait' : 'pointer', fontFamily: 'Nunito,sans-serif', opacity: downloadingPriceList ? .7 : 1 }}>
                 {downloadingPriceList ? '⏳ Generating…' : '📋 Price List'}
               </button>
             )}
           </div>
-          <p style={{ fontSize: 11, color: '#CFC8B8', margin: 0 }}>
+          <p style={{ fontSize: 11, color: '#D5DEDA', margin: 0 }}>
             Powered by <strong style={{ color: brand }}>SalesTrack</strong> · Run your business from your phone
           </p>
         </div>
@@ -1503,7 +1503,7 @@ export default function ShopPage() {
       <div ref={storyCardRef} style={{
         display: 'none', position: 'fixed', left: -9999, top: 0, zIndex: -1,
         width: 360, height: 640, flexDirection: 'column', overflow: 'hidden',
-        fontFamily: 'Nunito,sans-serif', background: '#FBF7EE',
+        fontFamily: 'Nunito,sans-serif', background: '#FAFAF8',
       }}>
         {/* Cover */}
         <div style={{ flex: '0 0 220px', position: 'relative', background: coverUrl ? `url(${coverUrl}) center/cover no-repeat` : `linear-gradient(135deg,${brand},${brand}66)` }}>
@@ -1519,7 +1519,7 @@ export default function ShopPage() {
         {/* Body */}
         <div style={{ flex: 1, padding: '36px 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 22, fontWeight: 700, color: '#1a1a1f', lineHeight: 1.2 }}>{shop.name}</div>
-          {shop.address && <div style={{ fontSize: 11, color: '#4B514B' }}>📍 {shop.address}</div>}
+          {shop.address && <div style={{ fontSize: 11, color: '#52635E' }}>📍 {shop.address}</div>}
           {/* Stats row */}
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             {services.length > 0 && <div style={{ background: `${brand}18`, borderRadius: 8, padding: '6px 10px', fontSize: 11, fontWeight: 700, color: brand }}>💅 {services.length} Services</div>}
@@ -1527,7 +1527,7 @@ export default function ShopPage() {
           </div>
           {/* Top services */}
           {services.slice(0, 3).map(svc => (
-            <div key={svc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #E8E0CF' }}>
+            <div key={svc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #D5DEDA' }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: '#1a1a1f' }}>{svc.name}</span>
               <span style={{ fontSize: 12, fontWeight: 800, color: brand, fontFamily: 'Playfair Display,serif' }}>{fmtPrice(svc.price_kes, shop.currency)}</span>
             </div>
@@ -1540,7 +1540,7 @@ export default function ShopPage() {
             </div>
             <div style={{ fontSize: 22 }}>📅</div>
           </div>
-          <div style={{ textAlign: 'center', fontSize: 9, color: '#CFC8B8', marginTop: 2 }}>Powered by SalesTrack</div>
+          <div style={{ textAlign: 'center', fontSize: 9, color: '#D5DEDA', marginTop: 2 }}>Powered by SalesTrack</div>
         </div>
       </div>
 
@@ -1563,10 +1563,10 @@ export default function ShopPage() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {services.map(svc => (
-            <div key={svc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #E8E0CF' }}>
+            <div key={svc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #D5DEDA' }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1f' }}>{svc.name}</div>
-                <div style={{ fontSize: 11, color: '#6B655A', marginTop: 2 }}>⏱ {svc.duration_minutes} min</div>
+                <div style={{ fontSize: 11, color: '#52635E', marginTop: 2 }}>⏱ {svc.duration_minutes} min</div>
               </div>
               <div style={{ fontWeight: 800, fontSize: 15, color: brand, fontFamily: 'Playfair Display,serif', whiteSpace: 'nowrap' }}>{fmtPrice(svc.price_kes, shop.currency)}</div>
             </div>
@@ -1577,7 +1577,7 @@ export default function ShopPage() {
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,.85)', marginBottom: 3 }}>Book online anytime</div>
           <div style={{ fontSize: 13, color: '#fff', fontWeight: 700 }}>{bookingUrl.replace('https://', '')}</div>
         </div>
-        <div style={{ textAlign: 'center', fontSize: 10, color: '#CFC8B8', marginTop: 14 }}>Powered by SalesTrack</div>
+        <div style={{ textAlign: 'center', fontSize: 10, color: '#D5DEDA', marginTop: 14 }}>Powered by SalesTrack</div>
       </div>
 
       {/* ══ FLOATING ACTION BUTTONS — pinned above sticky bar, mobile ════ */}
@@ -1609,7 +1609,7 @@ export default function ShopPage() {
       )}
 
       {/* ══ STICKY BOTTOM BAR (mobile) ════════════════════════════════════ */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, display: (canBook || cart.length > 0) ? 'block' : 'none', background: '#fff', borderTop: '1px solid #E8E0CF', padding: '10px 16px', zIndex: 200, paddingBottom: 'calc(10px + env(safe-area-inset-bottom,0px))' }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, display: (canBook || cart.length > 0) ? 'block' : 'none', background: '#fff', borderTop: '1px solid #D5DEDA', padding: '10px 16px', zIndex: 200, paddingBottom: 'calc(10px + env(safe-area-inset-bottom,0px))' }}>
         <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', gap: 8 }}>
           {cart.length > 0 ? (
             <button onClick={() => setCartOpen(true)}
@@ -1633,8 +1633,8 @@ export default function ShopPage() {
           <div className="slide-up" style={{ background: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 640, maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
             {/* Drawer header + breadcrumb */}
-            <div style={{ padding: '14px 20px', borderBottom: '1px solid #E8E0CF', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-              <div style={{ fontSize: 12, color: '#6B655A' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #D5DEDA', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <div style={{ fontSize: 12, color: '#52635E' }}>
                 <span style={{ cursor: 'pointer' }} onClick={closeDetail}>{shop.name}</span>
                 {' / '}
                 <span style={{ cursor: 'pointer' }} onClick={() => { goTab(detailService ? 'services' : 'products'); closeDetail() }}>
@@ -1644,7 +1644,7 @@ export default function ShopPage() {
                 <span style={{ color: brand, fontWeight: 700 }}>{detailService ? detailService.name : detailProduct.name}</span>
               </div>
               <button onClick={closeDetail}
-                style={{ background: '#F3EEDF', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>✕</button>
+                style={{ background: '#E4EEEA', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>✕</button>
             </div>
 
             <div style={{ overflowY: 'auto', flex: 1 }}>
@@ -1658,21 +1658,21 @@ export default function ShopPage() {
                     </div>
                     <div>
                       <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, color: '#1a1a1f', margin: 0 }}>{detailService.name}</h2>
-                      <div style={{ fontSize: 12, color: '#6B655A', textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 2 }}>{detailService.category || 'other'}</div>
+                      <div style={{ fontSize: 12, color: '#52635E', textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 2 }}>{detailService.category || 'other'}</div>
                     </div>
                   </div>
 
                   {detailService.description && (
-                    <p style={{ fontSize: 14, color: '#1F2A26', lineHeight: 1.7, margin: '0 0 16px' }}>{detailService.description}</p>
+                    <p style={{ fontSize: 14, color: '#10201C', lineHeight: 1.7, margin: '0 0 16px' }}>{detailService.description}</p>
                   )}
 
                   <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-                    <div style={{ flex: 1, background: '#FBF7EE', borderRadius: 12, padding: '12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, color: '#6B655A', fontWeight: 700 }}>DURATION</div>
+                    <div style={{ flex: 1, background: '#FAFAF8', borderRadius: 12, padding: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: '#52635E', fontWeight: 700 }}>DURATION</div>
                       <div style={{ fontSize: 16, fontWeight: 800, color: '#1a1a1f', marginTop: 2 }}>⏱ {detailService.duration_minutes} min</div>
                     </div>
-                    <div style={{ flex: 1, background: '#FBF7EE', borderRadius: 12, padding: '12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, color: '#6B655A', fontWeight: 700 }}>PRICE</div>
+                    <div style={{ flex: 1, background: '#FAFAF8', borderRadius: 12, padding: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: '#52635E', fontWeight: 700 }}>PRICE</div>
                       <div style={{ fontSize: 16, fontWeight: 800, color: brand, fontFamily: 'Playfair Display,serif', marginTop: 2 }}>{fmtPrice(detailService.price_kes, shop.currency)}</div>
                     </div>
                   </div>
@@ -1684,14 +1684,14 @@ export default function ShopPage() {
 
                   {relatedServices.length > 0 && (
                     <div style={{ marginTop: 28 }}>
-                      <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', color: '#4B514B', marginBottom: 12 }}>You may also like</div>
+                      <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', color: '#52635E', marginBottom: 12 }}>You may also like</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {relatedServices.map(rs => (
                           <div key={rs.id} onClick={() => openDetail('service', rs)}
-                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FBF7EE', borderRadius: 12, padding: '12px 14px', cursor: 'pointer' }}>
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FAFAF8', borderRadius: 12, padding: '12px 14px', cursor: 'pointer' }}>
                             <div>
                               <div style={{ fontWeight: 700, fontSize: 13, color: '#1a1a1f' }}>{rs.name}</div>
-                              <div style={{ fontSize: 11, color: '#6B655A' }}>{rs.duration_minutes} min</div>
+                              <div style={{ fontSize: 11, color: '#52635E' }}>{rs.duration_minutes} min</div>
                             </div>
                             <div style={{ fontWeight: 800, fontSize: 13, color: brand }}>{fmtPrice(rs.price_kes, shop.currency)}</div>
                           </div>
@@ -1716,17 +1716,17 @@ export default function ShopPage() {
                       {!imgUrl && (<span style={{ fontFamily: 'Playfair Display,serif', fontSize: 56, fontWeight: 700, color: brand, opacity: .55 }}>{(detailProduct.name || '?').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'}</span>)}
                     </div>
                     <div style={{ padding: '20px' }}>
-                      <div style={{ fontSize: 12, color: '#6B655A', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{resolveCategoryName(detailProduct) || 'Uncategorized'}</div>
+                      <div style={{ fontSize: 12, color: '#52635E', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{resolveCategoryName(detailProduct) || 'Uncategorized'}</div>
                       <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 20, color: '#1a1a1f', margin: '0 0 4px' }}>{detailProduct.name}</h2>
-                      {detailProduct.brand && <div style={{ fontSize: 13, color: '#6B655A', marginBottom: 12 }}>{detailProduct.brand}</div>}
+                      {detailProduct.brand && <div style={{ fontSize: 13, color: '#52635E', marginBottom: 12 }}>{detailProduct.brand}</div>}
                       {detailProduct.description && (
-                        <p style={{ fontSize: 14, color: '#1F2A26', lineHeight: 1.7, margin: '0 0 16px' }}>{detailProduct.description}</p>
+                        <p style={{ fontSize: 14, color: '#10201C', lineHeight: 1.7, margin: '0 0 16px' }}>{detailProduct.description}</p>
                       )}
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
                         <div style={{ fontWeight: 800, fontSize: 22, color: brand, fontFamily: 'Playfair Display,serif' }}>{fmtPrice(detailProduct.price_kes, shop.currency)}</div>
                         {detailProduct.compare_price_kes > detailProduct.price_kes && (
-                          <div style={{ fontSize: 14, color: '#6B655A', textDecoration: 'line-through' }}>{fmtPrice(detailProduct.compare_price_kes, shop.currency)}</div>
+                          <div style={{ fontSize: 14, color: '#52635E', textDecoration: 'line-through' }}>{fmtPrice(detailProduct.compare_price_kes, shop.currency)}</div>
                         )}
                         {outOfStock && <span style={{ background: '#fee2e2', color: '#dc2626', fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 8 }}>Out of stock</span>}
                       </div>
@@ -1740,7 +1740,7 @@ export default function ShopPage() {
 
                       {relatedProducts.length > 0 && (
                         <div style={{ marginTop: 28 }}>
-                          <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', color: '#4B514B', marginBottom: 12 }}>You may also like</div>
+                          <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', color: '#52635E', marginBottom: 12 }}>You may also like</div>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
                             {relatedProducts.map(rp => {
                               const rImg = rp.images?.length
@@ -1748,7 +1748,7 @@ export default function ShopPage() {
                                 : null
                               return (
                                 <div key={rp.id} onClick={() => openDetail('product', rp)}
-                                  style={{ background: '#FBF7EE', borderRadius: 12, overflow: 'hidden', cursor: 'pointer' }}>
+                                  style={{ background: '#FAFAF8', borderRadius: 12, overflow: 'hidden', cursor: 'pointer' }}>
                                   <div style={{ height: 80, background: rImg ? `url(${rImg}) center/cover no-repeat` : `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
                                     {!rImg && '🛍️'}
                                   </div>
@@ -1779,27 +1779,27 @@ export default function ShopPage() {
           <div className="slide-up" style={{ background: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 640, maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
             {/* Drawer header */}
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #E8E0CF', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-              <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#1F2A26' }}>🛒 Your Cart</div>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #D5DEDA', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#10201C' }}>🛒 Your Cart</div>
               <button onClick={() => setCartOpen(false)}
-                style={{ background: '#F3EEDF', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✕</button>
+                style={{ background: '#E4EEEA', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✕</button>
             </div>
 
             {/* Cart items */}
             <div style={{ overflowY: 'auto', flex: 1, padding: '12px 20px' }}>
               {cart.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '32px 0', color: '#6B655A' }}>
+                <div style={{ textAlign: 'center', padding: '32px 0', color: '#52635E' }}>
                   <div style={{ fontSize: 40, marginBottom: 10 }}>🛍️</div>
                   <div>Your cart is empty</div>
                 </div>
               ) : cart.map(item => (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #F3EEDF' }}>
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #E4EEEA' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1f' }}>{item.name}</div>
                     <div style={{ fontSize: 12, color: brand, fontWeight: 700 }}>{fmtPrice(item.price_kes, shop.currency)} each</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                    <button onClick={() => updateQty(item.id, -1)} style={{ width: 28, height: 28, borderRadius: '50%', border: '1.5px solid #E8E0CF', background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                    <button onClick={() => updateQty(item.id, -1)} style={{ width: 28, height: 28, borderRadius: '50%', border: '1.5px solid #D5DEDA', background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
                     <span style={{ fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
                     <button onClick={() => updateQty(item.id, +1)} style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: brand, color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                   </div>
@@ -1811,7 +1811,7 @@ export default function ShopPage() {
 
             {/* Cart footer */}
             {cart.length > 0 && (
-              <div style={{ padding: '14px 20px', borderTop: '1px solid #E8E0CF', flexShrink: 0, paddingBottom: 'calc(14px + env(safe-area-inset-bottom,0px))' }}>
+              <div style={{ padding: '14px 20px', borderTop: '1px solid #D5DEDA', flexShrink: 0, paddingBottom: 'calc(14px + env(safe-area-inset-bottom,0px))' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14, fontSize: 16, fontWeight: 800, color: '#1a1a1f' }}>
                   <span>Total</span>
                   <span style={{ color: brand }}>{fmtPrice(cartTotal, shop.currency)}</span>
@@ -1821,7 +1821,7 @@ export default function ShopPage() {
                   style={{ display: 'block', width: '100%', padding: '14px', borderRadius: 14, background: '#25D366', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box' }}>
                   📲 Order via WhatsApp
                 </a>
-                <div style={{ textAlign: 'center', fontSize: 11, color: '#6B655A', marginTop: 8 }}>
+                <div style={{ textAlign: 'center', fontSize: 11, color: '#52635E', marginTop: 8 }}>
                   Your order will be sent to {shop.name} on WhatsApp for confirmation
                 </div>
               </div>
@@ -1835,17 +1835,17 @@ export default function ShopPage() {
         <div onClick={e => e.target === e.currentTarget && !savingReview && setReviewModalOpen(false)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.48)', zIndex: 700, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
           <div className="slide-up" style={{ background: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 640, maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #E8E0CF', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-              <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#1F2A26' }}>✍️ Write a Review</div>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #D5DEDA', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#10201C' }}>✍️ Write a Review</div>
               <button onClick={() => !savingReview && setReviewModalOpen(false)}
-                style={{ background: '#F3EEDF', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✕</button>
+                style={{ background: '#E4EEEA', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✕</button>
             </div>
             <div style={{ overflowY: 'auto', flex: 1, padding: '20px', paddingBottom: 'calc(20px + env(safe-area-inset-bottom,0px))' }}>
               {reviewSubmitted ? (
                 <div style={{ textAlign: 'center', padding: '32px 0' }}>
                   <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
                   <div style={{ fontWeight: 700, fontSize: 16, color: '#1a1a1f', marginBottom: 6 }}>Thank you!</div>
-                  <p style={{ fontSize: 13, color: '#6B655A', margin: '0 0 16px' }}>Your review has been sent to {shop.name} for approval.</p>
+                  <p style={{ fontSize: 13, color: '#52635E', margin: '0 0 16px' }}>Your review has been sent to {shop.name} for approval.</p>
                   {reviewNudgeUrl && (
                     <a href={reviewNudgeUrl} target="_blank" rel="noopener noreferrer"
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 12, background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
@@ -1856,32 +1856,32 @@ export default function ShopPage() {
               ) : (
                 <form onSubmit={submitReview} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#4B514B', display: 'block', marginBottom: 6 }}>Your Name</label>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#52635E', display: 'block', marginBottom: 6 }}>Your Name</label>
                     <input required value={reviewForm.customer_name} onChange={e => setReviewForm(f => ({ ...f, customer_name: e.target.value }))}
-                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #E8E0CF', fontSize: 14, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none' }} />
+                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #D5DEDA', fontSize: 14, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none' }} />
                   </div>
 <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#4B514B', display: 'block', marginBottom: 6 }}>Rating</label>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#52635E', display: 'block', marginBottom: 6 }}>Rating</label>
                     <div style={{ display: 'flex', gap: 4 }}>
                       {[1,2,3,4,5].map(n => (
                         <button key={n} type="button"
                           onClick={() => setReviewForm(f => ({ ...f, rating: n }))}
                           onMouseEnter={() => setHoverRating(n)}
                           onMouseLeave={() => setHoverRating(0)}
-                          style={{ fontSize: 30, background: 'none', border: 'none', cursor: 'pointer', padding: 2, transition: 'transform .12s, color .12s', transform: n === (hoverRating || reviewForm.rating) ? 'scale(1.15)' : 'scale(1)', color: n <= (hoverRating || reviewForm.rating) ? '#d97706' : '#E3DAC6' }}>★</button>
+                          style={{ fontSize: 30, background: 'none', border: 'none', cursor: 'pointer', padding: 2, transition: 'transform .12s, color .12s', transform: n === (hoverRating || reviewForm.rating) ? 'scale(1.15)' : 'scale(1)', color: n <= (hoverRating || reviewForm.rating) ? '#d97706' : '#D5DEDA' }}>★</button>
                       ))}
                     </div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#d97706', marginTop: 6, minHeight: 16 }}>
                       {RATING_LABELS[hoverRating || reviewForm.rating] || ''}
                     </div>
                   </div>                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#4B514B', display: 'block', marginBottom: 6 }}>Your Review</label>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#52635E', display: 'block', marginBottom: 6 }}>Your Review</label>
                     <textarea required rows={4} value={reviewForm.review_text} onChange={e => setReviewForm(f => ({ ...f, review_text: e.target.value }))}
                       placeholder="Tell others about your experience…"
-                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #E8E0CF', fontSize: 14, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none', resize: 'vertical' }} />
+                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #D5DEDA', fontSize: 14, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none', resize: 'vertical' }} />
                   </div>
                   <button type="submit" disabled={savingReview}
-                    style={{ width: '100%', padding: '14px', borderRadius: 14, border: 'none', background: savingReview ? '#E3DAC6' : `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 15, cursor: savingReview ? 'wait' : 'pointer' }}>
+                    style={{ width: '100%', padding: '14px', borderRadius: 14, border: 'none', background: savingReview ? '#D5DEDA' : `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 15, cursor: savingReview ? 'wait' : 'pointer' }}>
                     {savingReview ? 'Submitting…' : 'Submit Review'}
                   </button>
                 </form>
