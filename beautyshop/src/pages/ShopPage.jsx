@@ -129,8 +129,6 @@ export default function ShopPage() {
   const [beforeAfterPos, setBeforeAfterPos] = useState({})
   const [galleryCatFilter, setGalleryCatFilter] = useState('')
   const [galleryModal, setGalleryModal] = useState(null)
-  const [salesCount, setSalesCount] = useState(0)
-  const [custCount,  setCustCount]  = useState(0)
   const [loading,    setLoading]    = useState(true)
   const [notFound,   setNotFound]   = useState(false)
   const [tab,        setTab]        = useState('services') // services | products | about | hours
@@ -158,7 +156,7 @@ export default function ShopPage() {
         const shopRes = await fetchPublicShop({ slug })
         setShop(shopRes)
         const catalogP = fetchCatalog(slug)
-        const [svcs, prods, staffList, reviewsList, galleryItems, sales, custs] = await Promise.all([
+        const [svcs, prods, staffList, reviewsList, galleryItems] = await Promise.all([
           pb.collection(C.SERVICES).getList(1, 200, {
             filter: `shop_id="${shopRes.id}" && is_active=true`,
             sort: 'category,name', '$autoCancel': false,
@@ -173,22 +171,12 @@ export default function ShopPage() {
             filter: `shop_id="${shopRes.id}"`,
             sort: 'sort_order,created', '$autoCancel': false,
           }).then(r => r.items).catch(() => []),
-          pb.collection(C.SALES).getList(1, 1, {
-            filter: `shop_id="${shopRes.id}" && status="completed"`,
-            '$autoCancel': false,
-          }).then(r => r.totalItems).catch(() => 0),
-          pb.collection(C.CUSTOMERS).getList(1, 1, {
-            filter: `shop_id="${shopRes.id}"`,
-            '$autoCancel': false,
-          }).then(r => r.totalItems).catch(() => 0),
         ])
         setServices(svcs)
         setProducts(prods)
         setStaff(staffList)
         setReviews(reviewsList)
         setGallery(galleryItems)
-        setSalesCount(sales)
-        setCustCount(custs)
       } catch {
         setNotFound(true)
       } finally {
@@ -787,11 +775,9 @@ export default function ShopPage() {
 
       {/* ══ SOCIAL PROOF BAR ═════════════════════════════════════════════ */}
       <div style={{ maxWidth: 640, margin: '18px auto 0', padding: '0 16px' }}>
-        {(salesCount > 5 || custCount > 2 || services.length > 0 || shop.founded_year) && (
+        {(services.length > 0 || shop.founded_year) && (
           <div className="fade-up reveal" style={{ display: 'flex', background: '#fff', borderRadius: 16, border: '1.5px solid #f0e4e8', overflow: 'hidden', boxShadow: '0 2px 12px rgba(200,69,106,.07)' }}>
             {[
-              salesCount  > 5 && { icon: '🧾', value: salesCount > 999 ? `${(salesCount/1000).toFixed(1)}k+` : `${salesCount}+`, label: 'Sales' },
-              custCount   > 2 && { icon: '❤️', value: custCount  > 999 ? `${(custCount /1000).toFixed(1)}k+` : `${custCount}+`,  label: 'Customers' },
               services.length > 0 && { icon: '💅', value: services.length, label: 'Services' },
               shop.founded_year   && { icon: '🏆', value: `Est. ${shop.founded_year}`, label: 'Founded' },
             ].filter(Boolean).map((s, i, arr) => (
