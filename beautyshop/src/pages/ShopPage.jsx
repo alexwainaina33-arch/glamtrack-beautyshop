@@ -966,7 +966,7 @@ export default function ShopPage() {
                 const outOfStock = p.track_inventory && p.stock_qty === 0
 
                 return (
-                  <div key={p.id} className="prod-card reveal" onClick={() => openDetail('product', p)}
+                  <div key={p.id} className="prod-card" onClick={() => openDetail('product', p)}
                     style={{ background: '#fff', borderRadius: 16, border: `1.5px solid ${inCart ? brand : '#D5DEDA'}`, overflow: 'hidden', opacity: outOfStock ? 0.55 : 1, position: 'relative', ...(sectorPreset.listRows ? { display: 'flex', alignItems: 'stretch' } : {}) }}>
 
                     {/* Product image */}
