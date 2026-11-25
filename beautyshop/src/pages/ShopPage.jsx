@@ -157,6 +157,8 @@ export default function ShopPage() {
   const [orderNote, setOrderNote] = useState('')
   const [productSearch,    setProductSearch]    = useState('')
   const [productCatFilter, setProductCatFilter] = useState('')
+  const [productSort, setProductSort] = useState('default')
+  const [maxPrice, setMaxPrice] = useState('')
   const [serviceSearch,    setServiceSearch]    = useState('')
   const [serviceCatFilter, setServiceCatFilter] = useState('')
   const [copied,     setCopied]     = useState(false)
@@ -371,8 +373,15 @@ export default function ShopPage() {
   const cartTotal  = cart.reduce((s, i) => s + i.price_kes * i.qty, 0)
   const cartCount  = cart.reduce((s, i) => s + i.qty, 0)
 
+  const sortAndCap = (arr) => {
+    let a = arr.filter(p => !maxPrice || Number(p.price_kes) <= Number(maxPrice))
+    if (productSort === 'low') a = [...a].sort((x, y) => Number(x.price_kes) - Number(y.price_kes))
+    else if (productSort === 'high') a = [...a].sort((x, y) => Number(y.price_kes) - Number(x.price_kes))
+    else if (productSort === 'name') a = [...a].sort((x, y) => String(x.name || '').localeCompare(String(y.name || '')))
+    return a
+  }
   const productCategories = [...new Set(products.map(p => resolveCategoryName(p) || 'Uncategorized'))]
-  const filteredProducts = products.filter(p => {
+  const filteredProducts = sortAndCap(products).filter(p => {
     const matchSearch = !productSearch || p.name?.toLowerCase().includes(productSearch.toLowerCase()) || (p.brand || '').toLowerCase().includes(productSearch.toLowerCase())
     const pCat = resolveCategoryName(p) || 'Uncategorized'
     const matchCat = !productCatFilter || pCat === productCatFilter
@@ -955,6 +964,19 @@ export default function ShopPage() {
                   style={{ width: '100%', padding: '11px 14px 11px 38px', borderRadius: 12, border: '1.5px solid #D5DEDA', fontSize: 14, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none', background: '#fff' }}
                 />
               </div>
+              {products.length > 1 && (
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <select value={productSort} onChange={e => setProductSort(e.target.value)} aria-label="Sort products"
+                    style={{ flex: 1, minWidth: 0, padding: '9px 12px', borderRadius: 12, border: '1.5px solid #D5DEDA', fontSize: 13, fontFamily: 'Nunito,sans-serif', background: '#fff', color: '#10201C', outline: 'none' }}>
+                    <option value="default">Sort: Default</option>
+                    <option value="low">Price: Low to high</option>
+                    <option value="high">Price: High to low</option>
+                    <option value="name">Name: A to Z</option>
+                  </select>
+                  <input type="number" inputMode="numeric" min="0" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} aria-label="Maximum price" placeholder="Max price"
+                    style={{ width: 120, padding: '9px 12px', borderRadius: 12, border: '1.5px solid #D5DEDA', fontSize: 13, fontFamily: 'Nunito,sans-serif', boxSizing: 'border-box', outline: 'none', background: '#fff' }} />
+                </div>
+              )}
               {productCategories.length > 0 && (
                 <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
                   <button onClick={() => setProductCat('')}
@@ -1038,7 +1060,7 @@ export default function ShopPage() {
 
             {/* Order via WhatsApp note */}
             <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 14, padding: '14px 16px', marginTop: 16, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <span style={{ fontSize: 20, flexShrink: 0 }}>💡</span>
+              <span style={{ flexShrink: 0, marginTop: 1 }}><Ico n="info" s={20} c="#166534" /></span>
               <div style={{ fontSize: 12, color: '#166534', lineHeight: 1.6 }}>
                 <strong>How ordering works:</strong> Add items to your cart, then tap "Order via WhatsApp" to send your order directly to {shop.name}. They'll confirm availability and share payment details.
               </div>
