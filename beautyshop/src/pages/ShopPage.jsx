@@ -969,18 +969,18 @@ export default function ShopPage() {
 
                     {/* Product image */}
                     <div onClick={e => { e.stopPropagation(); imgUrl && setImgModal(imgUrl) }}
-                      style={{ height: 150, background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, cursor: imgUrl ? 'zoom-in' : 'default' }}>
-                      {!imgUrl && (<span style={{ fontFamily: 'Playfair Display,serif', fontSize: 34, fontWeight: 700, color: brand, opacity: .55 }}>{(p.name || '?').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'}</span>)}
+                      style={{ height: imgUrl ? 150 : 76, background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, cursor: imgUrl ? 'zoom-in' : 'default' }}>
+                      {!imgUrl && (<span style={{ fontFamily: 'Playfair Display,serif', fontSize: 28, fontWeight: 700, color: brand, opacity: .8 }}>{(p.name || '?').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'}</span>)}
                     </div>
 
                     {/* Low stock badge */}
                     {p.track_inventory && p.stock_qty !== null && p.stock_qty > 0 && p.stock_qty <= 5 && (
-                      <div style={{ position: 'absolute', top: 122, left: 8, background: '#E3B462', color: '#2a1d05', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #072A24' }}>
+                      <div style={{ position: 'absolute', top: imgUrl ? 122 : 48, left: 8, background: '#E3B462', color: '#2a1d05', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #072A24' }}>
                         Only {r2(p.stock_qty)} left
                       </div>
                     )}
                     {outOfStock && (
-                      <div style={{ position: 'absolute', top: 122, left: 8, background: '#9A3B2E', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #4b1912' }}>
+                      <div style={{ position: 'absolute', top: imgUrl ? 122 : 48, left: 8, background: '#9A3B2E', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #4b1912' }}>
                         Out of stock
                       </div>
                     )}
