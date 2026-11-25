@@ -18,7 +18,7 @@ const TABS = [
 ]
 
 const BRAND_COLORS = [
-  '#c8456a','#2563eb','#059669','#7c3aed',
+  '#0B3B32','#c8456a','#2563eb','#059669','#7c3aed',
   '#ea580c','#d97706','#0891b2','#dc2626','#475569',
 ]
 
@@ -52,7 +52,7 @@ export default function SettingsPage() {
   const [logoFile,     setLogoFile]     = useState(null)
   const [logoPreview,  setLogoPreview]  = useState(null)
   const [dragOver,     setDragOver]     = useState(false)
-  const [customColor,  setCustomColor]  = useState('#c8456a')
+  const [customColor,  setCustomColor]  = useState('#0B3B32')
 
   // GOLDMINE — copy state for booking links
   const [copiedKey, setCopiedKey] = useState(null)
@@ -77,7 +77,7 @@ export default function SettingsPage() {
         business_type:       shop.business_type       || '',
         etims_pin:           shop.etims_pin           || '',
         etims_serial:        shop.etims_serial        || '',
-        brand_color:         shop.brand_color         || '#c8456a',
+        brand_color:         shop.brand_color         || '#0B3B32',
         receipt_footer:      shop.receipt_footer      || '',
         receipt_header:      shop.receipt_header      || '',
         receipt_show_logo:   shop.receipt_show_logo   ?? true,
@@ -90,7 +90,7 @@ export default function SettingsPage() {
         business_hours:      (shop.business_hours && Object.keys(shop.business_hours).length > 0) ? shop.business_hours : DEFAULT_HOURS,
       })
       setShopForm(f => ({ ...f, prices_include_vat: !!shop.prices_include_vat, loyalty_off: !!shop.loyalty_off, loyalty_cap_pct: shop.loyalty_cap_pct || "", loyalty_min_points: shop.loyalty_min_points || "", loyalty_point_value_kes: shop.loyalty_point_value_kes || "", till_limit_discount: !!shop.till_limit_discount, till_cashier_max_discount_pct: shop.till_cashier_max_discount_pct || "", till_block_below_cost: !!shop.till_block_below_cost, till_credit_limit_kes: shop.till_credit_limit_kes || "" }))
-      setCustomColor(shop.brand_color || '#c8456a')
+      setCustomColor(shop.brand_color || '#0B3B32')
       loadStaff()
       loadCategories()
       loadServices()
@@ -264,7 +264,7 @@ export default function SettingsPage() {
     }).catch(() => toast.error('Could not copy'))
   }
 
-  const brandColor    = shopForm.brand_color || '#c8456a'
+  const brandColor    = shopForm.brand_color || '#0B3B32'
   const bookingUrl    = shop?.slug ? `${window.location.origin}/book/${shop.slug}` : ''
   const shopPageUrl   = shop?.slug ? `${window.location.origin}/shop/${shop.slug}` : ''
   const qrUrl         = (url) => `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(url)}&size=400x400&margin=12`
