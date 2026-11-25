@@ -728,7 +728,7 @@ export default function ShopPage() {
           {/* Name row: padded left to clear the overlapping logo */}
           <div style={{ paddingLeft: 100, paddingTop: 8, paddingBottom: 4, minHeight: 48 }}>
             <h1 style={{ fontFamily: 'Playfair Display,serif', color: '#1a1a1f', fontSize: 26, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{shop.name}</h1>
-            {shop.business_type && <p style={{ color: '#52635E', fontSize: 11, margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '.06em' }}>{shop.business_type}</p>}
+            {shop.business_type && <p style={{ color: '#52635E', fontSize: 13, margin: '2px 0 0' }}>{shop.business_type}</p>}
             {shop.tagline && <p style={{ color: '#10201C', fontSize: 14, margin: '4px 0 0', lineHeight: 1.35 }}>{shop.tagline}</p>}
           </div>
 
@@ -757,19 +757,19 @@ export default function ShopPage() {
           {/* CTA buttons */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
             <a href={(services.length > 0 || !hasProducts) ? bookingUrl : '#'} onClick={(services.length > 0 || !hasProducts) ? undefined : (e) => { e.preventDefault(); goTab('products'); setTimeout(() => window.scrollTo({ top: 420, behavior: 'smooth' }), 60) }} className="book-btn"
-              style={{ padding: '11px 20px', borderRadius: 12, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7, boxShadow: `0 4px 16px ${brand}44` }}>
+              style={{ padding: '14px 24px', minHeight: 48, flex: '1 1 160px', justifyContent: 'center', borderRadius: 14, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 16, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7, boxShadow: `0 4px 16px ${brand}44` }}>
               {(services.length > 0 || !hasProducts) ? 'Book Appointment' : 'Shop Now'}
             </a>
             {waPhone && (
               <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${shop.name}! I saw your shop page and would like to enquire 😊`)}`}
                 target="_blank" rel="noopener noreferrer"
-                style={{ padding: '11px 16px', borderRadius: 12, background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                style={{ padding: '13px 18px', minHeight: 48, borderRadius: 14, background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 💬 Chat
               </a>
             )}
             {shop.phone && (
               <a href={`tel:${shop.phone}`}
-                style={{ padding: '11px 14px', borderRadius: 12, border: '1.5px solid #D5DEDA', background: '#fff', color: '#10201C', fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                style={{ padding: '13px 18px', minHeight: 48, borderRadius: 14, border: '1.5px solid #D5DEDA', background: '#fff', color: '#10201C', fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 📞 Call
               </a>
             )}
