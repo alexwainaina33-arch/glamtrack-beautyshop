@@ -747,7 +747,7 @@ export default function ShopPage() {
           {/* Share button — top right */}
           <button onClick={shareShopLink}
             style={{ position: 'absolute', top: 14, right: 'max(14px, calc(50% - 304px))', zIndex: 4, background: 'rgba(255,255,255,.18)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,.32)', borderRadius: 20, padding: '6px 14px', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-            {copied ? '✅ Copied!' : <><Ico n="share" s={14} c="#fff" /> Share</>}
+            {copied ? 'Copied!' : <><Ico n="share" s={14} c="#fff" /> Share</>}
           </button>
 
           {/* Open/Closed badge — top left on cover */}
@@ -1037,7 +1037,8 @@ export default function ShopPage() {
 
                     {/* Product image */}
                     <div onClick={e => { e.stopPropagation(); imgUrl && setImgModal(imgUrl) }}
-                      style={{ ...(sectorPreset.listRows ? { width: 84, minHeight: 84, flexShrink: 0 } : { height: imgUrl ? (sectorPreset.key === 'boutique' ? 210 : 150) : 76 }), background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, cursor: imgUrl ? 'zoom-in' : 'default' }}>
+                      style={{ ...(sectorPreset.listRows ? { width: 84, minHeight: 84, flexShrink: 0 } : { height: imgUrl ? (sectorPreset.key === 'boutique' ? 210 : 150) : 76 }), position: 'relative', overflow: 'hidden', background: `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, cursor: imgUrl ? 'zoom-in' : 'default' }}>
+                      {imgUrl && (<img src={imgUrl} alt={p.name || ''} loading="lazy" decoding="async" width="400" height="400" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />)}
                       {!imgUrl && (<span style={{ fontFamily: 'Playfair Display,serif', fontSize: 28, fontWeight: 700, color: brand, opacity: .8 }}>{(p.name || '?').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'}</span>)}
                     </div>
 
@@ -1548,7 +1549,7 @@ export default function ShopPage() {
             )}
             <button onClick={shareShopLink}
               style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #D5DEDA', background: '#fff', color: '#10201C', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
-              {copied ? '✅ Copied!' : <><Ico n="link" s={15} c={brand} /> Share link</>}
+              {copied ? 'Copied!' : <><Ico n="link" s={15} c={brand} /> Share link</>}
             </button>
             <button onClick={shareStoryCard} disabled={sharing}
               style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #D5DEDA', background: sharing ? '#E4EEEA' : '#fff', color: '#10201C', fontWeight: 700, fontSize: 13, cursor: sharing ? 'wait' : 'pointer', fontFamily: 'Nunito,sans-serif', opacity: sharing ? .7 : 1 }}>
