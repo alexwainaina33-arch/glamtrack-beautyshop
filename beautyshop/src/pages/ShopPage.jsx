@@ -995,8 +995,9 @@ export default function ShopPage() {
 
             {filteredProducts.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA' }}>
-                <div style={{ fontSize: 40, marginBottom: 10 }}>🔍</div>
-                <p style={{ color: '#52635E', margin: 0 }}>No products match your search.</p>
+                <div style={{ marginBottom: 10 }}><Ico n="search" s={34} c="#52635E" /></div>
+                <p style={{ color: '#52635E', margin: 0 }}>No products match your filters.</p>
+                {(productSearch || productCatFilter || maxPrice) && (<button onClick={() => { setProductSearch(''); setProductCat(''); setMaxPrice(''); setProductSort('default') }} style={{ marginTop: 14, padding: '9px 18px', borderRadius: 10, border: 'none', background: brand, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>Clear filters</button>)}
               </div>
             ) : (
             <div style={{ display: 'grid', gridTemplateColumns: sectorPreset.listRows ? '1fr' : 'repeat(2,1fr)', gap: 12 }}>
@@ -1519,7 +1520,7 @@ export default function ShopPage() {
             {waPhone && (
               <a href={`https://wa.me/${waPhone}`} target="_blank" rel="noopener noreferrer"
                 style={{ padding: '9px 18px', borderRadius: 10, background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
-                💬 WhatsApp
+                <Ico n="chat" s={14} c="#fff" /> WhatsApp
               </a>
             )}
             <button onClick={shareShopLink}
@@ -1533,7 +1534,7 @@ export default function ShopPage() {
             {services.length > 0 && (
               <button onClick={downloadPriceList} disabled={downloadingPriceList}
                 style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #D5DEDA', background: downloadingPriceList ? '#E4EEEA' : '#fff', color: '#10201C', fontWeight: 700, fontSize: 13, cursor: downloadingPriceList ? 'wait' : 'pointer', fontFamily: 'Nunito,sans-serif', opacity: downloadingPriceList ? .7 : 1 }}>
-                {downloadingPriceList ? '⏳ Generating…' : '📋 Price List'}
+                {downloadingPriceList ? '⏳ Generating…' : <><Ico n="tag" s={15} c={brand} /> Price List</>}
               </button>
             )}
           </div>
@@ -1805,7 +1806,7 @@ export default function ShopPage() {
             <div style={{ overflowY: 'auto', flex: 1, padding: '12px 20px' }}>
               {cart.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '32px 0', color: '#52635E' }}>
-                  <div style={{ fontSize: 40, marginBottom: 10 }}>🛍️</div>
+                  <div style={{ marginBottom: 10 }}><Ico n="cart" s={36} c="#52635E" /></div>
                   <div>Your cart is empty</div>
                 </div>
               ) : cart.map(item => (
