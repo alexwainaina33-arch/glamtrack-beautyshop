@@ -710,7 +710,7 @@ export default function ShopPage() {
           <div style={{ position: 'absolute', bottom: -36, left: 'max(16px, calc(50% - 304px))', zIndex: 5 }}>
             {logoUrl
               ? <img src={logoUrl} alt={shop.name} loading="lazy" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '4px solid #fff', display: 'block', boxShadow: '0 4px 20px rgba(0,0,0,.28)' }} />
-              : <div style={{ width: 80, height: 80, borderRadius: '50%', background: `linear-gradient(135deg,${brand},${brand}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, border: '4px solid #fff', boxShadow: '0 4px 20px rgba(0,0,0,.28)' }}>🏪</div>
+              : <div style={{ width: 80, height: 80, borderRadius: '50%', background: `linear-gradient(135deg,${brand},${brand}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Playfair Display,serif', color: '#fff', fontWeight: 700, fontSize: 30, border: '4px solid #fff', boxShadow: '0 4px 20px rgba(0,0,0,.28)' }}>{(shop.name || '?').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'}</div>
             }
           </div>
 
@@ -772,7 +772,7 @@ export default function ShopPage() {
             {shop.phone && (
               <a href={`tel:${shop.phone}`}
                 style={{ padding: '13px 18px', minHeight: 48, borderRadius: 14, border: '1.5px solid #D5DEDA', background: '#fff', color: '#10201C', fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                📞 Call
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={brand} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Call
               </a>
             )}
           </div>
@@ -782,7 +782,7 @@ export default function ShopPage() {
       {/* ══ SOCIAL PROOF BAR ═════════════════════════════════════════════ */}
       <div style={{ maxWidth: 640, margin: '18px auto 0', padding: '0 16px' }}>
         {(services.length > 0 || Number(shop.founded_year) > 0) && (
-          <div className="fade-up reveal" style={{ display: 'flex', background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA', overflow: 'hidden', boxShadow: '0 2px 12px rgba(200,69,106,.07)' }}>
+          <div className="fade-up reveal" style={{ display: 'flex', background: '#fff', borderRadius: 16, border: '1.5px solid #D5DEDA', overflow: 'hidden', boxShadow: '0 2px 12px rgba(16,32,28,.07)' }}>
             {[
               services.length > 0 && { icon: '💅', value: services.length, label: 'Services' },
               shop.founded_year   && { icon: '🏆', value: `Est. ${shop.founded_year}`, label: 'Founded' },
