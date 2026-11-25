@@ -1054,7 +1054,7 @@ export default function ShopPage() {
                     )}
                     {inCart && (
                       <div style={{ position: 'absolute', top: 8, right: 8, background: brand, color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 6 }}>
-                        ✓ In cart
+                        In cart
                       </div>
                     )}
 
@@ -1071,7 +1071,7 @@ export default function ShopPage() {
                         {!outOfStock && (
                           <button onClick={e => { e.stopPropagation(); addToCart(p) }}
                             style={{ ...(sectorPreset.listRows ? { position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' } : {}), padding: '8px 16px', borderRadius: 10, border: 'none', background: inCart ? '#f0fdf4' : `linear-gradient(135deg,${brand},${brand}cc)`, color: inCart ? '#059669' : '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', minHeight: 44 }}>
-                            {inCart ? '✓ Added' : '+ Add'}
+                            {inCart ? 'Added' : '+ Add'}
                           </button>
                         )}
                       </div>
