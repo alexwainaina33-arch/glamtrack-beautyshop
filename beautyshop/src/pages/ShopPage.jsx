@@ -683,29 +683,30 @@ export default function ShopPage() {
           height: coverUrl ? 260 : 180,
           background: coverUrl
             ? `url(${coverUrl}) center/cover no-repeat`
-            : `linear-gradient(135deg, ${brand} 0%, ${brand}99 60%, #FAFAF8 100%)`,
+            : `linear-gradient(135deg, ${brand} 0%, ${brand}cc 100%)`,
           position: 'relative',
           overflow: 'hidden',
         }}>
           {/* Deep gradient from bottom — always present so text is readable */}
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,.04) 0%, rgba(0,0,0,.18) 40%, rgba(0,0,0,.72) 100%)' }} />
+          {!coverUrl && (<div aria-hidden="true" style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 1px, transparent 1px 44px), repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 1px, transparent 1px 44px)' }} />)}
+<div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,.04) 0%, rgba(0,0,0,.18) 40%, rgba(0,0,0,.72) 100%)' }} />
 
           {/* Share button — top right */}
           <button onClick={shareShopLink}
-            style={{ position: 'absolute', top: 14, right: 14, zIndex: 4, background: 'rgba(255,255,255,.18)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,.32)', borderRadius: 20, padding: '6px 14px', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+            style={{ position: 'absolute', top: 14, right: 'max(14px, calc(50% - 304px))', zIndex: 4, background: 'rgba(255,255,255,.18)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,.32)', borderRadius: 20, padding: '6px 14px', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
             {copied ? '✅ Copied!' : '🔗 Share'}
           </button>
 
           {/* Open/Closed badge — top left on cover */}
           {openStatus && (
-            <div style={{ position: 'absolute', top: 14, left: 14, zIndex: 4, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 20, background: 'rgba(0,0,0,.38)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', border: `1px solid ${openStatus.open ? 'rgba(5,150,105,.5)' : 'rgba(217,119,6,.4)'}` }}>
+            <div style={{ position: 'absolute', top: 14, left: 'max(14px, calc(50% - 304px))', zIndex: 4, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 20, background: 'rgba(0,0,0,.38)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', border: `1px solid ${openStatus.open ? 'rgba(5,150,105,.5)' : 'rgba(217,119,6,.4)'}` }}>
               <span className={openStatus.open ? 'live-dot' : ''} style={{ width: 7, height: 7, borderRadius: '50%', background: openStatus.open ? '#34d399' : '#fbbf24', display: 'inline-block', flexShrink: 0 }} />
               <span style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{openStatus.label}</span>
             </div>
           )}
 
           {/* Logo overlaid bottom-left of cover */}
-          <div style={{ position: 'absolute', bottom: -36, left: 16, zIndex: 5 }}>
+          <div style={{ position: 'absolute', bottom: -36, left: 'max(16px, calc(50% - 304px))', zIndex: 5 }}>
             {logoUrl
               ? <img src={logoUrl} alt={shop.name} loading="lazy" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '4px solid #fff', display: 'block', boxShadow: '0 4px 20px rgba(0,0,0,.28)' }} />
               : <div style={{ width: 80, height: 80, borderRadius: '50%', background: `linear-gradient(135deg,${brand},${brand}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, border: '4px solid #fff', boxShadow: '0 4px 20px rgba(0,0,0,.28)' }}>🏪</div>
@@ -713,7 +714,7 @@ export default function ShopPage() {
           </div>
 
           {/* Tagline + Est. badge overlaid on photo — bottom right */}
-          <div style={{ position: 'absolute', bottom: 14, right: 14, zIndex: 4, textAlign: 'right' }}>
+          <div style={{ position: 'absolute', bottom: 14, right: 'max(14px, calc(50% - 304px))', zIndex: 4, textAlign: 'right' }}>
             {Number(shop.founded_year) > 0 && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(0,0,0,.42)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', borderRadius: 12, padding: '3px 10px', border: `1px solid ${brand}66` }}>
                 <span style={{ fontSize: 12 }}>🏆</span>
@@ -974,11 +975,6 @@ export default function ShopPage() {
                     </div>
 
                     {/* Low stock badge */}
-                                        {p.track_inventory && p.stock_qty > 5 && (
-                      <div style={{ position: 'absolute', top: 122, left: 8, background: '#E4EEEA', color: '#0B3B32', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #0B3B32' }}>
-                        In stock
-                      </div>
-                    )}
                     {p.track_inventory && p.stock_qty !== null && p.stock_qty > 0 && p.stock_qty <= 5 && (
                       <div style={{ position: 'absolute', top: 122, left: 8, background: '#E3B462', color: '#2a1d05', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #072A24' }}>
                         Only {r2(p.stock_qty)} left
