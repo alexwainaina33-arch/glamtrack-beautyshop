@@ -14,6 +14,7 @@ import toast from 'react-hot-toast'
 // UNVERIFIED paths: confirm the file names inside beautyshop/public/legal/
 const LEGAL = { terms: '/legal/terms.html', privacy: '/legal/privacy.html' }
 
+import { PRESETS } from '../lib/shopPresets'
 const BUSINESS_TYPES = [
   { value: 'salon',       label: 'Salon & Spa',          emoji: '💇', categories: ['Hair', 'Nails', 'Skin', 'Lashes', 'Makeup', 'Body Treatments', 'Waxing'] },
   { value: 'retail',      label: 'Retail Shop',          emoji: '🛒', categories: ['Electronics', 'Clothing', 'Food & Grocery', 'General Merchandise', 'Accessories'] },
@@ -458,8 +459,9 @@ export default function LoginPage() {
   const [selectedCats, setSelectedCats] = useState([])
   const [customCat, setCustomCat] = useState('')
   // Step 4
-  const [brandColor, setBrandColor] = useState('#c8456a')
-  const [customColor, setCustomColor] = useState('#c8456a')
+  const [brandColor, setBrandColor] = useState('custom')
+  const [customColor, setCustomColor] = useState('#0B3B32')
+  const [colourTouched, setColourTouched] = useState(false)
   const [currency, setCurrency] = useState('KES')
   const [taxRate, setTaxRate] = useState(0)
   const [receiptFooter, setReceiptFooter] = useState('')
@@ -523,6 +525,7 @@ export default function LoginPage() {
     setBizType(type)
     const preset = BUSINESS_TYPES.find(b => b.value === type)
     if (preset) setSelectedCats(preset.categories.slice(0, 4))
+    if (!colourTouched && PRESETS[type]) { setBrandColor('custom'); setCustomColor(PRESETS[type].accent) }
   }
 
   const canProceed = () => {
@@ -968,7 +971,7 @@ export default function LoginPage() {
                 {BRAND_COLORS.map(bc => {
                   const on = brandColor === bc.value
                   return (
-                    <button key={bc.value} type="button" onClick={() => setBrandColor(bc.value)} aria-label={bc.label} aria-pressed={on} title={bc.label} style={{
+                    <button key={bc.value} type="button" onClick={() => { setColourTouched(true); setBrandColor(bc.value) }} aria-label={bc.label} aria-pressed={on} title={bc.label} style={{
                       width: 40, height: 40, borderRadius: '50%', border: '3px solid',
                       borderColor: on ? '#fff' : 'transparent',
                       background: bc.value === 'custom' ? 'linear-gradient(135deg,#ff0080,#7928ca,#0070f3)' : bc.value,
@@ -983,9 +986,9 @@ export default function LoginPage() {
               </div>
               {brandColor === 'custom' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <input type="color" aria-label="Pick a custom colour" value={/^#[0-9a-fA-F]{6}$/.test(customColor) ? customColor : '#c8456a'} onChange={e => setCustomColor(e.target.value)}
+                  <input type="color" aria-label="Pick a custom colour" value={/^#[0-9a-fA-F]{6}$/.test(customColor) ? customColor : '#c8456a'} onChange={e => { setColourTouched(true); setCustomColor(e.target.value) }}
                     style={{ width: 46, height: 46, borderRadius: 8, border: '2px solid rgba(255,255,255,0.25)', cursor: 'pointer', padding: 2, background: 'none', flexShrink: 0 }} />
-                  <input type="text" aria-label="Custom colour hex code" value={customColor} onChange={e => setCustomColor(e.target.value)} maxLength={7} placeholder="#c8456a" style={{ ...inpStyle, fontFamily: 'monospace' }} />
+                  <input type="text" aria-label="Custom colour hex code" value={customColor} onChange={e => { setColourTouched(true); setCustomColor(e.target.value) }} maxLength={7} placeholder="#c8456a" style={{ ...inpStyle, fontFamily: 'monospace' }} />
                 </div>
               )}
 
