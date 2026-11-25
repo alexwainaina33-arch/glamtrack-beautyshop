@@ -105,6 +105,20 @@ function buildWhatsAppOrder(cart, shop, bookingUrl) {
 }
 
 // ─── skeleton loader ────────────────────────────────────────────────────────
+function Ico({ n, s = 16, c = 'currentColor' }) {
+  const P = {
+    pin: <><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></>,
+    search: <><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></>,
+    share: <><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></>,
+    link: <><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></>,
+    clock: <><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></>,
+    globe: <><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></>,
+    chat: <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.2A8.4 8.4 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/>,
+    bag: <><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></>,
+    insta: <><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></>,
+  }
+  return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}>{P[n]}</svg>
+}
 function Skeleton({ w = '100%', h = 16, r = 8, mb = 0 }) {
   return (
     <div style={{
@@ -695,7 +709,7 @@ export default function ShopPage() {
           {/* Share button — top right */}
           <button onClick={shareShopLink}
             style={{ position: 'absolute', top: 14, right: 'max(14px, calc(50% - 304px))', zIndex: 4, background: 'rgba(255,255,255,.18)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,.32)', borderRadius: 20, padding: '6px 14px', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-            {copied ? '✅ Copied!' : '🔗 Share'}
+            {copied ? '✅ Copied!' : <><Ico n="share" s={14} c="#fff" /> Share</>}
           </button>
 
           {/* Open/Closed badge — top left on cover */}
@@ -739,19 +753,19 @@ export default function ShopPage() {
             {shop.address && (
               <a href={`https://maps.google.com/?q=${mapQuery}`} target="_blank" rel="noopener noreferrer"
                 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#52635E', textDecoration: 'none', background: '#fff', border: '1px solid #D5DEDA', borderRadius: 8, padding: '4px 10px' }}>
-                📍 {shop.address.length > 38 ? shop.address.slice(0, 38) + '…' : shop.address}
+                <Ico n="pin" s={13} c={brand} /> {shop.address.length > 38 ? shop.address.slice(0, 38) + '…' : shop.address}
               </a>
             )}
             {shop.instagram && (
               <a href={`https://instagram.com/${shop.instagram.replace('@','')}`} target="_blank" rel="noopener noreferrer"
                 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#52635E', textDecoration: 'none', background: '#fff', border: '1px solid #D5DEDA', borderRadius: 8, padding: '4px 10px' }}>
-                📸 {shop.instagram}
+                <Ico n="insta" s={13} c={brand} /> {shop.instagram}
               </a>
             )}
             {shop.website && (
               <a href={shop.website} target="_blank" rel="noopener noreferrer"
                 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: brand, textDecoration: 'none', background: '#fff', border: '1px solid #D5DEDA', borderRadius: 8, padding: '4px 10px', fontWeight: 700 }}>
-                🌐 Website
+                <Ico n="globe" s={13} c={brand} /> Website
               </a>
             )}
           </div>
@@ -766,7 +780,7 @@ export default function ShopPage() {
               <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${shop.name}! ${sectorPreset.chatLine} 😊`)}`}
                 target="_blank" rel="noopener noreferrer"
                 style={{ padding: '13px 18px', minHeight: 48, borderRadius: 14, background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                💬 Chat
+                <Ico n="chat" s={16} c="#fff" /> Chat
               </a>
             )}
             {shop.phone && (
@@ -1482,11 +1496,11 @@ export default function ShopPage() {
             )}
             <button onClick={shareShopLink}
               style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #D5DEDA', background: '#fff', color: '#10201C', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
-              {copied ? '✅ Copied!' : '🔗 Share link'}
+              {copied ? '✅ Copied!' : <><Ico n="link" s={15} c={brand} /> Share link</>}
             </button>
             <button onClick={shareStoryCard} disabled={sharing}
               style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #D5DEDA', background: sharing ? '#E4EEEA' : '#fff', color: '#10201C', fontWeight: 700, fontSize: 13, cursor: sharing ? 'wait' : 'pointer', fontFamily: 'Nunito,sans-serif', opacity: sharing ? .7 : 1 }}>
-              {sharing ? '⏳ Generating…' : '📲 Share as Story'}
+              {sharing ? '⏳ Generating…' : <><Ico n="share" s={15} c={brand} /> Share as Story</>}
             </button>
             {services.length > 0 && (
               <button onClick={downloadPriceList} disabled={downloadingPriceList}
