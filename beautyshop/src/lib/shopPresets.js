@@ -3,13 +3,13 @@
 export const PRESETS = {
   salon:       { key: 'salon',       accent: '#5B2A4E', shopButton: 'Shop Now',            shopTab: 'Shop' },
   retail:      { key: 'retail',      accent: '#0B3B32', shopButton: 'Shop Now',            shopTab: 'Shop' },
-  restaurant:  { key: 'restaurant',  accent: '#8A3B1E', shopButton: 'Order Now',           shopTab: 'Menu' },
-  pharmacy:    { key: 'pharmacy',    accent: '#0F5F5C', shopButton: 'Browse Products',     shopTab: 'Products' },
+  restaurant:  { key: 'restaurant', listRows: true,  accent: '#8A3B1E', shopButton: 'Order Now',           shopTab: 'Menu' },
+  pharmacy:    { key: 'pharmacy', listRows: true,    accent: '#0F5F5C', shopButton: 'Browse Products',     shopTab: 'Products' },
   boutique:    { key: 'boutique',    accent: '#1F1B24', shopButton: 'Shop the Collection', shopTab: 'Collection' },
-  hardware:    { key: 'hardware',    accent: '#1F2A30', shopButton: 'Browse Products',     shopTab: 'Products' },
+  hardware:    { key: 'hardware', listRows: true,    accent: '#1F2A30', shopButton: 'Browse Products',     shopTab: 'Products' },
   beauty:      { key: 'beauty',      accent: '#A63D5E', shopButton: 'Shop Now',            shopTab: 'Shop' },
   electronics: { key: 'electronics', accent: '#0F2A5C', shopButton: 'Shop Now',            shopTab: 'Shop' },
-  agrovet:     { key: 'agrovet',     accent: '#2F6B2F', shopButton: 'Browse Products',     shopTab: 'Products' },
+  agrovet:     { key: 'agrovet', listRows: true,     accent: '#2F6B2F', shopButton: 'Browse Products',     shopTab: 'Products' },
   other:       { key: 'other',       accent: '#0B3B32', shopButton: 'Shop Now',            shopTab: 'Shop' },
 }
 

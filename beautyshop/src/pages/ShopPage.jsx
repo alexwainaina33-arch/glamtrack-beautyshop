@@ -957,7 +957,7 @@ export default function ShopPage() {
                 <p style={{ color: '#52635E', margin: 0 }}>No products match your search.</p>
               </div>
             ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: sectorPreset.listRows ? '1fr' : 'repeat(2,1fr)', gap: 12 }}>
               {filteredProducts.map(p => {
                 const inCart    = cart.find(i => i.id === p.id)
                 const imgUrl    = p.images?.length
@@ -967,22 +967,22 @@ export default function ShopPage() {
 
                 return (
                   <div key={p.id} className="prod-card reveal" onClick={() => openDetail('product', p)}
-                    style={{ background: '#fff', borderRadius: 16, border: `1.5px solid ${inCart ? brand : '#D5DEDA'}`, overflow: 'hidden', opacity: outOfStock ? 0.55 : 1, position: 'relative' }}>
+                    style={{ background: '#fff', borderRadius: 16, border: `1.5px solid ${inCart ? brand : '#D5DEDA'}`, overflow: 'hidden', opacity: outOfStock ? 0.55 : 1, position: 'relative', ...(sectorPreset.listRows ? { display: 'flex', alignItems: 'stretch' } : {}) }}>
 
                     {/* Product image */}
                     <div onClick={e => { e.stopPropagation(); imgUrl && setImgModal(imgUrl) }}
-                      style={{ height: imgUrl ? 150 : 76, background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, cursor: imgUrl ? 'zoom-in' : 'default' }}>
+                      style={{ ...(sectorPreset.listRows ? { width: 84, minHeight: 84, flexShrink: 0 } : { height: imgUrl ? 150 : 76 }), background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, cursor: imgUrl ? 'zoom-in' : 'default' }}>
                       {!imgUrl && (<span style={{ fontFamily: 'Playfair Display,serif', fontSize: 28, fontWeight: 700, color: brand, opacity: .8 }}>{(p.name || '?').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'}</span>)}
                     </div>
 
                     {/* Low stock badge */}
                     {p.track_inventory && p.stock_qty !== null && p.stock_qty > 0 && p.stock_qty <= 5 && (
-                      <div style={{ position: 'absolute', top: imgUrl ? 122 : 48, left: 8, background: '#E3B462', color: '#2a1d05', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #072A24' }}>
+                      <div style={{ position: 'absolute', ...(sectorPreset.listRows ? { bottom: 6, left: 92 } : { top: imgUrl ? 122 : 48, left: 8 }), background: '#E3B462', color: '#2a1d05', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #072A24' }}>
                         Only {r2(p.stock_qty)} left
                       </div>
                     )}
                     {outOfStock && (
-                      <div style={{ position: 'absolute', top: imgUrl ? 122 : 48, left: 8, background: '#9A3B2E', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #4b1912' }}>
+                      <div style={{ position: 'absolute', ...(sectorPreset.listRows ? { bottom: 6, left: 92 } : { top: imgUrl ? 122 : 48, left: 8 }), background: '#9A3B2E', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #4b1912' }}>
                         Out of stock
                       </div>
                     )}
@@ -992,7 +992,7 @@ export default function ShopPage() {
                       </div>
                     )}
 
-                    <div style={{ padding: '10px 12px 12px' }}>
+                    <div style={{ padding: '10px 12px 12px', ...(sectorPreset.listRows ? { flex: 1, minWidth: 0, paddingBottom: (outOfStock || (p.track_inventory && p.stock_qty > 0 && p.stock_qty <= 5)) ? 28 : 12 } : {}) }}>
                       <div style={{ fontWeight: 700, fontSize: 13, color: '#1a1a1f', marginBottom: 2, lineHeight: 1.3 }}>{p.name}</div>
                       {p.brand && <div style={{ fontSize: 11, color: '#52635E', marginBottom: 4 }}>{p.brand}</div>}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, gap: 6 }}>
@@ -1581,34 +1581,6 @@ export default function ShopPage() {
         </div>
         <div style={{ textAlign: 'center', fontSize: 10, color: '#D5DEDA', marginTop: 14 }}>Powered by SalesTrack</div>
       </div>
-
-      {/* ══ FLOATING ACTION BUTTONS — pinned above sticky bar, mobile ════ */}
-      {(waPhone || shop.phone) && (
-        <div style={{
-          position: 'fixed',
-          bottom: (canBook || cart.length > 0) ? 'calc(74px + env(safe-area-inset-bottom,0px))' : 'calc(20px + env(safe-area-inset-bottom,0px))',
-          right: 16,
-          zIndex: 190,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-          alignItems: 'flex-end',
-        }}>
-          {waPhone && (
-            <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${shop.name}! I saw your shop page and would like to enquire 😊`)}`}
-              target="_blank" rel="noopener noreferrer"
-              style={{ width: 52, height: 52, borderRadius: '50%', background: '#25D366', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, textDecoration: 'none', boxShadow: '0 4px 16px rgba(37,211,102,.45)', flexShrink: 0 }}>
-              💬
-            </a>
-          )}
-          {shop.phone && (
-            <a href={`tel:${shop.phone}`}
-              style={{ width: 52, height: 52, borderRadius: '50%', background: '#fff', border: `2px solid ${brand}`, color: brand, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, textDecoration: 'none', boxShadow: `0 4px 16px ${brand}33`, flexShrink: 0 }}>
-              📞
-            </a>
-          )}
-        </div>
-      )}
 
       {/* ══ STICKY BOTTOM BAR (mobile) ════════════════════════════════════ */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, display: (canBook || cart.length > 0) ? 'block' : 'none', background: '#fff', borderTop: '1px solid #D5DEDA', padding: '10px 16px', zIndex: 200, paddingBottom: 'calc(10px + env(safe-area-inset-bottom,0px))' }}>
