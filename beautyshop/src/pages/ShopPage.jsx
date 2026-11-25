@@ -763,7 +763,7 @@ export default function ShopPage() {
               {(services.length > 0 || !hasProducts) ? 'Book Appointment' : sectorPreset.shopButton}
             </a>
             {waPhone && (
-              <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${shop.name}! I saw your shop page and would like to enquire 😊`)}`}
+              <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${shop.name}! ${sectorPreset.chatLine} 😊`)}`}
                 target="_blank" rel="noopener noreferrer"
                 style={{ padding: '13px 18px', minHeight: 48, borderRadius: 14, background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 💬 Chat
@@ -992,7 +992,7 @@ export default function ShopPage() {
                       </div>
                     )}
 
-                    <div style={{ padding: '10px 12px 12px', ...(sectorPreset.listRows ? { flex: 1, minWidth: 0, paddingBottom: (outOfStock || (p.track_inventory && p.stock_qty > 0 && p.stock_qty <= 5)) ? 28 : 12 } : {}) }}>
+                    <div style={{ padding: '10px 12px 12px', ...(sectorPreset.listRows ? { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingBottom: (outOfStock || (p.track_inventory && p.stock_qty > 0 && p.stock_qty <= 5)) ? 28 : 12 } : {}) }}>
                       <div style={{ fontWeight: 700, fontSize: 13, color: '#1a1a1f', marginBottom: 2, lineHeight: 1.3 }}>{p.name}</div>
                       {p.brand && <div style={{ fontSize: 11, color: '#52635E', marginBottom: 4 }}>{p.brand}</div>}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, gap: 6 }}>
