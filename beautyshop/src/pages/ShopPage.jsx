@@ -684,8 +684,7 @@ export default function ShopPage() {
           background: coverUrl
             ? `url(${coverUrl}) center/cover no-repeat`
             : `linear-gradient(135deg, ${brand} 0%, ${brand}cc 100%)`,
-          position: 'relative',
-          overflow: 'hidden',
+          position: 'relative', overflow: 'visible',
         }}>
           {/* Deep gradient from bottom — always present so text is readable */}
           {!coverUrl && (<div aria-hidden="true" style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 1px, transparent 1px 44px), repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 1px, transparent 1px 44px)' }} />)}
@@ -728,7 +727,7 @@ export default function ShopPage() {
         <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 16px' }}>
           {/* Name row: padded left to clear the overlapping logo */}
           <div style={{ paddingLeft: 100, paddingTop: 8, paddingBottom: 4, minHeight: 48 }}>
-            <h1 style={{ fontFamily: 'Playfair Display,serif', color: '#1a1a1f', fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{shop.name}</h1>
+            <h1 style={{ fontFamily: 'Playfair Display,serif', color: '#1a1a1f', fontSize: 26, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{shop.name}</h1>
             {shop.business_type && <p style={{ color: '#52635E', fontSize: 11, margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '.06em' }}>{shop.business_type}</p>}
             {shop.tagline && <p style={{ color: '#10201C', fontSize: 14, margin: '4px 0 0', lineHeight: 1.35 }}>{shop.tagline}</p>}
           </div>
