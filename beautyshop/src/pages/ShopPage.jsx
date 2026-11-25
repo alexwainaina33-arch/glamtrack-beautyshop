@@ -124,6 +124,15 @@ function Ico({ n, s = 16, c = 'currentColor' }) {
   }
   return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}>{P[n]}</svg>
 }
+function heroPat(key) {
+  const dots = { img: 'radial-gradient(circle, rgba(255,255,255,.16) 1.5px, transparent 1.6px)', size: '22px 22px' }
+  const stripes = { img: 'repeating-linear-gradient(45deg, rgba(255,255,255,.08) 0 2px, transparent 2px 18px)', size: 'auto' }
+  const fine = { img: 'repeating-linear-gradient(135deg, rgba(255,255,255,.06) 0 1px, transparent 1px 26px)', size: 'auto' }
+  const big = { img: 'repeating-linear-gradient(0deg, rgba(255,255,255,.09) 0 1px, transparent 1px 64px), repeating-linear-gradient(90deg, rgba(255,255,255,.09) 0 1px, transparent 1px 64px)', size: 'auto' }
+  const grid = { img: 'repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 1px, transparent 1px 44px), repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 1px, transparent 1px 44px)', size: 'auto' }
+  const m = { salon: dots, beauty: dots, pharmacy: dots, restaurant: stripes, agrovet: stripes, boutique: fine, hardware: big }
+  return m[key] || grid
+}
 function Skeleton({ w = '100%', h = 16, r = 8, mb = 0 }) {
   return (
     <div style={{
@@ -718,7 +727,7 @@ export default function ShopPage() {
           position: 'relative', overflow: 'visible',
         }}>
           {/* Deep gradient from bottom — always present so text is readable */}
-          {!coverUrl && (<div aria-hidden="true" style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 1px, transparent 1px 44px), repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 1px, transparent 1px 44px)' }} />)}
+          {!coverUrl && (<div aria-hidden="true" style={{ position: 'absolute', inset: 0, backgroundImage: heroPat(sectorPreset.key).img, backgroundSize: heroPat(sectorPreset.key).size }} />)}
 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,.04) 0%, rgba(0,0,0,.18) 40%, rgba(0,0,0,.72) 100%)' }} />
 
           {/* Share button — top right */}
@@ -1014,18 +1023,18 @@ export default function ShopPage() {
 
                     {/* Product image */}
                     <div onClick={e => { e.stopPropagation(); imgUrl && setImgModal(imgUrl) }}
-                      style={{ ...(sectorPreset.listRows ? { width: 84, minHeight: 84, flexShrink: 0 } : { height: imgUrl ? 150 : 76 }), background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, cursor: imgUrl ? 'zoom-in' : 'default' }}>
+                      style={{ ...(sectorPreset.listRows ? { width: 84, minHeight: 84, flexShrink: 0 } : { height: imgUrl ? (sectorPreset.key === 'boutique' ? 210 : 150) : 76 }), background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, cursor: imgUrl ? 'zoom-in' : 'default' }}>
                       {!imgUrl && (<span style={{ fontFamily: 'Playfair Display,serif', fontSize: 28, fontWeight: 700, color: brand, opacity: .8 }}>{(p.name || '?').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'}</span>)}
                     </div>
 
                     {/* Low stock badge */}
-                    {p.track_inventory && p.stock_qty !== null && p.stock_qty > 0 && p.stock_qty <= 5 && (
-                      <div style={{ position: 'absolute', ...(sectorPreset.listRows ? { bottom: 6, left: 92 } : { top: imgUrl ? 122 : 48, left: 8 }), background: '#E3B462', color: '#2a1d05', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #072A24' }}>
+                    {sectorPreset.key !== 'restaurant' && p.track_inventory && p.stock_qty !== null && p.stock_qty > 0 && p.stock_qty <= 5 && (
+                      <div style={{ position: 'absolute', ...(sectorPreset.listRows ? { bottom: 6, left: 92 } : { top: imgUrl ? (sectorPreset.key === 'boutique' ? 182 : 122) : 48, left: 8 }), background: '#E3B462', color: '#2a1d05', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #072A24' }}>
                         Only {r2(p.stock_qty)} left
                       </div>
                     )}
                     {outOfStock && (
-                      <div style={{ position: 'absolute', ...(sectorPreset.listRows ? { bottom: 6, left: 92 } : { top: imgUrl ? 122 : 48, left: 8 }), background: '#9A3B2E', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #4b1912' }}>
+                      <div style={{ position: 'absolute', ...(sectorPreset.listRows ? { bottom: 6, left: 92 } : { top: imgUrl ? (sectorPreset.key === 'boutique' ? 182 : 122) : 48, left: 8 }), background: '#9A3B2E', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #4b1912' }}>
                         Out of stock
                       </div>
                     )}
@@ -1035,7 +1044,7 @@ export default function ShopPage() {
                       </div>
                     )}
 
-                    <div style={{ padding: '10px 12px 12px', ...(sectorPreset.listRows ? { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingRight: 104, paddingBottom: (outOfStock || (p.track_inventory && p.stock_qty > 0 && p.stock_qty <= 5)) ? 28 : 12 } : {}) }}>
+                    <div style={{ padding: '10px 12px 12px', ...(sectorPreset.listRows ? { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingRight: 104, paddingBottom: (outOfStock || (sectorPreset.key !== 'restaurant' && p.track_inventory && p.stock_qty > 0 && p.stock_qty <= 5)) ? 28 : 12 } : {}) }}>
                       <div style={{ fontWeight: 700, fontSize: 13, color: '#1a1a1f', marginBottom: 2, lineHeight: 1.3 }}>{p.name}</div>
                       {p.brand && <div style={{ fontSize: 11, color: '#52635E', marginBottom: 4 }}>{p.brand}</div>}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, gap: 6 }}>
@@ -1515,7 +1524,7 @@ export default function ShopPage() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
             {canBook && (<a href={bookingUrl}
               style={{ padding: '9px 18px', borderRadius: 10, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
-              📅 Book Now
+              <Ico n="clock" s={14} c="#fff" /> Book Now
             </a>)}
             {waPhone && (
               <a href={`https://wa.me/${waPhone}`} target="_blank" rel="noopener noreferrer"
@@ -1938,7 +1947,7 @@ export default function ShopPage() {
               ) : null}
               {canBook && (<a href={bookingUrl}
                 style={{ flex: 1, padding: '11px', borderRadius: 12, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 14, textDecoration: 'none', textAlign: 'center' }}>
-                📅 Book Now
+                <Ico n="clock" s={14} c="#fff" /> Book Now
               </a>)}
             </div>
           </div>
