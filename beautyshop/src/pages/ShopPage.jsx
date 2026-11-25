@@ -992,7 +992,7 @@ export default function ShopPage() {
                       </div>
                     )}
 
-                    <div style={{ padding: '10px 12px 12px', ...(sectorPreset.listRows ? { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingBottom: (outOfStock || (p.track_inventory && p.stock_qty > 0 && p.stock_qty <= 5)) ? 28 : 12 } : {}) }}>
+                    <div style={{ padding: '10px 12px 12px', ...(sectorPreset.listRows ? { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingRight: 104, paddingBottom: (outOfStock || (p.track_inventory && p.stock_qty > 0 && p.stock_qty <= 5)) ? 28 : 12 } : {}) }}>
                       <div style={{ fontWeight: 700, fontSize: 13, color: '#1a1a1f', marginBottom: 2, lineHeight: 1.3 }}>{p.name}</div>
                       {p.brand && <div style={{ fontSize: 11, color: '#52635E', marginBottom: 4 }}>{p.brand}</div>}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, gap: 6 }}>
@@ -1004,7 +1004,7 @@ export default function ShopPage() {
                         </div>
                         {!outOfStock && (
                           <button onClick={e => { e.stopPropagation(); addToCart(p) }}
-                            style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: inCart ? '#f0fdf4' : `linear-gradient(135deg,${brand},${brand}cc)`, color: inCart ? '#059669' : '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', minHeight: 44 }}>
+                            style={{ ...(sectorPreset.listRows ? { position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' } : {}), padding: '8px 16px', borderRadius: 10, border: 'none', background: inCart ? '#f0fdf4' : `linear-gradient(135deg,${brand},${brand}cc)`, color: inCart ? '#059669' : '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', minHeight: 44 }}>
                             {inCart ? '✓ Added' : '+ Add'}
                           </button>
                         )}

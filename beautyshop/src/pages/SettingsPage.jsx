@@ -290,7 +290,23 @@ export default function SettingsPage() {
       {tab === 0 && (
         <div className="card" style={{ maxWidth:680 }}>
           <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:20, color:'#3d1020', margin:'0 0 24px' }}>Business Information</h2>
-          <form onSubmit={saveShop} style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          {(() => {
+  const missingItems = [
+    !(shopForm.tagline || '').trim() && 'Tagline',
+    !(shopForm.about_text || '').trim() && 'About text',
+    !(coverPreview || shop?.cover_image) && 'Cover photo',
+    !(shopForm.address || '').trim() && 'Area',
+  ].filter(Boolean)
+  if (missingItems.length === 0) return null
+  return (
+    <div style={{ background: '#FAFAF8', border: '1px solid #D5DEDA', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
+      <div style={{ fontWeight: 700, fontSize: 14, color: '#10201C' }}>Finish your public shop page</div>
+      <div style={{ fontSize: 13, color: '#52635E', marginTop: 4, lineHeight: 1.5 }}>
+        Still empty: {missingItems.join(', ')}. Tagline, about text and cover photo are in the Branding tab. Area is in the Address box below.
+      </div>
+    </div>
+  )
+})()}<form onSubmit={saveShop} style={{ display:'flex', flexDirection:'column', gap:16 }}>
             <div className="mobile-stack" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
               <div style={{ gridColumn:'1/-1' }}>
                 <label className="label">Business Name *</label>
