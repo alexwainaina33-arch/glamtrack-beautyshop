@@ -1821,7 +1821,7 @@ export default function ShopPage() {
             {/* Drawer header */}
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #D5DEDA', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#10201C' }}><Ico n="cart" s={18} c={brand} /> Your Cart</div>
-              <button onClick={() => setCartOpen(false)}
+              <button aria-label="Close cart" onClick={() => setCartOpen(false)}
                 style={{ background: '#E4EEEA', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✕</button>
             </div>
 
@@ -1839,12 +1839,12 @@ export default function ShopPage() {
                     <div style={{ fontSize: 12, color: brand, fontWeight: 700 }}>{fmtPrice(item.price_kes, shop.currency)} each</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                    <button onClick={() => updateQty(item.id, -1)} style={{ width: 28, height: 28, borderRadius: '50%', border: '1.5px solid #D5DEDA', background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                    <button aria-label="Decrease quantity" onClick={() => updateQty(item.id, -1)} style={{ width: 28, height: 28, borderRadius: '50%', border: '1.5px solid #D5DEDA', background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
                     <span style={{ fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
-                    <button onClick={() => updateQty(item.id, +1)} style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: brand, color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                    <button aria-label="Increase quantity" onClick={() => updateQty(item.id, +1)} style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: brand, color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                   </div>
                   <div style={{ fontWeight: 800, fontSize: 14, color: '#1a1a1f', minWidth: 70, textAlign: 'right' }}>{fmtPrice(item.price_kes * item.qty, shop.currency)}</div>
-                  <button onClick={() => removeFromCart(item.id)} style={{ background: '#fee2e2', border: 'none', borderRadius: 6, width: 26, height: 26, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', flexShrink: 0 }}>✕</button>
+                  <button aria-label="Remove item" onClick={() => removeFromCart(item.id)} style={{ background: '#fee2e2', border: 'none', borderRadius: 6, width: 26, height: 26, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', flexShrink: 0 }}>✕</button>
                 </div>
               ))}
             </div>
@@ -1878,7 +1878,7 @@ export default function ShopPage() {
           <div className="slide-up" style={{ background: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 640, maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #D5DEDA', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#10201C' }}>✍️ Write a Review</div>
-              <button onClick={() => !savingReview && setReviewModalOpen(false)}
+              <button aria-label="Close review form" onClick={() => !savingReview && setReviewModalOpen(false)}
                 style={{ background: '#E4EEEA', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✕</button>
             </div>
             <div style={{ overflowY: 'auto', flex: 1, padding: '20px', paddingBottom: 'calc(20px + env(safe-area-inset-bottom,0px))' }}>
@@ -1936,7 +1936,7 @@ export default function ShopPage() {
       {galleryModal && (
         <div onClick={e => e.target === e.currentTarget && setGalleryModal(null)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.92)', zIndex: 620, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 16px' }}>
-          <button onClick={() => setGalleryModal(null)}
+          <button aria-label="Close photo" onClick={() => setGalleryModal(null)}
             style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: '#fff', cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>✕</button>
 
           <img src={galleryModal.url} alt={galleryModal.caption || 'Gallery'}
@@ -1974,7 +1974,7 @@ export default function ShopPage() {
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.88)', zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, cursor: 'zoom-out' }}>
           <img src={imgModal} alt="Product" className="scale-in"
             style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 12, objectFit: 'contain' }} />
-          <button onClick={() => setImgModal(null)}
+          <button aria-label="Close photo" onClick={() => setImgModal(null)}
             style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,.18)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: '#fff', cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
       )}
