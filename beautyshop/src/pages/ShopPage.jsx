@@ -88,7 +88,7 @@ function toWaPhone(phone) {
 }
 
 // ─── mini cart logic ────────────────────────────────────────────────────────
-function buildWhatsAppOrder(cart, shop, bookingUrl) {
+function buildWhatsAppOrder(cart, shop, bookingUrl, note) {
   const lines = cart.map(i => `• ${i.name} x${i.qty} — ${fmtPrice(i.price_kes * i.qty, shop.currency)}`)
   const total = cart.reduce((s, i) => s + i.price_kes * i.qty, 0)
   return [
@@ -98,6 +98,7 @@ function buildWhatsAppOrder(cart, shop, bookingUrl) {
     ``,
     `*Total: ${fmtPrice(total, shop.currency)}*`,
     ``,
+    ...(note && note.trim() ? ['*Note:* ' + note.trim().slice(0, 300), ''] : []),
     `Please confirm availability and payment details.`,
     ``,
     `_Sent via ${shop.name}'s online store · ${bookingUrl}_`,
@@ -115,6 +116,10 @@ function Ico({ n, s = 16, c = 'currentColor' }) {
     globe: <><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></>,
     chat: <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.2A8.4 8.4 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/>,
     bag: <><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></>,
+    cart: <><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></>,
+    image: <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></>,
+    info: <><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></>,
+    tag: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><path d="M7 7h.01"/></>,
     insta: <><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></>,
   }
   return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}>{P[n]}</svg>
@@ -149,6 +154,7 @@ export default function ShopPage() {
   const [tab,        setTab]        = useState('services') // services | products | about | hours
   const [cart,       setCart]       = useState([])
   const [cartOpen,   setCartOpen]   = useState(false)
+  const [orderNote, setOrderNote] = useState('')
   const [productSearch,    setProductSearch]    = useState('')
   const [productCatFilter, setProductCatFilter] = useState('')
   const [serviceSearch,    setServiceSearch]    = useState('')
@@ -353,14 +359,14 @@ export default function ShopPage() {
   const addToCart = (product) => {
     setCart(prev => {
       const existing = prev.find(i => i.id === product.id)
-      if (existing) return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i)
+      if (existing) return prev.map(i => i.id === product.id ? { ...i, qty: Math.min(i.qty + 1, (i.track_inventory && i.stock_qty != null && Number(i.stock_qty) >= 1) ? Number(i.stock_qty) : Infinity) } : i)
       return [...prev, { ...product, qty: 1 }]
     })
     setCartOpen(true)
   }
   const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id))
   const updateQty = (id, delta) => setCart(prev =>
-    prev.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i)
+    prev.map(i => i.id === id ? { ...i, qty: Math.min(Math.max(1, i.qty + delta), (i.track_inventory && i.stock_qty != null && Number(i.stock_qty) >= 1) ? Number(i.stock_qty) : Infinity) } : i)
   )
   const cartTotal  = cart.reduce((s, i) => s + i.price_kes * i.qty, 0)
   const cartCount  = cart.reduce((s, i) => s + i.qty, 0)
@@ -644,11 +650,11 @@ export default function ShopPage() {
   const hasGallery = galleryImages.length > 0
 
   const tabs = [
-    (services.length > 0 || !hasProducts) && { key: 'services', label: `💅 Services`, count: services.length },
-    hasProducts && { key: 'products', label: `🛍️ ${sectorPreset.shopTab}`,     count: products.length },
-    hasGallery  && { key: 'gallery',  label: `🖼️ Gallery`,  count: galleryImages.length },
-    hasAbout    && { key: 'about',    label: `ℹ️ About`,     count: null },
-    hasHours    && { key: 'hours',    label: `🕐 Hours`,     count: null },
+    (services.length > 0 || !hasProducts) && { key: 'services', label: `Services`, count: services.length },
+    hasProducts && { key: 'products', label: `${sectorPreset.shopTab}`,     count: products.length },
+    hasGallery  && { key: 'gallery',  label: `Gallery`,  count: galleryImages.length },
+    hasAbout    && { key: 'about',    label: `About`,     count: null },
+    hasHours    && { key: 'hours',    label: `Hours`,     count: null },
   ].filter(Boolean)
 
   // ── render ────────────────────────────────────────────────────────────────
@@ -817,7 +823,7 @@ export default function ShopPage() {
           {tabs.map(t => (
             <button key={t.key} onClick={() => goTab(t.key)} className="tab-pill"
               style={{ padding: '9px 16px', borderRadius: 24, background: tab === t.key ? `linear-gradient(135deg,${brand},${brand}cc)` : '#fff', color: tab === t.key ? '#fff' : '#52635E', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', boxShadow: tab === t.key ? `0 3px 12px ${brand}44` : '0 1px 4px rgba(0,0,0,.06)', border: tab !== t.key ? '1.5px solid #D5DEDA' : 'none', flexShrink: 0 }}>
-              {t.label}{t.count !== null ? ` (${t.count})` : ''}
+              <Ico n={({ services: 'tag', products: 'bag', gallery: 'image', about: 'info', hours: 'clock' })[t.key]} s={14} c={tab === t.key ? '#fff' : brand} /> {t.label}{t.count !== null ? ` (${t.count})` : ''}
             </button>
           ))}
         </div>
@@ -839,7 +845,7 @@ export default function ShopPage() {
               <>
                 <div style={{ marginBottom: 18 }}>
                   <div style={{ position: 'relative', marginBottom: serviceCategories.length > 0 ? 10 : 0 }}>
-                    <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 15, color: '#52635E' }}>🔍</span>
+                    <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 15, color: '#52635E' }}><Ico n="search" s={16} c="#52635E" /></span>
                     <input
                       value={serviceSearch}
                       onChange={e => setServiceSearch(e.target.value)}
@@ -933,7 +939,7 @@ export default function ShopPage() {
             {cart.length > 0 && (
               <div onClick={() => setCartOpen(true)}
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: brand, borderRadius: 14, padding: '13px 18px', marginBottom: 16, cursor: 'pointer', boxShadow: `0 4px 16px ${brand}44` }}>
-                <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>🛒 {cartCount} item{cartCount !== 1 ? 's' : ''} in cart</div>
+                <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}><Ico n="cart" s={16} c="#fff" /> {cartCount} item{cartCount !== 1 ? 's' : ''} in cart</div>
                 <div style={{ color: '#fff', fontWeight: 800, fontSize: 15 }}>{fmtPrice(cartTotal, shop.currency)} →</div>
               </div>
             )}
@@ -941,7 +947,7 @@ export default function ShopPage() {
             {/* Search + category filter */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ position: 'relative', marginBottom: productCategories.length > 0 ? 10 : 0 }}>
-                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 15, color: '#52635E' }}>🔍</span>
+                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 15, color: '#52635E' }}><Ico n="search" s={16} c="#52635E" /></span>
                 <input
                   value={productSearch}
                   onChange={e => setProductSearch(e.target.value)}
@@ -1602,7 +1608,7 @@ export default function ShopPage() {
           {cart.length > 0 ? (
             <button onClick={() => setCartOpen(true)}
               style={{ flex: 1, padding: '13px', borderRadius: 14, border: 'none', background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: `0 4px 16px ${brand}44` }}>
-              <span>🛒 {cartCount} item{cartCount !== 1 ? 's' : ''}</span>
+              <span><Ico n="cart" s={16} c="#fff" /> {cartCount} item{cartCount !== 1 ? 's' : ''}</span>
               <span>{fmtPrice(cartTotal, shop.currency)} · View cart →</span>
             </button>
           ) : (
@@ -1768,7 +1774,7 @@ export default function ShopPage() {
 
             {/* Drawer header */}
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #D5DEDA', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-              <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#10201C' }}>🛒 Your Cart</div>
+              <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, color: '#10201C' }}><Ico n="cart" s={18} c={brand} /> Your Cart</div>
               <button onClick={() => setCartOpen(false)}
                 style={{ background: '#E4EEEA', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✕</button>
             </div>
@@ -1804,10 +1810,11 @@ export default function ShopPage() {
                   <span>Total</span>
                   <span style={{ color: brand }}>{fmtPrice(cartTotal, shop.currency)}</span>
                 </div>
-                <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(buildWhatsAppOrder(cart, shop, bookingUrl))}`}
+                <textarea value={orderNote} onChange={e => setOrderNote(e.target.value.slice(0, 300))} rows={2} aria-label="Note for the shop" placeholder="Note for the shop (delivery area, pickup time...)" style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 12, border: '1.5px solid #D5DEDA', fontSize: 13, fontFamily: 'Nunito,sans-serif', marginBottom: 12, resize: 'none', outline: 'none' }} />
+                <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(buildWhatsAppOrder(cart, shop, bookingUrl, orderNote))}`}
                   target="_blank" rel="noopener noreferrer"
                   style={{ display: 'block', width: '100%', padding: '14px', borderRadius: 14, background: '#25D366', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box' }}>
-                  📲 Order via WhatsApp
+                  <Ico n="chat" s={16} c="#fff" /> Order via WhatsApp
                 </a>
                 <div style={{ textAlign: 'center', fontSize: 11, color: '#52635E', marginTop: 8 }}>
                   Your order will be sent to {shop.name} on WhatsApp for confirmation
