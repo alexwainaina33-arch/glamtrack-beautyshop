@@ -160,6 +160,7 @@ export default function ShopPage() {
   const [galleryModal, setGalleryModal] = useState(null)
   const [loading,    setLoading]    = useState(true)
   const [notFound,   setNotFound]   = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const [tab,        setTab]        = useState('services') // services | products | about | hours
   const [cart,       setCart]       = useState([])
   const [cartOpen,   setCartOpen]   = useState(false)
@@ -184,9 +185,10 @@ export default function ShopPage() {
 
   useEffect(() => {
     const load = async () => {
+      let gotShop = false
       try {
         const shopRes = await fetchPublicShop({ slug })
-        setShop(shopRes)
+        setShop(shopRes); gotShop = true
         const catalogP = fetchCatalog(slug)
         const [svcs, prods, staffList, reviewsList, galleryItems] = await Promise.all([
           pb.collection(C.SERVICES).getList(1, 200, {
@@ -210,7 +212,8 @@ export default function ShopPage() {
         setReviews(reviewsList)
         setGallery(galleryItems)
       } catch {
-        setNotFound(true)
+        if (gotShop || (typeof navigator !== 'undefined' && navigator.onLine === false)) setLoadError(true)
+        else setNotFound(true)
       } finally {
         setLoading(false)
       }
@@ -576,6 +579,17 @@ export default function ShopPage() {
           </div>
         </div>
         {[1,2,3,4].map(i => <Skeleton key={i} h={72} r={14} mb={12} />)}
+      </div>
+    </div>
+  )
+
+  if (loadError) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FAFAF8', padding: 24, textAlign: 'center', fontFamily: 'Nunito,sans-serif' }}>
+      <div style={{ maxWidth: 340 }}>
+        <div style={{ marginBottom: 12 }}><Ico n="info" s={40} c="#52635E" /></div>
+        <h2 style={{ fontFamily: 'Playfair Display,serif', color: '#10201C', margin: '0 0 8px' }}>We could not load this shop</h2>
+        <p style={{ color: '#52635E', margin: '0 0 18px', fontSize: 14 }}>Check your connection and try again.</p>
+        <button onClick={() => window.location.reload()} style={{ padding: '12px 26px', borderRadius: 12, border: 'none', background: '#0B3B32', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>Try again</button>
       </div>
     </div>
   )
