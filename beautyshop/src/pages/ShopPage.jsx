@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
+import { pickPreset } from '../lib/shopPresets'
 import pb, { C, PB_URL } from '../lib/pb'
 import { fetchPublicShop, fetchCatalog } from '../lib/publicShop'
 import { computeIsLocked } from '../context/AuthContext'
@@ -563,7 +564,8 @@ export default function ShopPage() {
     </div>
   )
 
-  const brand      = shop.brand_color || '#0B3B32'
+  const sectorPreset = pickPreset(shop.business_type, searchParams.get('preview'))
+  const brand      = sectorPreset.isPreview ? sectorPreset.accent : (shop.brand_color || '#0B3B32')
   const brandDark  = brand            // used for darken where needed
   const logoUrl    = shop.logo
     ? `${PB_URL}/api/files/${shop.collectionId}/${shop.id}/${shop.logo}?thumb=400x400`
@@ -629,7 +631,7 @@ export default function ShopPage() {
 
   const tabs = [
     (services.length > 0 || !hasProducts) && { key: 'services', label: `💅 Services`, count: services.length },
-    hasProducts && { key: 'products', label: `🛍️ Shop`,     count: products.length },
+    hasProducts && { key: 'products', label: `🛍️ ${sectorPreset.shopTab}`,     count: products.length },
     hasGallery  && { key: 'gallery',  label: `🖼️ Gallery`,  count: galleryImages.length },
     hasAbout    && { key: 'about',    label: `ℹ️ About`,     count: null },
     hasHours    && { key: 'hours',    label: `🕐 Hours`,     count: null },
@@ -758,7 +760,7 @@ export default function ShopPage() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
             <a href={(services.length > 0 || !hasProducts) ? bookingUrl : '#'} onClick={(services.length > 0 || !hasProducts) ? undefined : (e) => { e.preventDefault(); goTab('products'); setTimeout(() => window.scrollTo({ top: 420, behavior: 'smooth' }), 60) }} className="book-btn"
               style={{ padding: '14px 24px', minHeight: 48, flex: '1 1 160px', justifyContent: 'center', borderRadius: 14, background: `linear-gradient(135deg,${brand},${brand}cc)`, color: '#fff', fontWeight: 800, fontSize: 16, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7, boxShadow: `0 4px 16px ${brand}44` }}>
-              {(services.length > 0 || !hasProducts) ? 'Book Appointment' : 'Shop Now'}
+              {(services.length > 0 || !hasProducts) ? 'Book Appointment' : sectorPreset.shopButton}
             </a>
             {waPhone && (
               <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${shop.name}! I saw your shop page and would like to enquire 😊`)}`}
