@@ -969,18 +969,23 @@ export default function ShopPage() {
 
                     {/* Product image */}
                     <div onClick={e => { e.stopPropagation(); imgUrl && setImgModal(imgUrl) }}
-                      style={{ height: 130, background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, cursor: imgUrl ? 'zoom-in' : 'default' }}>
+                      style={{ height: 150, background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : `linear-gradient(135deg,${brand}18,${brand}33)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, cursor: imgUrl ? 'zoom-in' : 'default' }}>
                       {!imgUrl && (<span style={{ fontFamily: 'Playfair Display,serif', fontSize: 34, fontWeight: 700, color: brand, opacity: .55 }}>{(p.name || '?').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'}</span>)}
                     </div>
 
                     {/* Low stock badge */}
+                                        {p.track_inventory && p.stock_qty > 5 && (
+                      <div style={{ position: 'absolute', top: 122, left: 8, background: '#E4EEEA', color: '#0B3B32', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #0B3B32' }}>
+                        In stock
+                      </div>
+                    )}
                     {p.track_inventory && p.stock_qty !== null && p.stock_qty > 0 && p.stock_qty <= 5 && (
-                      <div style={{ position: 'absolute', top: 8, left: 8, background: '#d97706', color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 6 }}>
+                      <div style={{ position: 'absolute', top: 122, left: 8, background: '#E3B462', color: '#2a1d05', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #072A24' }}>
                         Only {r2(p.stock_qty)} left
                       </div>
                     )}
                     {outOfStock && (
-                      <div style={{ position: 'absolute', top: 8, left: 8, background: '#dc2626', color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 6 }}>
+                      <div style={{ position: 'absolute', top: 122, left: 8, background: '#9A3B2E', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 9px 3px 10px', borderRadius: '3px 8px 8px 3px', borderLeft: '4px solid #4b1912' }}>
                         Out of stock
                       </div>
                     )}
@@ -1002,7 +1007,7 @@ export default function ShopPage() {
                         </div>
                         {!outOfStock && (
                           <button onClick={e => { e.stopPropagation(); addToCart(p) }}
-                            style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: inCart ? '#f0fdf4' : `linear-gradient(135deg,${brand},${brand}cc)`, color: inCart ? '#059669' : '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minHeight: 32 }}>
+                            style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: inCart ? '#f0fdf4' : `linear-gradient(135deg,${brand},${brand}cc)`, color: inCart ? '#059669' : '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', minHeight: 44 }}>
                             {inCart ? '✓ Added' : '+ Add'}
                           </button>
                         )}
